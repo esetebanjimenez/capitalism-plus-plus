@@ -35,3 +35,19 @@ CI runs the `build` check (lint + tests) on every PR.
 - [`docs/milestone-1.md`](docs/milestone-1.md) — build order for milestone 1
 
 Workflow: push to a branch, open a PR, merge only after `build` is green. No direct pushes to `main`.
+
+## Code style
+
+- Prefer OOP: `Game` → `Sim` → firms, products, etc. (with subclasses where the original has types).
+- Use **Pydantic** `BaseModel` for sim data (towns, tiles, calendar fields, later products/firms).
+
+## Milestone 1 progress
+
+Systems landed:
+
+1. **Clock and passes** — seeded RNG, 30-day months, real month lengths for salary/overhead, weekday, month/year passes.
+2. **World data** — 240×198 map (diamond-square terrain), city placement, town indicators with staggered monthly ticks, land-value floor.
+
+```bash
+python -m capitalism --days 365 --seed 42 --cities 8
+```

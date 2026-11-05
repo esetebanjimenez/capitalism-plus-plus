@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Capitalism++: a modern take on the 90s business sim Capitalism"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["pydantic>=2.0"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.6"]
