@@ -122,13 +122,13 @@ def _rule(system: str, key: str) -> float:
     row = (
         _connect()
         .execute(
-            "SELECT value FROM rule_values WHERE system = ? AND key = ?",
+            "SELECT value FROM rules WHERE system = ? AND key = ?",
             (system, key),
         )
         .fetchone()
     )
     if row is None:
-        raise KeyError(f"missing rule_values[{system}.{key}]")
+        raise KeyError(f"missing rules[{system}.{key}]")
     return float(row["value"])
 
 

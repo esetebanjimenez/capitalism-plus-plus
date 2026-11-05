@@ -52,7 +52,7 @@ def render(con: sqlite3.Connection) -> str:
     # Per-system scalar rules
     for system, title in SYSTEM_ORDER:
         rows = con.execute(
-            "SELECT key, value, units, reference, provisional FROM rule_values "
+            "SELECT key, value, units, ref, provisional FROM rules "
             "WHERE system = ? ORDER BY key",
             (system,),
         ).fetchall()
@@ -69,7 +69,7 @@ def render(con: sqlite3.Connection) -> str:
             else:
                 shown = f"{val:g}"
             lines.append(
-                f"| `{r['key']}` | {shown}{_prov(r['provisional'])} | {r['units']} | {r['reference']} |"
+                f"| `{r['key']}` | {shown}{_prov(r['provisional'])} | {r['units']} | {r['ref']} |"
             )
         lines.append("")
 
@@ -79,9 +79,9 @@ def render(con: sqlite3.Connection) -> str:
     lines.append("| Name | Tier | Reference |")
     lines.append("|---|---|---|")
     for r in con.execute(
-        "SELECT name, tier, reference, provisional FROM city_names ORDER BY tier DESC, name"
+        "SELECT name, tier, ref, provisional FROM city_names ORDER BY tier DESC, name"
     ):
-        lines.append(f"| {r['name']} | {r['tier']}{_prov(r['provisional'])} | {r['reference']} |")
+        lines.append(f"| {r['name']} | {r['tier']}{_prov(r['provisional'])} | {r['ref']} |")
     lines.append("")
 
     # tier_gnp
@@ -90,10 +90,10 @@ def render(con: sqlite3.Connection) -> str:
     lines.append("| Tier | Low | High | Units | Reference |")
     lines.append("|---|---|---|---|---|")
     for r in con.execute(
-        "SELECT tier, lo, hi, units, reference, provisional FROM tier_gnp ORDER BY tier"
+        "SELECT tier, lo, hi, units, ref, provisional FROM tier_gnp ORDER BY tier"
     ):
         lines.append(
-            f"| {r['tier']} | {r['lo']} | {r['hi']}{_prov(r['provisional'])} | {r['units']} | {r['reference']} |"
+            f"| {r['tier']} | {r['lo']} | {r['hi']}{_prov(r['provisional'])} | {r['units']} | {r['ref']} |"
         )
     lines.append("")
 
@@ -103,12 +103,12 @@ def render(con: sqlite3.Connection) -> str:
     lines.append("| Climate | Label | Factor | Units | Reference |")
     lines.append("|---|---|---|---|---|")
     for r in con.execute(
-        "SELECT climate, label, factor, units, reference, provisional "
+        "SELECT climate, label, factor, units, ref, provisional "
         "FROM climate_spend ORDER BY climate DESC"
     ):
         lines.append(
             f"| {r['climate']} | {r['label']} | {r['factor']:g}{_prov(r['provisional'])} | "
-            f"{r['units']} | {r['reference']} |"
+            f"{r['units']} | {r['ref']} |"
         )
     lines.append("")
 
@@ -118,12 +118,12 @@ def render(con: sqlite3.Connection) -> str:
     lines.append("| Climate | Label | Drift | Swing | Units | Reference |")
     lines.append("|---|---|---|---|---|---|")
     for r in con.execute(
-        "SELECT climate, label, drift, swing, units, reference, provisional "
+        "SELECT climate, label, drift, swing, units, ref, provisional "
         "FROM unemployment_drift ORDER BY climate DESC"
     ):
         lines.append(
             f"| {r['climate']} | {r['label']} | {r['drift']:g} | {r['swing']:g}"
-            f"{_prov(r['provisional'])} | {r['units']} | {r['reference']} |"
+            f"{_prov(r['provisional'])} | {r['units']} | {r['ref']} |"
         )
     lines.append("")
     return "\n".join(lines)
