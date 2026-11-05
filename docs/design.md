@@ -338,7 +338,7 @@ Filling rule: every value printed in gamelogic.md's catalog goes in as
 | Column | Provisional fill |
 |---|---|
 | `base_cost` | 0.6 × `base_price` |
-| `base_capacity` (units/day for one level-1 job) | `max(1, round(4000 / sqrt(base_price)))` |
+| `base_capacity` (units/day for one job at efficiency 100) | `max(1, round(20000 / base_price))`, about $20k of goods a day per job |
 | `tech_importance` | 3 food, drink, raw, crop, livestock; 6 chemicals, apparel, furniture, toys; 10 electronics and computers; 12 jewelry, watches; 15 cars (15 is ref) |
 | `base_tech_level` | 0 for raw, crop, livestock, food, drink; 20 otherwise |
 | `w_*`, `demand_per_1000`, L/N | non-consumer products: 0 / 0 / 0 and 0 |
@@ -446,6 +446,10 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
    start). So a Manufacturing job (24 staff) costs $1,600 a day, or
    $48,000 a month. Media firms post the same formula with
    `staff = media_staff = 20` (provisional) and no training post (ref).
+   **Money units in the firm and job tables:** `setup_cost` is in $1000s
+   (a Department Store costs $1M). `overhead` is in $1000s **per year**
+   (provisional reading), posted monthly as `overhead × 1000 / 12` to
+   category 2, so a Factory pays about $8,333 a month.
 6. **Training** (ref): on weekday 2, `train_acc += rating_delta × 900`,
    where `rating_delta` is +1 if the job met 90%+ of capacity that week,
    −1 under 30%, else 0 (provisional). Rating moves one step when
