@@ -1,0 +1,12 @@
+{
+  "name": "capitalism-pyodide-smoke",
+  "private": true,
+  "description": "Pyodide smoke test for the Capitalism++ sim (see web/README.md)",
+  "type": "module",
+  "scripts": {
+    "smoke": "node smoke.mjs"
+  },
+  "dependencies": {
+    "pyodide": "314.0.7"
+  }
+}

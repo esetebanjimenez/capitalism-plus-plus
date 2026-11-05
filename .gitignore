@@ -14,3 +14,5 @@ htmlcov/
 *.log
 .DS_Store
 .venv/
+web/node_modules/
+web/capitalism.zip
