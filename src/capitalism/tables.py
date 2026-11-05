@@ -183,7 +183,7 @@ def load_climate_thresholds() -> ClimateThresholds:
 @lru_cache(maxsize=1)
 def load_town_growth() -> TownGrowth:
     r = _one("SELECT * FROM town_growth WHERE id = 1")
-    data = {k: r[k] for k in r if k != "id"}
+    data = {k: v for k, v in dict(r).items() if k != "id"}
     return TownGrowth(**data)
 
 
