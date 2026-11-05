@@ -317,8 +317,16 @@ Land value is only computed in slice 2. Firms start using it in slice 4.
   w_brand, base_tech_level, base_capacity, plant_month, grow_months,
   importable, ref, provisional)`: the 84 products. CHECK
   `w_price + w_quality + w_brand = 100` and luxury, necessity in 0..9.
-- `recipes(product_id, input_id, qty_per_unit, ref, provisional)`: inputs
-  per output unit. Raw, crop and livestock products have no rows.
+- `recipes(product_id, output_qty, speed_pct, ref)`: 54 rows from
+  `docs/recipes.md` (the standard set). `output_qty` is units per
+  production cycle; `speed_pct` is 100 normal, 200/300/400 = 2×/3×/4× time.
+- `recipe_inputs(product_id, input_id, qty, quality_weight, ref)`: 1 to 5
+  inputs per recipe, `qty` per cycle, `quality_weight` in %. CHECK
+  `sum(quality_weight) < 100` per recipe; the rest is the manufacturing
+  skill weight, derived, not stored.
+- `rd_prereqs(product_id, requires_id, ref)`: the 8 R&D prerequisites
+  (e.g. Desktop Computer needs Television first). Not inputs.
+  All recipe data is `ref`, so these tables carry no `provisional` column.
 
 Filling rule: every value printed in gamelogic.md's catalog goes in as
 `provisional=0`. Missing values are filled by these provisional rules
@@ -332,10 +340,8 @@ Filling rule: every value printed in gamelogic.md's catalog goes in as
 | `base_tech_level` | 0 for raw, crop, livestock, food, drink; 20 otherwise |
 | `w_*`, `demand_per_1000`, L/N | non-consumer products: 0 / 0 / 0 and 0 |
 | `plant_month`, `grow_months` | crops: plant 3 (April), grow 5 |
-| `recipes.qty_per_unit` | by mass/value so that inputs cost about 60% of the output's `base_price` at base prices |
 
-The Designer owns the provisional recipe rows; they ship with this
-slice's PR as the content step, reviewed by me before merge.
+Recipes are reference data (see `docs/recipes.md`), not provisional.
 
 ### Calls
 
@@ -361,13 +367,17 @@ slice's PR as the content step, reviewed by me before merge.
 7. **Product score.** 400 when the product has no links; 0 when it has
    supply but no demand (ref); else `max_score_in` of its links.
 8. **Availability** is recursive: a product is available when it is
-   raw/crop/livestock/importable or every recipe input is available.
+   raw/crop/livestock/importable, or it has a recipe whose every input
+   is available. Discovery also needs every `rd_prereqs` row researched.
    Computed once at setup and on discovery, with a cycle guard.
 
 ### Golden tests
 
-- The db passes the CHECKs; 84 products, 20 classes; every non-raw,
-  non-importable product has at least one recipe row.
+- The db passes the CHECKs; 84 products, 20 classes; 54 recipes whose
+  outputs and inputs all exist in `products`; every recipe's quality
+  weights sum below 100.
+- Bread quality: one cycle from 9 flour at quality 80 with skill 50
+  gives 10 loaves at `80 × 0.40 + 50 × 0.60 = 62`.
 - Bread in a 640k town at spending 100: demand 6,400 × `nec_lux` (to 1 dp).
 - Availability: bread is available iff wheat is; removing the
   flour recipe makes bread unavailable.
@@ -443,10 +453,16 @@ slice's PR as the content step, reviewed by me before merge.
    - Inventory, Private Labelling: move stock from the linked job,
      blending quality by quantity; Private Labelling copies the brand
      from its source.
-   - Manufacturing: step `(recipe_scaling × capacity × efficiency) / 100`,
-     consumes `qty_per_unit` of each input; output quality
-     `0.5 × mean(input quality) + 0.5 × corp_tech_quality` (provisional),
-     where `corp_tech_quality = min(100, tech_level)`.
+   - Manufacturing (recipes from the ref): daily output units
+     `step = (capacity × efficiency / 100) × 100 / speed_pct`, rounded
+     down to whole cycles of `output_qty`; each cycle consumes `qty` of
+     every input, and stops at the first missing input (no partial cycles).
+     Output quality per cycle:
+     `Σ(input_quality_i × w_i) / 100 + skill × (100 − Σw_i) / 100`,
+     where `skill = min(100, corp_tech_level[product])` (provisional until
+     R&D lands; the ref names the term but not its source). The new
+     batch blends into stock quality by quantity. Unit cost is the
+     cycle's input cost plus that day's wages, divided by `output_qty`.
    - Purchasing: every 5 days, order `(efficiency × capacity × 4) / 100`,
      capped by room and by the supplier link quantity; freight is
      category 5 at 2% of the purchase value (provisional).
