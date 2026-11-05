@@ -36,6 +36,11 @@ CI runs the `build` check (lint + tests) on every PR.
 
 Workflow: push to a branch, open a PR, merge only after `build` is green. No direct pushes to `main`.
 
+## Code style
+
+- Prefer OOP: `Game` → `Sim` → firms, products, etc. (with subclasses where the original has types).
+- Use **Pydantic** `BaseModel` for sim data (towns, tiles, calendar fields, later products/firms).
+
 ## Milestone 1 progress
 
 Systems landed:

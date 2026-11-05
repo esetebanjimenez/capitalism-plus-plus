@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from enum import IntEnum
+
+from pydantic import BaseModel, Field
 
 from .city_names import CITY_NAMES
 from .rng import Rng
@@ -28,8 +29,9 @@ class TileCategory(IntEnum):
     FIRM = 5
 
 
-@dataclass
-class Tile:
+class Tile(BaseModel):
+    model_config = {"validate_assignment": True}
+
     category: TileCategory = TileCategory.GRASSLAND
     variant: int = 0
     data_id: int = -1  # town or firm id when applicable
@@ -39,12 +41,15 @@ class Tile:
     height: float = 0.0
 
 
-@dataclass
-class World:
+class World(BaseModel):
+    """Map grid and the towns that live on it."""
+
+    model_config = {"validate_assignment": True}
+
     width: int = MAP_W
     height: int = MAP_H
-    tiles: list[Tile] = field(default_factory=list)
-    towns: list[Town] = field(default_factory=list)
+    tiles: list[Tile] = Field(default_factory=list)
+    towns: list[Town] = Field(default_factory=list)
     equator_row: int = 99
     centroid: tuple[float, float] = (0.0, 0.0)
     detailed_cities: bool = True

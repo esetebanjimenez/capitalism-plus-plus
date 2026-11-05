@@ -2,31 +2,36 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-
 from .calendar import Calendar
 from .rng import Rng
 from .town import Town
 from .world import World, generate_world
 
 
-@dataclass
 class Sim:
-    """Seeded simulation. Same seed produces the same run."""
+    """Seeded simulation. Same seed produces the same run.
 
-    seed: int = 0
-    detailed_cities: bool = True
-    target_cities: int = 8
-    rng: Rng = field(init=False)
-    calendar: Calendar = field(init=False)
-    world: World = field(init=False)
-    gnp_index: float = 1.0
-    gnp_history: list[float] = field(default_factory=list)
-    history: list[dict[str, int | float]] = field(default_factory=list)
-    _initialized: bool = field(default=False, init=False, repr=False)
+    Owns the calendar, world and RNG. Later systems (firms, products, markets)
+    attach here as object graphs with Pydantic models and subclasses.
+    """
 
-    def __post_init__(self) -> None:
-        self.reset(self.seed)
+    def __init__(
+        self,
+        seed: int = 0,
+        *,
+        detailed_cities: bool = True,
+        target_cities: int = 8,
+    ) -> None:
+        self.seed = seed
+        self.detailed_cities = detailed_cities
+        self.target_cities = target_cities
+        self.rng: Rng
+        self.calendar: Calendar
+        self.world: World
+        self.gnp_index: float = 1.0
+        self.gnp_history: list[float] = []
+        self.history: list[dict[str, int | float]] = []
+        self.reset(seed)
 
     def reset(self, seed: int | None = None) -> None:
         if seed is not None:
@@ -41,7 +46,6 @@ class Sim:
         self.gnp_index = 1.0
         self.gnp_history = []
         self.history = []
-        self._initialized = True
 
     @property
     def day(self) -> int:
@@ -85,14 +89,11 @@ class Sim:
             self.advance_day()
 
     def _daily_batch(self) -> None:
-        # Towns: population/GNP monthly tick is staggered by stagger_slot (day of month).
-        # Full daily town-product demand lands with the product-link system.
         for town in self.world.towns:
             if town.stagger_slot == self.calendar.day:
                 town.monthly_tick(self.rng, detailed=self.detailed_cities)
 
     def _month_pass(self) -> None:
-        # GNP index adjustment from average town GNP growth.
         if self.world.towns:
             avg = sum(t.last_month_gnp_growth for t in self.world.towns) / len(self.world.towns)
             if avg < -0.02 and self.rng.chance(0.3):
@@ -130,3 +131,26 @@ class Sim:
                 f" stagger D{t.stagger_slot}"
             )
         return "\n".join(lines) + "\n"
+
+
+class Game:
+    """Top-level session: owns a Sim. Save/load and UI attach here later."""
+
+    def __init__(
+        self,
+        seed: int = 0,
+        *,
+        detailed_cities: bool = True,
+        target_cities: int = 8,
+    ) -> None:
+        self.sim = Sim(
+            seed=seed,
+            detailed_cities=detailed_cities,
+            target_cities=target_cities,
+        )
+
+    def advance_days(self, n: int) -> None:
+        self.sim.advance_days(n)
+
+    def report(self) -> str:
+        return self.sim.report()

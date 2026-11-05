@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 
-from .sim import Sim
+from .sim import Game
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -25,13 +25,13 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
     if args.days < 0:
         p.error("--days must be >= 0")
-    sim = Sim(
+    game = Game(
         seed=args.seed,
         detailed_cities=not args.simple_cities,
         target_cities=min(12, max(0, args.cities)),
     )
-    sim.advance_days(args.days)
-    print(sim.report(), end="")
+    game.advance_days(args.days)
+    print(game.report(), end="")
     return 0
 
 
