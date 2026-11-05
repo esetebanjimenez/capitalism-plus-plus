@@ -324,7 +324,7 @@ Land value is only computed in slice 2. Firms start using it in slice 4.
   inputs per recipe, `qty` per cycle, `quality_weight` in %. CHECK
   `sum(quality_weight) < 100` per recipe; the rest is the manufacturing
   skill weight, derived, not stored.
-- `rd_prereqs(product_id, requires_id, ref)`: the 8 R&D prerequisites
+- `rnd_prereqs(product_id, requires_id, ref)`: the 8 R&D prerequisites
   (e.g. Desktop Computer needs Television first). Not inputs.
   All recipe data is `ref`, so these tables carry no `provisional` column.
 
@@ -368,7 +368,7 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
    supply but no demand (ref); else `max_score_in` of its links.
 8. **Availability** is recursive: a product is available when it is
    raw/crop/livestock/importable, or it has a recipe whose every input
-   is available. Discovery also needs every `rd_prereqs` row researched.
+   is available. Discovery also needs every `rnd_prereqs` row researched.
    Computed once at setup and on discovery, with a cycle guard.
 
 ### Golden tests
