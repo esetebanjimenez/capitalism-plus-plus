@@ -479,7 +479,7 @@ Reference: Product catalog and demand — complete product catalog.
 | Car | 1 | 300% | Car Body × 1 @ 30%; Engine × 1 @ 30%; Wheel & Tire × 4 @ 10% | 30% |
 | Motorcycle | 1 | 200% | Engine × 1 @ 30%; Steel × 10 @ 10%; Wheel & Tire × 2 @ 10% | 50% |
 
-Reference: docs/recipes.md — 1STD.SET METHOD. Speed 200% = twice the cycle time; skill is the share of output quality from manufacturing skill (100 − Σ input weights).
+Reference: docs/recipes.md — 1STD.SET METHOD. Speed is a throughput multiplier (200% = twice the units per work cycle); skill is the share of output quality from manufacturing skill (100 − Σ input weights).
 
 ## R&D prerequisites
 

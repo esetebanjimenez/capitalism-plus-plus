@@ -283,9 +283,12 @@ def cycle_quality(recipe: RecipeRow, input_quality: dict[int, float], skill: flo
 class Manufacturing(Job):
     """Runs whole recipe cycles from the db `recipes` / `recipe_inputs` tables.
 
-    Daily output `(capacity × efficiency / 100) × 100 / speed_pct`, rounded
-    down to whole cycles of `output_qty`. Each cycle needs `qty` of every
-    input and stops at the first missing input (no partial cycles).
+    Daily output `(capacity × efficiency / 100) × (speed_pct / 100)`, rounded
+    down to whole cycles of `output_qty`. `speed_pct` is a throughput
+    multiplier: 200 = twice the units per work cycle, so complex goods such
+    as Engine or Car keep a reasonable production rate. Each cycle needs
+    `qty` of every input; a day stops at the first missing input (no
+    partial cycles).
     """
 
     type_id = 7
@@ -303,7 +306,7 @@ class Manufacturing(Job):
         return min(JOB_RULES.mfg_skill_max, float(self.product.state.tech_level))
 
     def cycles_per_day(self, recipe: RecipeRow) -> int:
-        units = self.capacity * self.efficiency / 100.0 * 100.0 / recipe.speed_pct
+        units = self.capacity * self.efficiency / 100.0 * recipe.speed_pct / 100.0
         return int(units // recipe.output_qty)
 
     def work(self, eco: Economy) -> bool:

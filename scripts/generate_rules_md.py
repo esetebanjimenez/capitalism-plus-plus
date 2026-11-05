@@ -309,7 +309,7 @@ def render(con: sqlite3.Connection) -> str:
     )
     if recipes:
         lines.append(
-            f"Reference: {recipes[0]['ref']}. Speed 200% = twice the cycle time; skill is the "
+            f"Reference: {recipes[0]['ref']}. Speed is a throughput multiplier (200% = twice the units per work cycle); skill is the "
             "share of output quality from manufacturing skill (100 − Σ input weights)."
         )
         lines.append("")

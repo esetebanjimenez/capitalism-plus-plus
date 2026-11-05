@@ -13,7 +13,13 @@ import pytest
 from capitalism import Sim
 from capitalism.catalog import Catalog, compute_availability, daily_demand, nec_lux
 from capitalism.firms import Farm, decode_links, encode_links
-from capitalism.jobs import CropGrowing, Extraction, cycle_quality, wage_per_staff_day
+from capitalism.jobs import (
+    CropGrowing,
+    Extraction,
+    Manufacturing,
+    cycle_quality,
+    wage_per_staff_day,
+)
 from capitalism.links import link_score, score_shares
 from capitalism.scenario import (
     CROP,
@@ -254,6 +260,34 @@ def test_flour_factory_fed_by_seaport_30_days_seed_1():
     assert mfg.unit_cost == pytest.approx(54.837139826763305)
     assert mfg.quality == pytest.approx(41.6)  # 50 import × 70% + skill 22 × 30%
     assert buy.stock == pytest.approx(12649.0)
+
+
+def _engine_output(speed_pct: int) -> tuple[int, float]:
+    """Cycles per day and one day's units for an Engine line with plentiful inputs."""
+    sim, town = bread_town(1)
+    town.labor_quality = 50  # efficiency 27.5, so a 2× day still fits under capacity
+    eco = sim.economy
+    engine = eco.catalog["Engine"]
+    rec = eco.catalog.recipes[engine.id]
+    assert rec.speed_pct == 200  # docs/recipes.md
+    eco.catalog.recipes[engine.id] = rec.model_copy(update={"speed_pct": speed_pct})
+    x, y = find_site(sim, town)
+    f = eco.build_firm(FACTORY, eco.add_corp("T"), x, y, town)
+    job = f.add_job(1, MANUFACTURING, engine)
+    assert isinstance(job, Manufacturing)
+    for i in rec.inputs:
+        job.inputs[i.input_id] = [1e9, 50.0, 1.0]
+    job.work(eco)
+    return job.cycles_per_day(eco.catalog.recipes[engine.id]), job.stock
+
+
+def test_speed_pct_multiplies_throughput():
+    cycles_200, units_200 = _engine_output(200)
+    cycles_100, units_100 = _engine_output(100)
+    assert cycles_100 > 0 and units_100 > 0
+    assert cycles_200 in (2 * cycles_100, 2 * cycles_100 + 1)  # whole cycles only
+    assert units_200 == pytest.approx(2 * units_100, abs=1)
+    assert (units_200, units_100) == (cycles_200, cycles_100)  # Engine output_qty is 1
 
 
 def test_training_full_capacity_ten_weeks_rating_1_to_2():
