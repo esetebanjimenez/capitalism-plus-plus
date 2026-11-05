@@ -14,8 +14,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--cities",
         type=int,
-        default=8,
-        help="target city count at map gen (default: 8, max 12)",
+        default=5,
+        help="target city count at map gen (default: 5, max 12)",
     )
     p.add_argument(
         "--simple-cities",
