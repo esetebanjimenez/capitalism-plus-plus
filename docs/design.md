@@ -414,7 +414,7 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
 - `firm_job_allowed(firm_type, job_type)`
 - `rules` rows (system `jobs`): `sales_mult_store=2`, `sales_mult_other=4`,
   `purchase_every_days=5`, `purchase_order_mult=4`, `train_weekday=2`,
-  `train_step=900`, `livestock_scalar=36500`, `wage_hours=2000`,
+  `train_step=900`, `livestock_scalar=36500`, `wage_per_worker_month=2000`,
   `ad_budget_min=50000`, `ad_budget_max=500000` (all ref) and the
   provisional ones below.
 
@@ -437,14 +437,21 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
    `capacity = product.base_capacity × firm.size × job_cap_mult[job type]`,
    with `job_cap_mult` 1 for all but Inventory and Sales (3), so a store
    can hold three days of a factory's output.
-5. **Wages** (ref): `((salary_target × 2000) / days_in_month × labor) / 100`
-   per staff per day, category 0, where `salary_target` is the town's labor
-   cost (slice 2). Media firms use the same with `× 2` (ref).
+5. **Wages.** Ref formula, posted once per **job** per day (not per staff):
+   `((staff × 2000) / days_in_month × labor_cost) / 100`, integer division,
+   **category 1** (Salaries Expense; category 0 is Sales Revenue).
+   Our reading of the ref's unnamed `target`: it is the job type's staff
+   count, 2000 is dollars per worker per month at labor cost index 100,
+   and `labor_cost` is the town's labor cost index (slice 2, 100 at
+   start). So a Manufacturing job (24 staff) costs $1,600 a day, or
+   $48,000 a month. Media firms post the same formula with
+   `staff = media_staff = 20` (provisional) and no training post (ref).
 6. **Training** (ref): on weekday 2, `train_acc += rating_delta × 900`,
    where `rating_delta` is +1 if the job met 90%+ of capacity that week,
    −1 under 30%, else 0 (provisional). Rating moves one step when
    `|train_acc| ≥ 9000` (provisional), then the accumulator resets.
-   Training cost is `salary × training_factor / 100` (ref).
+   Training cost is `wage × training_factor / 100`, category 3 (ref),
+   where `wage` is that day's job wage.
 7. **Per-type work** (ref unless marked):
    - Crop: stock grows only in its season; yield factor
      `(climate_dist × −10 + 20) + (moisture_dist × −10 + 20) + soil / 5`,
@@ -485,7 +492,8 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
 
 ### Golden tests
 
-- Wage of one level-1 staff at labor cost 100 in a 30-day month.
+- Wages at labor cost 100 in a 30-day month: Manufacturing (24 staff)
+  posts $1,600 a day to category 1; Purchasing (4) $266; Sales (8) $533.
 - Slot links: the bitmask for "0–1, 1–2, 4–7" decodes to those edges.
 - A wheat farm in season fills to capacity in `ceil(capacity / daily)` days.
 - Flour factory fed by a seaport: after 30 days, stock, unit cost and
