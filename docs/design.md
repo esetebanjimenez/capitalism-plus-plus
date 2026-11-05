@@ -319,7 +319,10 @@ Land value is only computed in slice 2. Firms start using it in slice 4.
   `w_price + w_quality + w_brand = 100` and luxury, necessity in 0..9.
 - `recipes(product_id, output_qty, speed_pct, ref)`: 54 rows from
   `docs/recipes.md` (the standard set). `output_qty` is units per
-  production cycle; `speed_pct` is 100 normal, 200/300/400 = 2×/3×/4× time.
+  production cycle; `speed_pct` is a throughput multiplier: 200 processes
+  twice the units per work cycle of 100 (Esteban, 2026-11-05). The high
+  values (Engine, Wheel & Tire, Desktop Computer, Motorcycle 200; Car 300;
+  Electronic Components 400) offset the low unit capacity of expensive goods.
 - `recipe_inputs(product_id, input_id, qty, quality_weight, ref)`: 1 to 5
   inputs per recipe, `qty` per cycle, `quality_weight` in %. CHECK
   `sum(quality_weight) < 100` per recipe; the rest is the manufacturing
@@ -454,7 +457,7 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
      blending quality by quantity; Private Labelling copies the brand
      from its source.
    - Manufacturing (recipes from the ref): daily output units
-     `step = (capacity × efficiency / 100) × 100 / speed_pct`, rounded
+     `step = (capacity × efficiency / 100) × speed_pct / 100`, rounded
      down to whole cycles of `output_qty`; each cycle consumes `qty` of
      every input, and stops at the first missing input (no partial cycles).
      Output quality per cycle:
