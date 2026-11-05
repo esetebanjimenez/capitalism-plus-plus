@@ -12,11 +12,8 @@ pip install -e ".[dev]"
 
 ## Headless runner
 
-Advance the sim N days and print a short report:
-
 ```bash
 python -m capitalism --days 30 --seed 1
-# or, after install:
 capitalism --days 365
 ```
 
@@ -30,6 +27,8 @@ CI runs the `build` check (lint + tests) on every PR.
 
 ## Docs
 
+- [`docs/design.md`](docs/design.md) — slice specs and design calls
+- [`docs/code-style.md`](docs/code-style.md) — OOP + Pydantic rules
 - [`docs/synopsis.md`](docs/synopsis.md) — simulation overview
 - [`docs/gamelogic.md`](docs/gamelogic.md) — full rules breakdown
 - [`docs/milestone-1.md`](docs/milestone-1.md) — build order for milestone 1
@@ -38,16 +37,13 @@ Workflow: push to a branch, open a PR, merge only after `build` is green. No dir
 
 ## Code style
 
-- Prefer OOP: `Game` → `Sim` → firms, products, etc. (with subclasses where the original has types).
-- Use **Pydantic** `BaseModel` for sim data (towns, tiles, calendar fields, later products/firms).
+See [`docs/code-style.md`](docs/code-style.md). Short version: OOP for `Game` / `Sim` / firm·job·product hierarchies; tunable numbers live in `src/capitalism/data/capitalism.db` (see `docs/rules.md`) and load through Pydantic; plain classes for daily hot-path entities.
 
 ## Milestone 1 progress
 
-Systems landed:
-
-1. **Clock and passes** — seeded RNG, 30-day months, real month lengths for salary/overhead, weekday, month/year passes.
-2. **World data** — 240×198 map (diamond-square terrain), city placement, town indicators with staggered monthly ticks, land-value floor.
+1. **Clock and passes** — Gregorian calendar (day display clamped at 30), day-serial stagger, month/year passes, hook order, state hash.
+2. **World data** — 240×198 map, city placement (default 5), town indicators, land-value floor.
 
 ```bash
-python -m capitalism --days 365 --seed 42 --cities 8
+python -m capitalism --days 365 --seed 42 --cities 5
 ```

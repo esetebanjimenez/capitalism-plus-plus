@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import random
+from collections.abc import Sequence
+from typing import TypeVar
+
+T = TypeVar("T")
 
 
 class Rng:
@@ -18,10 +22,9 @@ class Rng:
         return self._r.random()
 
     def randint(self, a: int, b: int) -> int:
-        """Inclusive integer in [a, b]."""
         return self._r.randint(a, b)
 
-    def choice(self, seq):
+    def choice(self, seq: Sequence[T]) -> T:
         return self._r.choice(seq)
 
     def uniform(self, a: float, b: float) -> float:

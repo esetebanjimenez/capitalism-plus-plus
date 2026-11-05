@@ -19,6 +19,9 @@ capitalism = "capitalism.__main__:main"
 [tool.hatch.build.targets.wheel]
 packages = ["src/capitalism"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"src/capitalism/data" = "capitalism/data"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
