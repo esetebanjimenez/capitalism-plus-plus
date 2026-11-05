@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 
 from .sim import Game
+from .tables import MAP_RULES
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -14,8 +15,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--cities",
         type=int,
-        default=5,
-        help="target city count at map gen (default: 5, max 12)",
+        default=MAP_RULES.default_cities,
+        help=f"target city count at map gen (default: {MAP_RULES.default_cities}, max {MAP_RULES.max_cities})",
     )
     p.add_argument(
         "--simple-cities",
@@ -28,7 +29,7 @@ def main(argv: list[str] | None = None) -> int:
     game = Game(
         seed=args.seed,
         detailed_cities=not args.simple_cities,
-        target_cities=min(12, max(0, args.cities)),
+        target_cities=min(MAP_RULES.max_cities, max(0, args.cities)),
     )
     game.advance_days(args.days)
     print(game.report(), end="")

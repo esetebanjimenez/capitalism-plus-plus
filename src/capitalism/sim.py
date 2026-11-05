@@ -8,7 +8,7 @@ from datetime import date
 
 from .calendar import DEFAULT_START, Calendar
 from .rng import Rng
-from .tables import GNP_INDEX, SetupOptions
+from .tables import GNP_INDEX, MAP_RULES, SetupOptions
 from .town import Town
 from .world import World, generate_world, try_spawn_town
 
@@ -21,7 +21,7 @@ class Sim:
         seed: int = 0,
         *,
         detailed_cities: bool = True,
-        target_cities: int = 5,
+        target_cities: int = MAP_RULES.default_cities,
         start_year: int = 1990,
         record_hooks: bool = False,
     ) -> None:
@@ -235,7 +235,7 @@ class Game:
         seed: int = 0,
         *,
         detailed_cities: bool = True,
-        target_cities: int = 5,
+        target_cities: int = MAP_RULES.default_cities,
         start_year: int = 1990,
     ) -> None:
         self.sim = Sim(

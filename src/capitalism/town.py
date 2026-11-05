@@ -7,16 +7,13 @@ from enum import IntEnum
 from .rng import Rng
 from .tables import (
     CLIMATE_SPEND,
+    CLIMATE_THRESHOLDS,
+    LEVEL_RULES,
+    SIMPLE_CITY,
     TIER_GNP,
+    TOWN_GROWTH,
     UNEMPLOYMENT_DRIFT,
 )
-
-SIMPLE_LEVEL = 3
-SIMPLE_GNP = 20_000
-SIMPLE_LABOR_COST = 100.0
-SIMPLE_SPENDING = 100.0
-SIMPLE_LABOR_QUALITY = 100.0
-SIMPLE_UNEMPLOYMENT = 2.0
 
 
 class Climate(IntEnum):
@@ -28,21 +25,20 @@ class Climate(IntEnum):
 
 
 def population_for_level(level: int) -> int:
-    """Population needed to reach `level`: (level − 1)² × 160,000."""
-    return (level - 1) * (level - 1) * 160_000
+    """Population needed to reach `level`: (level − 1)² × pop_per_level_sq."""
+    return (level - 1) * (level - 1) * LEVEL_RULES.pop_per_level_sq
 
 
 def level_for_population(population: float) -> int:
-    """Level from population, capped at 6."""
+    """Level from population, capped at max_level."""
     level = 1
-    while level < 6 and population >= population_for_level(level + 1):
+    while level < LEVEL_RULES.max_level and population >= population_for_level(level + 1):
         level += 1
     return level
 
 
-# Back-compat alias used by older tests / callers.
 def level_up_population(level: int) -> int:
-    """Population needed to leave `level` (become level+1): level² × 160,000."""
+    """Population needed to leave `level` (become level+1)."""
     return population_for_level(level + 1)
 
 
@@ -85,10 +81,10 @@ class Town:
         population: float,
         per_capita_gnp: float,
         level: int = 1,
-        unemployment: float = 2.0,
-        labor_cost: float = 100.0,
-        labor_quality: float = 100.0,
-        consumer_spending: float = 100.0,
+        unemployment: float | None = None,
+        labor_cost: float | None = None,
+        labor_quality: float | None = None,
+        consumer_spending: float | None = None,
         climate: Climate = Climate.NORMAL,
         env_factors: tuple[float, float, float] = (0.0, 0.0, 0.0),
     ) -> None:
@@ -101,10 +97,12 @@ class Town:
         self.population = population
         self.per_capita_gnp = per_capita_gnp
         self.level = level
-        self.unemployment = unemployment
-        self.labor_cost = labor_cost
-        self.labor_quality = labor_quality
-        self.consumer_spending = consumer_spending
+        self.unemployment = SIMPLE_CITY.unemployment if unemployment is None else unemployment
+        self.labor_cost = SIMPLE_CITY.labor_cost if labor_cost is None else labor_cost
+        self.labor_quality = SIMPLE_CITY.labor_quality if labor_quality is None else labor_quality
+        self.consumer_spending = (
+            SIMPLE_CITY.spending if consumer_spending is None else consumer_spending
+        )
         self.climate = climate
         self.env_factors = env_factors
         self.pop_ring: list[float] = [0.0] * 12
@@ -148,16 +146,15 @@ class Town:
                 y=y,
                 stagger_slot=slot,
                 population=pop,
-                per_capita_gnp=float(SIMPLE_GNP),
-                level=SIMPLE_LEVEL,
-                unemployment=SIMPLE_UNEMPLOYMENT,
-                labor_cost=SIMPLE_LABOR_COST,
-                labor_quality=SIMPLE_LABOR_QUALITY,
-                consumer_spending=SIMPLE_SPENDING,
+                per_capita_gnp=float(SIMPLE_CITY.per_capita_gnp),
+                level=SIMPLE_CITY.level,
+                unemployment=SIMPLE_CITY.unemployment,
+                labor_cost=SIMPLE_CITY.labor_cost,
+                labor_quality=SIMPLE_CITY.labor_quality,
+                consumer_spending=SIMPLE_CITY.spending,
                 climate=Climate.NORMAL,
                 env_factors=env,
             )
-        level = level_for_population(pop)
         return cls(
             id=town_id,
             name=name,
@@ -167,7 +164,7 @@ class Town:
             stagger_slot=slot,
             population=pop,
             per_capita_gnp=gnp,
-            level=level,
+            level=level_for_population(pop),
             env_factors=env,
         )
 
@@ -175,23 +172,24 @@ class Town:
         """City monthly tick (design.md). Order: pop, GNP, climate, unemp, labor, spend, quality, env."""
         if not detailed:
             return
+        g = TOWN_GROWTH
         prev_pop = self.population
         prev_gnp = self.per_capita_gnp
         rolling = self.rolling_gnp_growth
 
-        # Population (design.md). Unemployment is stored as percentage points (2..10).
         growth = (
-            rng.uniform(-0.002, 0.004) + 0.05 * rolling - 0.05 * ((self.unemployment - 5.0) / 100.0)
+            rng.uniform(g.pop_growth_lo, g.pop_growth_hi)
+            + g.rolling_gnp_weight * rolling
+            - g.unemp_weight * ((self.unemployment - g.unemp_baseline) / 100.0)
         )
-        if growth < 0 and self.population < 50_000:
+        if growth < 0 and self.population < g.small_pop:
             growth *= 0.5
-        if growth > 0 and self.population > 4_000_000:
+        if growth > 0 and self.population > g.large_pop:
             growth *= 0.5
         self.population = max(1.0, self.population * (1.0 + growth))
         self.level = level_for_population(self.population)
 
-        # Per-capita GNP
-        self.per_capita_gnp *= rng.uniform(0.983, 1.013)
+        self.per_capita_gnp *= rng.uniform(g.gnp_factor_lo, g.gnp_factor_hi)
         floor = TIER_GNP[self.tier].lo
         if self.per_capita_gnp < floor:
             self.per_capita_gnp = float(floor)
@@ -203,48 +201,46 @@ class Town:
         self.gnp_growth_ring[self.ring_index] = gnp_growth
         self.rolling_gnp_growth = sum(self.gnp_growth_ring) / 12.0
 
-        # Climate from 12-month rolling GNP growth (design call)
-        g = self.rolling_gnp_growth
-        if g >= 0.08:
+        thr = CLIMATE_THRESHOLDS
+        rg = self.rolling_gnp_growth
+        if rg >= thr.boom:
             self.climate = Climate.BOOM
-        elif g >= 0.04:
+        elif rg >= thr.prosperous:
             self.climate = Climate.PROSPEROUS
-        elif g >= -0.01:
+        elif rg >= thr.normal:
             self.climate = Climate.NORMAL
-        elif g >= -0.06:
+        elif rg >= thr.recession:
             self.climate = Climate.RECESSION
         else:
             self.climate = Climate.PANIC
 
-        # Unemployment
         drift, swing = UNEMPLOYMENT_DRIFT[int(self.climate)]
         self.unemployment += drift + rng.uniform(-swing, swing)
-        self.unemployment = max(2.0, min(10.0, self.unemployment))
+        self.unemployment = max(g.unemp_lo, min(g.unemp_hi, self.unemployment))
 
         env_a, env_b, env_c = self.env_factors
-        # Labor cost
-        target = self.per_capita_gnp / 200.0 * (1.0 + 0.01 * env_a)
-        floor_lc = 0.5 * self.per_capita_gnp / 200.0
-        self.labor_cost += 0.2 * (target - self.labor_cost)
+        target = self.per_capita_gnp / g.gnp_divisor * (1.0 + 0.01 * env_a)
+        floor_lc = 0.5 * self.per_capita_gnp / g.gnp_divisor
+        self.labor_cost += g.labor_step * (target - self.labor_cost)
         self.labor_cost = max(floor_lc, self.labor_cost)
 
-        # Consumer spending
         cf = CLIMATE_SPEND[int(self.climate)]
-        spend_target = self.per_capita_gnp / 200.0 * cf * (1.0 + 0.01 * env_b)
-        self.consumer_spending += 0.2 * (spend_target - self.consumer_spending)
-        self.consumer_spending = max(1.0, self.consumer_spending)
+        spend_target = self.per_capita_gnp / g.gnp_divisor * cf * (1.0 + 0.01 * env_b)
+        self.consumer_spending += g.labor_step * (spend_target - self.consumer_spending)
+        self.consumer_spending = max(g.spend_floor, self.consumer_spending)
 
-        # Labor quality
-        q_target = max(1.0, min(100.0, self.per_capita_gnp / 200.0 * (1.0 + 0.01 * env_c)))
-        self.labor_quality += 0.2 * (q_target - self.labor_quality)
-        self.labor_quality = max(1.0, min(100.0, self.labor_quality))
+        q_target = max(
+            g.labor_quality_lo,
+            min(g.labor_quality_hi, self.per_capita_gnp / g.gnp_divisor * (1.0 + 0.01 * env_c)),
+        )
+        self.labor_quality += g.labor_step * (q_target - self.labor_quality)
+        self.labor_quality = max(g.labor_quality_lo, min(g.labor_quality_hi, self.labor_quality))
 
-        # Environmental factors: 10% chance each to move ±1, clamp −3..+3
         new_env = []
         for f in self.env_factors:
-            if rng.chance(0.10):
+            if rng.chance(g.env_chance):
                 f += 1.0 if rng.chance(0.5) else -1.0
-            new_env.append(max(-3.0, min(3.0, f)))
+            new_env.append(max(g.env_lo, min(g.env_hi, f)))
         self.env_factors = (new_env[0], new_env[1], new_env[2])
 
         self.pop_ring[self.ring_index] = self.population

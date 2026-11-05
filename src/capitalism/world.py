@@ -6,18 +6,18 @@ from enum import IntEnum
 from math import floor
 
 from .rng import Rng
-from .tables import CITY_NAME_POOL
+from .tables import CITY_NAME_POOL, LAND_VALUE, MAP_RULES
 from .town import Town
 
-MAP_W = 240
-MAP_H = 198
-MAP_TILES = MAP_W * MAP_H  # 47_520
-MIN_LAND_TILES = MAP_TILES // 3  # 15_840
-CITY_BORDER = 5
-CITY_MIN_DIST = 15
-MAX_CITIES = 12
-LAND_VALUE_FLOOR = 500_000
-LAND_VALUE_BONUS_CAP = 50_000_000
+MAP_W = MAP_RULES.width
+MAP_H = MAP_RULES.height
+MAP_TILES = MAP_W * MAP_H
+MIN_LAND_TILES = int(MAP_TILES * MAP_RULES.min_land_fraction)
+CITY_BORDER = MAP_RULES.city_border
+CITY_MIN_DIST = MAP_RULES.city_min_dist
+MAX_CITIES = MAP_RULES.max_cities
+LAND_VALUE_FLOOR = LAND_VALUE.floor
+LAND_VALUE_BONUS_CAP = LAND_VALUE.bonus_cap
 
 
 class TileCategory(IntEnum):
@@ -87,7 +87,7 @@ class World:
         equator_row: int = 99,
         centroid: tuple[float, float] = (0.0, 0.0),
         detailed_cities: bool = True,
-        target_cities: int = 5,
+        target_cities: int = MAP_RULES.default_cities,
     ) -> None:
         self.width = width
         self.height = height
@@ -116,8 +116,10 @@ class World:
                 best = t
         assert best is not None
         radius = best.level + 4
-        small = 0.6 if best.level <= 2 else 1.0
-        base = best.level * best.per_capita_gnp * 50.0 * small
+        small = (
+            LAND_VALUE.small_town_factor if best.level <= LAND_VALUE.small_town_level_max else 1.0
+        )
+        base = best.level * best.per_capita_gnp * LAND_VALUE.base_mult * small
         if best_d >= radius:
             value = 0.0
         else:
@@ -191,7 +193,7 @@ def generate_world(
     rng: Rng,
     *,
     detailed_cities: bool = True,
-    target_cities: int = 5,
+    target_cities: int = MAP_RULES.default_cities,
 ) -> World:
     """Procedural map + city placement."""
     w, h = MAP_W, MAP_H
@@ -331,9 +333,9 @@ def try_spawn_town(world: World, rng: Rng, day_serial: int) -> bool:
         return False
     if len(world.towns) >= MAP_TILES // 30:
         return False
-    if day_serial - world.last_spawn_day_serial < 700 and world.towns:
+    if day_serial - world.last_spawn_day_serial < MAP_RULES.spawn_min_days and world.towns:
         return False
-    if not rng.chance(0.10):
+    if not rng.chance(MAP_RULES.spawn_chance):
         return False
     before = len(world.towns)
     # one placement attempt burst
