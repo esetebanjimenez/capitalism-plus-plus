@@ -36,7 +36,7 @@ Python literals.
 Each stored value carries:
 
 - **units**
-- **reference** — the `gamelogic.md` (or design.md) section it comes from
+- **ref** — the `gamelogic.md` (or design.md) section it comes from
 - **provisional** — set when the number is ours, not the original game's
 
 Load through `capitalism.tables`, which validates rows with Pydantic.

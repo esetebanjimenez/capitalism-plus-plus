@@ -5,6 +5,7 @@ from __future__ import annotations
 import sqlite3
 from functools import lru_cache
 from pathlib import Path
+from typing import TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -93,6 +94,187 @@ class SimpleCity(BaseModel):
     unemployment: float
 
 
+# --- Slice 3: product catalog -------------------------------------------------
+
+
+def _prov_cols(raw: str) -> frozenset[str]:
+    return frozenset(c for c in raw.split(",") if c)
+
+
+class ProductClassRow(BaseModel):
+    id: int
+    code: str
+    name: str
+    durable: bool
+    quality_decay_base: float = Field(gt=0, le=1)
+    group_flags: int
+    ref: str
+    provisional: frozenset[str] = frozenset()
+
+
+class ProductRow(BaseModel):
+    id: int
+    code: str
+    name: str
+    class_id: int
+    kind: str
+    unit: str
+    base_price: float = Field(gt=0)
+    base_cost: float = Field(ge=0)
+    demand_per_1000: float = Field(ge=0)
+    luxury: int = Field(ge=0, le=9)
+    necessity: int = Field(ge=0, le=9)
+    tech_importance: int
+    w_price: int
+    w_quality: int
+    w_brand: int
+    base_tech_level: int = Field(ge=0)
+    base_capacity: float = Field(ge=1)
+    plant_month: int | None = None
+    grow_months: int | None = None
+    suit_climate: int | None = None
+    suit_moisture: int | None = None
+    importable: bool
+    ref: str
+    provisional: frozenset[str] = frozenset()
+
+    @property
+    def is_consumer(self) -> bool:
+        return self.demand_per_1000 > 0
+
+
+class RecipeInputRow(BaseModel):
+    input_id: int
+    qty: int = Field(ge=1)
+    quality_weight: int = Field(ge=0, lt=100)
+
+
+class RecipeRow(BaseModel):
+    """One manufacturing recipe (docs/recipes.md, reference data)."""
+
+    product_id: int
+    output_qty: int = Field(ge=1)
+    speed_pct: int
+    ref: str
+    inputs: tuple[RecipeInputRow, ...]
+
+    @property
+    def input_weight(self) -> int:
+        return sum(i.quality_weight for i in self.inputs)
+
+    @property
+    def skill_weight(self) -> int:
+        """Manufacturing skill share of output quality: the rest of 100."""
+        return 100 - self.input_weight
+
+
+class RndPrereqRow(BaseModel):
+    product_id: int
+    requires_id: int
+    ref: str
+
+
+class ProductRules(BaseModel):
+    nec_lux_base: float
+    nec_lux_necessity: float
+    nec_lux_luxury: float
+    nec_lux_lo: float
+    nec_lux_hi: float
+    obsolete_demand_factor: float
+    gnp_pc_ref: float
+    demand_per_people: float
+    tech_jitter: int
+    score_jitter: int
+    score_no_links: float
+    diffusion_corp_weight: float
+    diffusion_threshold: float
+
+
+# --- Slice 4: firms and jobs ----------------------------------------------------
+
+
+class FirmTypeRow(BaseModel):
+    id: int
+    name: str
+    setup_cost: float
+    overhead_month: float
+    max_slots: int = Field(ge=0, le=9)
+    live_inventory: bool
+    ref: str
+    provisional: frozenset[str] = frozenset()
+
+
+class JobTypeRow(BaseModel):
+    id: int
+    name: str
+    staff: int = Field(ge=0)
+    setup_cost: float
+    training_factor: float
+    cap_mult: float = Field(gt=0)
+    ref: str
+    provisional: frozenset[str] = frozenset()
+
+
+class FirmRules(BaseModel):
+    slots: int
+    link_bits: int
+    size: int
+    cost_scale: float
+    media_wage_mult: float
+
+
+class JobRules(BaseModel):
+    sales_mult_store: float
+    sales_mult_other: float
+    purchase_every_days: int
+    purchase_order_mult: float
+    train_weekday: int
+    train_step: float
+    train_threshold: float
+    train_hi: float
+    train_lo: float
+    rating_min: int
+    rating_max: int
+    livestock_scalar: float
+    wage_hours: int
+    labor_factor: int
+    ad_budget_min: float
+    ad_budget_max: float
+    eff_base: float
+    eff_per_rating: float
+    eff_min: float
+    eff_max: float
+    crop_climate_slope: float
+    crop_moisture_slope: float
+    crop_yield_base: float
+    crop_soil_div: float
+    crop_moisture_step: float
+    extraction_rate: float
+    mfg_skill_max: float
+    freight_rate: float
+    import_quality: float
+    quality_base: float
+    quality_per_rating: float
+
+
+# --- Slice 5: links and markets -------------------------------------------------
+
+
+class LinkRules(BaseModel):
+    price_base: float
+    price_slope: float
+    score_div: float
+    oversupply_div: float
+    share_exponent: float
+    ad_brand_per_100k: float
+    weight_nonfarm: float
+    weight_rate_mult: float
+    weight_max: float
+    brand_nudge: float
+    brand_max: float
+    brand_start: float
+
+
 class SetupOptions(BaseModel):
     seed: int = 0
     start_year: int = 1990
@@ -122,13 +304,13 @@ def _rule(system: str, key: str) -> float:
     row = (
         _connect()
         .execute(
-            "SELECT value FROM rule_values WHERE system = ? AND key = ?",
+            "SELECT value FROM rules WHERE system = ? AND key = ?",
             (system, key),
         )
         .fetchone()
     )
     if row is None:
-        raise KeyError(f"missing rule_values[{system}.{key}]")
+        raise KeyError(f"missing rules[{system}.{key}]")
     return float(row["value"])
 
 
@@ -259,6 +441,97 @@ def load_simple_city() -> SimpleCity:
     )
 
 
+M = TypeVar("M", bound=BaseModel)
+
+
+def _rules_model(model: type[M], system: str) -> M:
+    """Build a rules model from every `rules` row of `system` named by its fields."""
+    return model(**{k: _rule(system, k) for k in model.model_fields})
+
+
+@lru_cache(maxsize=1)
+def load_product_classes() -> dict[int, ProductClassRow]:
+    out: dict[int, ProductClassRow] = {}
+    for r in _rows("SELECT * FROM product_classes ORDER BY id"):
+        d = dict(r)
+        d["provisional"] = _prov_cols(d["provisional"])
+        out[d["id"]] = ProductClassRow(**d)
+    return out
+
+
+@lru_cache(maxsize=1)
+def load_products() -> tuple[ProductRow, ...]:
+    rows = []
+    for r in _rows("SELECT * FROM products ORDER BY id"):
+        d = dict(r)
+        d["provisional"] = _prov_cols(d["provisional"])
+        rows.append(ProductRow(**d))
+    return tuple(rows)
+
+
+@lru_cache(maxsize=1)
+def load_recipes() -> dict[int, RecipeRow]:
+    inputs: dict[int, list[RecipeInputRow]] = {}
+    for r in _rows(
+        "SELECT product_id, input_id, qty, quality_weight FROM recipe_inputs "
+        "ORDER BY product_id, input_id"
+    ):
+        d = dict(r)
+        inputs.setdefault(d.pop("product_id"), []).append(RecipeInputRow(**d))
+    return {
+        int(r["product_id"]): RecipeRow(
+            product_id=r["product_id"],
+            output_qty=r["output_qty"],
+            speed_pct=r["speed_pct"],
+            ref=r["ref"],
+            inputs=tuple(inputs.get(int(r["product_id"]), ())),
+        )
+        for r in _rows("SELECT product_id, output_qty, speed_pct, ref FROM recipes ORDER BY 1")
+    }
+
+
+@lru_cache(maxsize=1)
+def load_rnd_prereqs() -> tuple[RndPrereqRow, ...]:
+    return tuple(
+        RndPrereqRow(**dict(r))
+        for r in _rows("SELECT product_id, requires_id, ref FROM rnd_prereqs ORDER BY 1, 2")
+    )
+
+
+@lru_cache(maxsize=1)
+def load_firm_types() -> dict[int, FirmTypeRow]:
+    out: dict[int, FirmTypeRow] = {}
+    for r in _rows(
+        "SELECT id, name, setup_cost, overhead_month, max_slots, live_inventory, ref, provisional "
+        "FROM firm_types ORDER BY id"
+    ):
+        d = dict(r)
+        d["provisional"] = _prov_cols(d["provisional"])
+        out[d["id"]] = FirmTypeRow(**d)
+    return out
+
+
+@lru_cache(maxsize=1)
+def load_job_types() -> dict[int, JobTypeRow]:
+    out: dict[int, JobTypeRow] = {}
+    for r in _rows(
+        "SELECT id, name, staff, setup_cost, training_factor, cap_mult, ref, provisional "
+        "FROM job_types ORDER BY id"
+    ):
+        d = dict(r)
+        d["provisional"] = _prov_cols(d["provisional"])
+        out[d["id"]] = JobTypeRow(**d)
+    return out
+
+
+@lru_cache(maxsize=1)
+def load_firm_job_allowed() -> dict[int, frozenset[int]]:
+    out: dict[int, set[int]] = {}
+    for r in _rows("SELECT firm_type, job_type FROM firm_job_allowed ORDER BY firm_type, job_type"):
+        out.setdefault(int(r["firm_type"]), set()).add(int(r["job_type"]))
+    return {k: frozenset(v) for k, v in out.items()}
+
+
 CITY_NAME_POOL: list[CityName] = list(load_city_names())
 TIER_GNP: dict[int, TierGnpRange] = load_tier_gnp()
 GNP_INDEX: GnpIndexTuning = load_gnp_index()
@@ -271,3 +544,11 @@ LEVEL_RULES: LevelRules = load_level_rules()
 MAP_RULES: MapRules = load_map_rules()
 SIMPLE_CITY: SimpleCity = load_simple_city()
 STAGGER_MOD: int = int(_rule("clock", "stagger_mod"))
+PRODUCT_RULES: ProductRules = _rules_model(ProductRules, "products")
+FIRM_RULES: FirmRules = _rules_model(FirmRules, "firms")
+JOB_RULES: JobRules = _rules_model(JobRules, "jobs")
+LINK_RULES: LinkRules = _rules_model(LinkRules, "links")
+PRODUCT_CLASSES: dict[int, ProductClassRow] = load_product_classes()
+FIRM_TYPES: dict[int, FirmTypeRow] = load_firm_types()
+JOB_TYPES: dict[int, JobTypeRow] = load_job_types()
+FIRM_JOB_ALLOWED: dict[int, frozenset[int]] = load_firm_job_allowed()
