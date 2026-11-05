@@ -37,7 +37,7 @@ Workflow: push to a branch, open a PR, merge only after `build` is green. No dir
 
 ## Code style
 
-See [`docs/code-style.md`](docs/code-style.md). Short version: OOP for `Game` / `Sim` / firm·job·product hierarchies; tunable numbers live in `src/capitalism/data/tables.sqlite` and load through Pydantic; plain classes for daily hot-path entities.
+See [`docs/code-style.md`](docs/code-style.md). Short version: OOP for `Game` / `Sim` / firm·job·product hierarchies; tunable numbers live in `src/capitalism/data/capitalism.db` (see `docs/rules.md`) and load through Pydantic; plain classes for daily hot-path entities.
 
 ## Milestone 1 progress
 

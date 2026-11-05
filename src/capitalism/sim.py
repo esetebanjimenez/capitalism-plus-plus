@@ -8,7 +8,7 @@ from datetime import date
 
 from .calendar import DEFAULT_START, Calendar
 from .rng import Rng
-from .tables import GNP_INDEX, MAP_RULES, SetupOptions
+from .tables import GNP_INDEX, MAP_RULES, STAGGER_MOD, SetupOptions
 from .town import Town
 from .world import World, generate_world, try_spawn_town
 
@@ -44,6 +44,8 @@ class Sim:
         self.avg_gnp_growth_12m: float = 0.0
         self.history: list[dict[str, int | float]] = []
         self.hooks: list[str] = []
+        self.town_slots_hit: set[int] = set()
+        self.product_slots_hit: set[int] = set()
         self.reset(seed)
 
     def reset(self, seed: int | None = None) -> None:
@@ -63,6 +65,8 @@ class Sim:
         self.avg_gnp_growth_12m = 0.0
         self.history = []
         self.hooks = []
+        self.town_slots_hit = set()
+        self.product_slots_hit = set()
 
     @property
     def day(self) -> int:
@@ -107,6 +111,7 @@ class Sim:
             self._hook("weekly_ratings")
         self._hook("random_events")
         self._hook("products")
+        self.product_slots_hit.add(self.calendar.day_serial % STAGGER_MOD)
         self._hook("natural_resources")
 
         self.history.append(
@@ -128,24 +133,24 @@ class Sim:
 
     def _towns_daily(self) -> None:
         self._hook("towns")
-        slot = self.calendar.day_serial % 30
+        slot = self.calendar.day_serial % STAGGER_MOD
         for town in self.world.towns:
             if town.stagger_slot == slot:
+                self.town_slots_hit.add(slot)
                 town.monthly_tick(self.rng, detailed=self.detailed_cities)
 
     def _month_pass(self) -> None:
         # 1. GNP index adjustment
         self._hook("month_gnp_index")
         t = GNP_INDEX
-        avg = self.avg_gnp_growth_12m
+        growth = self.avg_gnp_growth_12m
+        # Stimulus when growth is low; cool-down when growth is high and index > 1.
+        # Mid band holds still. Roll step_chance before applying.
         if self.rng.chance(t.step_chance):
-            if avg > t.high_growth:
-                delta = t.step
-            elif avg < t.low_growth:
-                delta = -t.step
-            else:
-                delta = t.step if self.rng.chance(0.5) else -t.step
-            self.gnp_index = max(t.floor, self.gnp_index + delta)
+            if growth < t.low_growth:
+                self.gnp_index = self.gnp_index + t.step
+            elif growth > t.high_growth and self.gnp_index > 1.0:
+                self.gnp_index = max(t.floor, self.gnp_index - t.step)
 
         # 2. Product catalog maintenance (stub)
         self._hook("month_products")

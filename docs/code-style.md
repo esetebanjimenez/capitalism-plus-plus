@@ -18,8 +18,7 @@ Pydantic on every tick.
 
 Use Pydantic `BaseModel` for:
 
-- **Rows loaded from data tables** (catalog rows, name pools, coefficients,
-  provisional tuning constants).
+- **Rows loaded from data tables** (catalogs, coefficients, tuning).
 - **Setup options** (new-game dialog, difficulty, toggles).
 - **Save state** (serialize/deserialize the full game).
 
@@ -29,19 +28,38 @@ performance.
 
 ## Data tables (SQLite)
 
-Anything that can live in a table **must** live in SQLite, shipped next to
-the code as `capitalism/data/tables.sqlite`. Do not hardcode catalogs,
-name pools, tier bands, climate factors, provisional coefficients or map
-rules as Python literals.
+Anything that can live in a table **must** live in the committed database
+`src/capitalism/data/capitalism.db`. Do not hardcode catalogs, name pools,
+tier bands, climate factors, provisional coefficients or map rules as
+Python literals.
 
-- Edit the database (or a rebuild script) when tuning numbers.
-- Load through `capitalism.tables`, which validates each row with Pydantic.
-- Schema grows with new systems; keep one DB file for milestone 1.
+Each stored value carries:
+
+- **units**
+- **reference** — the `gamelogic.md` (or design.md) section it comes from
+- **provisional** — set when the number is ours, not the original game's
+
+Load through `capitalism.tables`, which validates rows with Pydantic.
+Pyodide ships `sqlite3`, so the same DB works in the browser.
+
+### Companion rules doc
+
+`docs/rules.md` is generated from the DB by
+`scripts/generate_rules_md.py`. Never edit `rules.md` by hand. After
+changing the DB:
+
+```bash
+python scripts/generate_rules_md.py
+```
+
+`build` runs `python scripts/generate_rules_md.py --check` and fails when
+the committed doc is stale. That keeps every number change visible as a
+readable diff next to the binary DB change.
 
 ## Sim rules (from `docs/design.md`)
 
 - One seeded RNG owned by the world; no unseeded `random` calls.
 - Fixed array/slot iteration order; deleted slots leave gaps.
-- No I/O inside the sim package beyond reading the shipped tables DB —
+- No I/O inside the sim package beyond reading the shipped DB —
   the runner prints and saves.
 - Expose a stable state hash for determinism tests.

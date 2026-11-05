@@ -206,7 +206,8 @@ def generate_world(
     # Water-level normalization: shift so at least MIN_LAND_TILES sit at 100+.
     sorted_h = sorted(raw)
     boundary = sorted_h[MAP_TILES - MIN_LAND_TILES]
-    shift = 100.0 - boundary
+    # Nudge past 100 so float noise can't leave a boundary tile as water.
+    shift = (100.0 + 1e-6) - boundary
     raw = [v + shift for v in raw]
 
     equator = rng.randint(34, 164)

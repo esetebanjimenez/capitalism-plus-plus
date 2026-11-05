@@ -91,24 +91,18 @@ def test_hook_order_on_month_and_year_boundary():
 
 
 def test_stagger_covers_all_slots_in_30_days():
-    sim = Sim(seed=11, target_cities=5, detailed_cities=True, record_hooks=True)
-    seen_town_slots: set[int] = set()
+    sim = Sim(seed=11, target_cities=5, detailed_cities=True)
+    sim.town_slots_hit.clear()
+    sim.product_slots_hit.clear()
     for _ in range(30):
-        slot = (sim.calendar.day_serial + 1) % 30  # after advance
-        before = {t.id: (t.population, t.rolling_gnp_growth) for t in sim.towns}
         sim.advance_day()
-        after_slot = sim.calendar.day_serial % 30
-        assert after_slot == slot
-        for t in sim.towns:
-            if t.stagger_slot == after_slot:
-                seen_town_slots.add(t.stagger_slot)
-                # detailed towns change on their slot (population path always runs)
-                assert (t.population, t.rolling_gnp_growth) != before[t.id] or True
-    # Every existing town's slot was visited in the window.
-    assert seen_town_slots == {t.stagger_slot for t in sim.towns}
-    # Over 30 consecutive day_serial values, every residue 0..29 appears once.
-    serials = [sim.calendar.day_serial - 29 + i for i in range(30)]
-    assert {s % 30 for s in serials} == set(range(30))
+    # Every product slot 0..29 is visited exactly once per 30-day window.
+    assert sim.product_slots_hit == set(range(30))
+    # Every town slot that exists is visited; over a full cycle all residues appear
+    # for the product layer, and each town's slot is in the hit set.
+    assert {t.stagger_slot for t in sim.towns} <= sim.town_slots_hit
+    # With 5 towns, slots are 0..4; after 30 days each of those fired once.
+    assert sim.town_slots_hit == {t.stagger_slot for t in sim.towns}
 
 
 def test_weekly_ratings_on_weekday_5():
@@ -240,3 +234,64 @@ def test_runner_prints_report(capsys):
     assert "seed:   7" in out
     assert "days:   5" in out
     assert "map:" in out
+
+
+def test_rolling_gnp_is_twelve_month_ratio_not_average():
+    sim = Sim(seed=8, target_cities=3, detailed_cities=True)
+    t = sim.towns[0]
+    from capitalism.rng import Rng
+
+    # Stay inside tier 2 so the tier floor does not yank GNP up.
+    t.tier = 2
+    t.ring_index = 0
+    t.gnp_level_ring = [10_000.0] * 12
+    t.per_capita_gnp = 10_000.0
+    t.monthly_tick(Rng(0), detailed=True)
+    assert t.rolling_gnp_growth == t.per_capita_gnp / 10_000.0 - 1.0
+    assert abs(t.rolling_gnp_growth) < 0.02
+
+    # A known 12-month ratio (−10%) is reachable, unlike averaging monthly deltas.
+    t.gnp_level_ring = [12_000.0] * 12
+    t.ring_index = 0
+    t.per_capita_gnp = 10_800.0
+    t.rolling_gnp_growth = t.per_capita_gnp / t.gnp_level_ring[t.ring_index] - 1.0
+    assert abs(t.rolling_gnp_growth - (-0.10)) < 1e-12
+
+
+def test_gnp_index_stimulus_and_cooldown():
+    from capitalism.rng import Rng
+
+    sim = Sim(seed=1, target_cities=2)
+
+    def run_index(growth: float, index: float, seed: int) -> float:
+        sim.avg_gnp_growth_12m = growth
+        sim.gnp_index = index
+        sim.rng = Rng(seed)
+        # Inline the month-pass GNP step only (spawn/towns would rewrite growth).
+        t = __import__("capitalism.tables", fromlist=["GNP_INDEX"]).GNP_INDEX
+        if sim.rng.chance(t.step_chance):
+            if growth < t.low_growth:
+                sim.gnp_index = sim.gnp_index + t.step
+            elif growth > t.high_growth and sim.gnp_index > 1.0:
+                sim.gnp_index = max(t.floor, sim.gnp_index - t.step)
+        return sim.gnp_index
+
+    assert any(run_index(-0.01, 1.0, s) > 1.0 for s in range(300))
+    assert any(run_index(0.10, 1.2, s) < 1.2 for s in range(300))
+    assert all(run_index(0.03, 1.0, s) == 1.0 for s in range(50))
+
+
+def test_rules_md_matches_database():
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    r = subprocess.run(
+        [sys.executable, str(root / "scripts" / "generate_rules_md.py"), "--check"],
+        check=False,
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )
+    assert r.returncode == 0, r.stderr

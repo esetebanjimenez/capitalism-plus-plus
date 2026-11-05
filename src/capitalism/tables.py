@@ -1,4 +1,4 @@
-"""Load static data tables from the shipped SQLite DB into Pydantic models."""
+"""Load static data tables from the committed capitalism.db into Pydantic models."""
 
 from __future__ import annotations
 
@@ -28,17 +28,6 @@ class GnpIndexTuning(BaseModel):
     floor: float
 
 
-class ClimateSpend(BaseModel):
-    climate: int
-    factor: float
-
-
-class UnemploymentDrift(BaseModel):
-    climate: int
-    drift: float
-    swing: float
-
-
 class ClimateThresholds(BaseModel):
     boom: float
     prosperous: float
@@ -66,6 +55,8 @@ class TownGrowth(BaseModel):
     labor_quality_lo: float
     labor_quality_hi: float
     spend_floor: float
+    pop_per_tier: float
+    pop_tier_noise: int
 
 
 class LandValueRules(BaseModel):
@@ -103,21 +94,19 @@ class SimpleCity(BaseModel):
 
 
 class SetupOptions(BaseModel):
-    """New-game setup options (Pydantic; not hot-path)."""
-
     seed: int = 0
     start_year: int = 1990
     detailed_cities: bool = True
     target_cities: int = Field(default=5, ge=0, le=12)
 
 
-def _db_path() -> Path:
-    return Path(__file__).resolve().parent / "data" / "tables.sqlite"
+def db_path() -> Path:
+    return Path(__file__).resolve().parent / "data" / "capitalism.db"
 
 
 @lru_cache(maxsize=1)
 def _connect() -> sqlite3.Connection:
-    path = _db_path()
+    path = db_path()
     if not path.exists():
         raise FileNotFoundError(f"tables database missing: {path}")
     con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
@@ -125,15 +114,22 @@ def _connect() -> sqlite3.Connection:
     return con
 
 
-def _rows(sql: str) -> list[sqlite3.Row]:
-    return list(_connect().execute(sql))
+def _rows(sql: str, args: tuple = ()) -> list[sqlite3.Row]:
+    return list(_connect().execute(sql, args))
 
 
-def _one(sql: str) -> sqlite3.Row:
-    row = _connect().execute(sql).fetchone()
+def _rule(system: str, key: str) -> float:
+    row = (
+        _connect()
+        .execute(
+            "SELECT value FROM rule_values WHERE system = ? AND key = ?",
+            (system, key),
+        )
+        .fetchone()
+    )
     if row is None:
-        raise RuntimeError(f"expected a row for: {sql}")
-    return row
+        raise KeyError(f"missing rule_values[{system}.{key}]")
+    return float(row["value"])
 
 
 @lru_cache(maxsize=1)
@@ -154,8 +150,13 @@ def load_tier_gnp() -> dict[int, TierGnpRange]:
 
 @lru_cache(maxsize=1)
 def load_gnp_index() -> GnpIndexTuning:
-    r = _one("SELECT low_growth, high_growth, step_chance, step, floor FROM gnp_index WHERE id = 1")
-    return GnpIndexTuning(**dict(r))
+    return GnpIndexTuning(
+        low_growth=_rule("clock", "gnp_index_low_growth"),
+        high_growth=_rule("clock", "gnp_index_high_growth"),
+        step_chance=_rule("clock", "gnp_index_step_chance"),
+        step=_rule("clock", "gnp_index_step"),
+        floor=_rule("clock", "gnp_index_floor"),
+    )
 
 
 @lru_cache(maxsize=1)
@@ -176,50 +177,88 @@ def load_unemployment_drift() -> dict[int, tuple[float, float]]:
 
 @lru_cache(maxsize=1)
 def load_climate_thresholds() -> ClimateThresholds:
-    r = _one("SELECT boom, prosperous, normal, recession FROM climate_thresholds WHERE id = 1")
-    return ClimateThresholds(**dict(r))
+    return ClimateThresholds(
+        boom=_rule("towns", "climate_boom"),
+        prosperous=_rule("towns", "climate_prosperous"),
+        normal=_rule("towns", "climate_normal"),
+        recession=_rule("towns", "climate_recession"),
+    )
 
 
 @lru_cache(maxsize=1)
 def load_town_growth() -> TownGrowth:
-    r = _one("SELECT * FROM town_growth WHERE id = 1")
-    data = {k: v for k, v in dict(r).items() if k != "id"}
-    return TownGrowth(**data)
+    keys = (
+        "pop_growth_lo",
+        "pop_growth_hi",
+        "rolling_gnp_weight",
+        "unemp_weight",
+        "unemp_baseline",
+        "small_pop",
+        "large_pop",
+        "gnp_factor_lo",
+        "gnp_factor_hi",
+        "unemp_lo",
+        "unemp_hi",
+        "labor_step",
+        "gnp_divisor",
+        "env_chance",
+        "env_lo",
+        "env_hi",
+        "labor_quality_lo",
+        "labor_quality_hi",
+        "spend_floor",
+        "pop_per_tier",
+        "pop_tier_noise",
+    )
+    return TownGrowth(**{k: _rule("towns", k) for k in keys})
 
 
 @lru_cache(maxsize=1)
 def load_land_value() -> LandValueRules:
-    r = _one(
-        "SELECT floor, bonus_cap, base_mult, small_town_factor, small_town_level_max FROM land_value WHERE id = 1"
+    return LandValueRules(
+        floor=int(_rule("world", "land_value_floor")),
+        bonus_cap=int(_rule("world", "land_value_bonus_cap")),
+        base_mult=_rule("world", "land_value_base_mult"),
+        small_town_factor=_rule("world", "land_value_small_town_factor"),
+        small_town_level_max=int(_rule("world", "land_value_small_town_level_max")),
     )
-    return LandValueRules(**dict(r))
 
 
 @lru_cache(maxsize=1)
 def load_level_rules() -> LevelRules:
-    r = _one("SELECT max_level, pop_per_level_sq FROM level_rules WHERE id = 1")
-    return LevelRules(**dict(r))
+    return LevelRules(
+        max_level=int(_rule("towns", "level_max")),
+        pop_per_level_sq=int(_rule("towns", "level_pop_per_sq")),
+    )
 
 
 @lru_cache(maxsize=1)
 def load_map_rules() -> MapRules:
-    r = _one(
-        "SELECT width, height, min_land_fraction, city_border, city_min_dist, "
-        "max_cities, default_cities, spawn_chance, spawn_min_days FROM map_rules WHERE id = 1"
+    return MapRules(
+        width=int(_rule("world", "map_width")),
+        height=int(_rule("world", "map_height")),
+        min_land_fraction=_rule("world", "min_land_fraction"),
+        city_border=int(_rule("world", "city_border")),
+        city_min_dist=int(_rule("world", "city_min_dist")),
+        max_cities=int(_rule("world", "max_cities")),
+        default_cities=int(_rule("world", "default_cities")),
+        spawn_chance=_rule("world", "spawn_chance"),
+        spawn_min_days=int(_rule("world", "spawn_min_days")),
     )
-    return MapRules(**dict(r))
 
 
 @lru_cache(maxsize=1)
 def load_simple_city() -> SimpleCity:
-    r = _one(
-        "SELECT level, per_capita_gnp, labor_cost, spending, labor_quality, unemployment "
-        "FROM simple_city WHERE id = 1"
+    return SimpleCity(
+        level=int(_rule("towns", "simple_level")),
+        per_capita_gnp=_rule("towns", "simple_per_capita_gnp"),
+        labor_cost=_rule("towns", "simple_labor_cost"),
+        spending=_rule("towns", "simple_spending"),
+        labor_quality=_rule("towns", "simple_labor_quality"),
+        unemployment=_rule("towns", "simple_unemployment"),
     )
-    return SimpleCity(**dict(r))
 
 
-# Eager module-level aliases used by the sim (loaded once from SQLite).
 CITY_NAME_POOL: list[CityName] = list(load_city_names())
 TIER_GNP: dict[int, TierGnpRange] = load_tier_gnp()
 GNP_INDEX: GnpIndexTuning = load_gnp_index()
@@ -231,3 +270,4 @@ LAND_VALUE: LandValueRules = load_land_value()
 LEVEL_RULES: LevelRules = load_level_rules()
 MAP_RULES: MapRules = load_map_rules()
 SIMPLE_CITY: SimpleCity = load_simple_city()
+STAGGER_MOD: int = int(_rule("clock", "stagger_mod"))

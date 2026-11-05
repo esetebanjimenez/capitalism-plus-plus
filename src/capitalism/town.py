@@ -10,6 +10,7 @@ from .tables import (
     CLIMATE_THRESHOLDS,
     LEVEL_RULES,
     SIMPLE_CITY,
+    STAGGER_MOD,
     TIER_GNP,
     TOWN_GROWTH,
     UNEMPLOYMENT_DRIFT,
@@ -49,7 +50,7 @@ class Town:
         "climate",
         "consumer_spending",
         "env_factors",
-        "gnp_growth_ring",
+        "gnp_level_ring",
         "id",
         "labor_cost",
         "labor_quality",
@@ -106,7 +107,7 @@ class Town:
         self.climate = climate
         self.env_factors = env_factors
         self.pop_ring: list[float] = [0.0] * 12
-        self.gnp_growth_ring: list[float] = [0.0] * 12
+        self.gnp_level_ring: list[float] = [per_capita_gnp] * 12
         self.ring_index = 0
         self.last_month_population = population
         self.last_month_gnp_growth = 0.0
@@ -130,8 +131,9 @@ class Town:
     ) -> Town:
         lo, hi = TIER_GNP[tier].lo, TIER_GNP[tier].hi
         gnp = float(rng.randint(lo, hi))
-        pop = float(tier * 300_000 + rng.randint(0, 30_000))
-        slot = town_id % 30
+        g0 = TOWN_GROWTH
+        pop = float(tier * g0.pop_per_tier + rng.randint(0, int(g0.pop_tier_noise)))
+        slot = town_id % STAGGER_MOD
         env = (
             float(rng.randint(-3, 3)),
             float(rng.randint(-3, 3)),
@@ -196,10 +198,16 @@ class Town:
         while self.tier < 3 and self.per_capita_gnp > TIER_GNP[self.tier].hi:
             self.tier += 1
 
-        gnp_growth = (self.per_capita_gnp - prev_gnp) / prev_gnp if prev_gnp else 0.0
-        self.last_month_gnp_growth = gnp_growth
-        self.gnp_growth_ring[self.ring_index] = gnp_growth
-        self.rolling_gnp_growth = sum(self.gnp_growth_ring) / 12.0
+        month_delta = (self.per_capita_gnp - prev_gnp) / prev_gnp if prev_gnp else 0.0
+        self.last_month_gnp_growth = month_delta
+        # True 12-month change: current / value from 12 months ago − 1.
+        # gnp_level_ring[ring_index] still holds the value we're about to overwrite.
+        year_ago = self.gnp_level_ring[self.ring_index]
+        if year_ago > 0:
+            self.rolling_gnp_growth = self.per_capita_gnp / year_ago - 1.0
+        else:
+            self.rolling_gnp_growth = 0.0
+        self.gnp_level_ring[self.ring_index] = self.per_capita_gnp
 
         thr = CLIMATE_THRESHOLDS
         rg = self.rolling_gnp_growth
