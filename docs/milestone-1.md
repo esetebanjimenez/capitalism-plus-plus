@@ -62,9 +62,9 @@ farm → factory → store chain and sell to a city.
   from a seed.
 - **Tutorial scenarios and Hall of Fame (cut).** The scenario system
   itself stays.
-- **Vestigial personality traits (simplified).** Only the traits the AI
-  actually reads (aggressiveness, salary trait) are implemented; the rest
-  are stored, not used.
+- **Vestigial personality traits (simplified).** Only the 5 of 13 traits
+  the original reads (character type, salary trait, trait 7, expansion,
+  acceptance) are implemented; the rest are stored, not used.
 
 When something in the original turns out ambiguous, we add a note here
 with the call we made.
