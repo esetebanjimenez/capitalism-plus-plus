@@ -295,7 +295,240 @@ Land value is only computed in slice 2. Firms start using it in slice 4.
 
 ---
 
-## Slices 3 and up
+## Slice 3: product catalog and demand
 
-To follow, in milestone-1.md order. Next up: product catalog and demand,
-then firms and jobs.
+### Classes
+
+- `ProductClass` (pydantic, read-only, from `product_classes`): id, name,
+  `durable`, `quality_decay_base`, grouping flags.
+- `Product` base (pydantic for the static row) plus runtime `ProductState`
+  (plain class, per game): `tech_level`, `discovered_on`, `obsolete`,
+  `score`, `available`. Subclasses only where behaviour differs:
+  `RawMaterial`, `Crop`, `Livestock`, `SemiProduct`, `ConsumerProduct`,
+  `Software`. `Product.make(row)` picks the subclass from `kind`.
+- `TownMarket` (plain class): one per (town, consumer product) with
+  `demand_per_day`, the link list, `max_score_in`, `supply_today`.
+
+### Tables (all numbers live in the db)
+
+- `product_classes(id, name, durable, quality_decay_base, group_flags, ref, provisional)`: the 20 classes.
+- `products(id, code, name, class_id, kind, unit, base_price, base_cost,
+  demand_per_1000, luxury, necessity, tech_importance, w_price, w_quality,
+  w_brand, base_tech_level, base_capacity, plant_month, grow_months,
+  importable, ref, provisional)`: the 84 products. CHECK
+  `w_price + w_quality + w_brand = 100` and luxury, necessity in 0..9.
+- `recipes(product_id, input_id, qty_per_unit, ref, provisional)`: inputs
+  per output unit. Raw, crop and livestock products have no rows.
+
+Filling rule: every value printed in gamelogic.md's catalog goes in as
+`provisional=0`. Missing values are filled by these provisional rules
+(and flagged `provisional=1`), so nothing is hand-typed twice:
+
+| Column | Provisional fill |
+|---|---|
+| `base_cost` | 0.6 × `base_price` |
+| `base_capacity` (units/day for one level-1 job) | `max(1, round(4000 / sqrt(base_price)))` |
+| `tech_importance` | 3 food, drink, raw, crop, livestock; 6 chemicals, apparel, furniture, toys; 10 electronics and computers; 12 jewelry, watches; 15 cars (15 is ref) |
+| `base_tech_level` | 0 for raw, crop, livestock, food, drink; 20 otherwise |
+| `w_*`, `demand_per_1000`, L/N | non-consumer products: 0 / 0 / 0 and 0 |
+| `plant_month`, `grow_months` | crops: plant 3 (April), grow 5 |
+| `recipes.qty_per_unit` | by mass/value so that inputs cost about 60% of the output's `base_price` at base prices |
+
+The Designer owns the provisional recipe rows; they ship with this
+slice's PR as the content step, reviewed by me before merge.
+
+### Calls
+
+1. **Demand unit.** `demand_per_1000` is units per 1000 people **per day**
+   (bread 10.0, so a 640k city wants 6,400 loaves a day; cars 0.005, 3.2 a day).
+2. **Daily town demand** (provisional formula, ref gives only the inputs):
+   `demand = demand_per_1000 × pop / 1000 × (spending / 100) × nec_lux × age`
+   - `nec_lux = 0.6 + 0.05 × necessity + 0.05 × luxury × (gnp_pc_index − 1)`, clamped 0.3..1.5
+   - `age = 1.0` until the product is obsolete, then 0.8.
+   Recomputed in the month pass, stored on `TownMarket`.
+3. **Price is a column, not "constant ÷ cost".** The ref's "price =
+   constant ÷ cost" has no constant; we use `base_price` from the table,
+   and seaport and default sell prices start there.
+4. **Initial jitter.** `tech_level = base_tech_level + randint(-4, 4)` and
+   initial link score `+ randint(-4, 4)`, both clamped at 0, drawn from
+   the game RNG in product-id order at setup.
+5. **Tech diffusion.** Yearly pass: a product becomes generally available
+   when `corps_with_it × 8 + years_since_discovery > 50` (ref), and is
+   marked obsolete (stops quality decay) at the same test.
+6. **Quality decay.** Month pass: every job's stock quality ×
+   `quality_decay_base` of the class, unless the product is obsolete or the
+   class is durable (decay base 1.0).
+7. **Product score.** 400 when the product has no links; 0 when it has
+   supply but no demand (ref); else `max_score_in` of its links.
+8. **Availability** is recursive: a product is available when it is
+   raw/crop/livestock/importable or every recipe input is available.
+   Computed once at setup and on discovery, with a cycle guard.
+
+### Golden tests
+
+- The db passes the CHECKs; 84 products, 20 classes; every non-raw,
+  non-importable product has at least one recipe row.
+- Bread in a 640k town at spending 100: demand 6,400 × `nec_lux` (to 1 dp).
+- Availability: bread is available iff wheat is; removing the
+  flour recipe makes bread unavailable.
+- Jitter is reproducible for seed 1 (store a hash of the tech levels).
+
+## Slice 4: firms and jobs
+
+### Classes
+
+- `Firm` base (plain class): id, type, owner corp, tile, town, `size`
+  (1 in M1), `slots: list[Job | None]` (9), `links` bitmask (20 bits),
+  `ledger`, `land_value`. One subclass per firm type (14):
+  `Farm, Factory, DepartmentStore, Restaurant, Mine, OilWell,
+  LoggingCamp, ResearchCentre, SoftwareCompany, TVStation, RadioStation,
+  Newspaper, Seaport, Headquarters` (names follow `firm_types`).
+  A subclass only overrides `daily()` hooks and `allowed_jobs`.
+- `Job` base (plain class): `type`, `product`, `stock`, `quality`,
+  `unit_cost`, `rating` (1..9), `train_acc`, `staff`, `param1`, `param2`.
+  One subclass per job type (15): `CropGrowing, LivestockRaising,
+  LivestockProcessing, Extraction, Inventory, PrivateLabelling,
+  Manufacturing, Purchasing, Sales, RAndD, SoftwareProduction,
+  Advertising, Training`, plus `MediaJob` and `ImportJob`. Each overrides
+  `work(day)` and `pull(day)`.
+- `Ledger` (plain): 12 categories (0..11, ref); `operating = cat < 9`.
+  Slice 4 posts to firm and owner-corp cash; full books are slice 7.
+
+### Tables
+
+- `firm_types(id, name, setup_cost, overhead_month, max_slots, live_inventory, ref, provisional)`
+- `job_types(id, name, staff, setup_cost, training_factor, ref, provisional)`
+- `firm_job_allowed(firm_type, job_type)`
+- `rules` rows (system `jobs`): `sales_mult_store=2`, `sales_mult_other=4`,
+  `purchase_every_days=5`, `purchase_order_mult=4`, `train_weekday=2`,
+  `train_step=900`, `livestock_scalar=36500`, `wage_hours=2000`,
+  `ad_budget_min=50000`, `ad_budget_max=500000` (all ref) and the
+  provisional ones below.
+
+### Calls
+
+1. **Slot grid.** The 9 slots are a 3 × 3 grid; the 20 possible links
+   are 6 horizontal + 6 vertical + 8 diagonal neighbours (this is the
+   only layout that gives exactly 20). Bit order: horizontals row by row,
+   then verticals column by column, then diagonals `\` then `/`, each
+   top-left first. A link is undirected; the direction comes from job
+   types (an input job feeds a consuming job).
+2. **Daily order.** Inside the firm pass (slice 1 order), each firm runs
+   slots 0..8: `work()` then `pull()` for each. Daily overhead is not
+   posted; overhead posts in the month pass (category 2), prorated
+   `days_left / days_in_month` in the first month (ref).
+3. **Efficiency** (undefined in ref, provisional):
+   `efficiency = clamp((50 + 5 × rating) × labor_quality / 100, 10, 100)`.
+   Rating 1 gives 55, rating 9 gives 95 at labor quality 100.
+4. **Capacity** (undefined in ref, provisional):
+   `capacity = product.base_capacity × firm.size × job_cap_mult[job type]`,
+   with `job_cap_mult` 1 for all but Inventory and Sales (3), so a store
+   can hold three days of a factory's output.
+5. **Wages** (ref): `((salary_target × 2000) / days_in_month × labor) / 100`
+   per staff per day, category 0, where `salary_target` is the town's labor
+   cost (slice 2). Media firms use the same with `× 2` (ref).
+6. **Training** (ref): on weekday 2, `train_acc += rating_delta × 900`,
+   where `rating_delta` is +1 if the job met 90%+ of capacity that week,
+   −1 under 30%, else 0 (provisional). Rating moves one step when
+   `|train_acc| ≥ 9000` (provisional), then the accumulator resets.
+   Training cost is `salary × training_factor / 100` (ref).
+7. **Per-type work** (ref unless marked):
+   - Crop: stock grows only in its season; yield factor
+     `(climate_dist × −10 + 20) + (moisture_dist × −10 + 20) + soil / 5`,
+     daily add `(efficiency × capacity / 100 × yield) / 100`.
+   - Livestock raising: shared rule, `min(room, rate × efficiency × capacity / 100)`,
+     `rate = 1 / 36500 × capacity` units per day (provisional reading of
+     the 36,500 scalar).
+   - Extraction: as livestock with rate 1.
+   - Inventory, Private Labelling: move stock from the linked job,
+     blending quality by quantity; Private Labelling copies the brand
+     from its source.
+   - Manufacturing: step `(recipe_scaling × capacity × efficiency) / 100`,
+     consumes `qty_per_unit` of each input; output quality
+     `0.5 × mean(input quality) + 0.5 × corp_tech_quality` (provisional),
+     where `corp_tech_quality = min(100, tech_level)`.
+   - Purchasing: every 5 days, order `(efficiency × capacity × 4) / 100`,
+     capped by room and by the supplier link quantity; freight is
+     category 5 at 2% of the purchase value (provisional).
+   - Sales: daily cap `(efficiency × mult × capacity) / 100`, mult 2 for
+     live-inventory firms and 4 otherwise.
+   - R&D: raises `corp_tech_level[product]` by 1 per completed project;
+     duration from the 0/6/12/24/36/60/120 month table by tech step (ref).
+   - Advertising: budget 50k..500k per month; needs a media partner
+     firm linked; brand effect lands in slice 5.
+   - Seaport `ImportJob`: unlimited stock at `base_price`, quality 50
+     (provisional; "High" import quality = 60, Moderate 50, Low 40).
+8. **Cut for now.** Firm AI steps (shutdown, price changes, ownership
+   moves) wait for slice 9. Firms in slices 4–5 belong to a scripted
+   test corp.
+9. **Delivery split** is allowed: 4a = Farm, Mine/Oil/Logging, Factory,
+   Department Store, Seaport and the jobs they use; 4b = the rest.
+
+### Golden tests
+
+- Wage of one level-1 staff at labor cost 100 in a 30-day month.
+- Slot links: the bitmask for "0–1, 1–2, 4–7" decodes to those edges.
+- A wheat farm in season fills to capacity in `ceil(capacity / daily)` days.
+- Flour factory fed by a seaport: after 30 days, stock, unit cost and
+  quality match stored values for seed 1.
+- Training: a job at full capacity for 10 weeks goes from rating 1 to 2.
+
+## Slice 5: product links and markets
+
+### Classes
+
+- `Link` (plain class): `seller_job`, `buyer` (a job or a `TownMarket`),
+  `product`, `quantity` (units/day), `score`, `weight`, `price`.
+- `Market` service: owns the link list per (town, product), runs the
+  daily link pass after jobs (slice 1 order) and the monthly roll.
+
+### Calls
+
+1. **All links run daily.** The ref's "15 links per frame" is frame
+   slicing, which M1 cut; headless we walk the whole array once per day
+   in link-id order.
+2. **Score formula.** The ref has two versions. We use the explicit one:
+   `score = base + brand × w_brand / 60 + quality × w_quality / 60`,
+   where `base = 100 − 50 × price / base_price` (provisional, gives the
+   price weight a role), floored at 0. The other version's
+   "factor1 / score-in" are taken as the same terms under other names.
+3. **Score drop.** Two versions again. We use `quantity × new / old`
+   (no unknown scalar), applied when a link's score falls day over day.
+4. **Weight.** We read the "+50" as applying to non-farm sellers (two
+   sections say farmland, one says department store):
+   `weight = min(100, adjust_rate × 5 + (0 if seller is a Farm else 50))`.
+   Growth per day is proportional to `(100 − weight)`.
+5. **Consumer demand moves only on live-inventory links** (department
+   store, restaurant). Each day the town's `demand` is split across those
+   links by `score²` share (provisional; squaring makes the best store
+   win clearly without taking everything). A link's daily sales are
+   `min(sales cap, stock, its demand share)`.
+6. **Oversupply.** When a town's supply exceeds demand, each link's
+   quantity falls by `excess / oversupply_div` per day,
+   `oversupply_div = 20` (provisional, 5% a day).
+7. **B2B links** (purchasing from another firm) have no consumer
+   demand; quantity is the buyer's order, filled in seller-stock order.
+8. **Brand.** Each sale nudges brand perception by ±0.1 toward the
+   seller's quality (ref); advertising adds `budget / 100000` points a
+   month (provisional), capped at 100.
+9. **Monthly roll** (ref): links recompute weight, and each product
+   publishes `max_score_in`.
+
+Provisional scalars for slice 5 go in `rules` under system `links`:
+`price_base=100`, `price_slope=50`, `oversupply_div=20`,
+`share_exponent=2`, `ad_brand_per_100k=1`, `weight_nonfarm=50`.
+
+### Golden tests
+
+- Two bread stores in one town, equal price and brand, quality 60 vs 40:
+  shares are `score²`-weighted and sum to town demand (to 1 unit).
+- Halving one store's price raises its score by 25 (with base_price
+  fixed) and its share accordingly.
+- Oversupply of 2× demand drains link quantity by 5% a day.
+- End-to-end, seed 1: seaport wheat → flour factory → bread factory →
+  department store in a 640k town for 120 days; store a state hash and
+  the store's revenue, unit cost and brand at day 120.
+
+## Slices 6 and up
+
+To follow, in milestone-1.md order: plans, then finance and corporations.
