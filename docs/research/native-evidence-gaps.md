@@ -200,66 +200,51 @@ Wages, setup/overhead, recipes, freight (`FUN_000785f1`), training expense golde
 
 ---
 
-## Native artifact request (next bypass of documented gaps)
+## Native artifact request (remaining evidence gaps)
 
-The inspection above was performed before a proposed decompiled header became
-part of the handoff. This section records both handoffs without rewriting the
-original report. The prior filesystem-absence finding bound that inspection;
-it must not be presented as evidence that authorized native artifacts do not
-exist elsewhere.
+A purported `Game/Informations.h` with declared capacity constants was
+mentioned in this handoff **without an actual file, accessible full path,
+commit/hash, or verified provenance**. The Researcher states it did **not**
+supply that artifact or its asserted definitions. This invalidates the
+attribution in the handoff, not merely its implementation proof. The claim is
+excluded as evidence, including its named fields, values, ranges and suggested
+mode distinction. It must not steer native capacity changes or a new media
+salary/staff formula. The first 199 lines above remain the original report
+verbatim; this request is an appended, separately dated editorial section.
 
-### Subsequent reported header evidence — verification still required
+The Researcher is checking Esteban's designated reference folders read-only;
+this document records no results from that inspection until exact artifacts
+and evidence are independently available to the repo agents. No existing
+provisional capacity value is changed or promoted, and no binary claim is
+reconstructed from memory.
 
-A later researcher message reports that `Informations.h`, under its working
-copy of a `reference-source/Game` decompile, has
-`BASE_UNIT_PRICE[product] = 20000` at **slots 24–36** and
-`COM_PRODUCT_BASE_CAP[type] = 60000` at **slots 461–473**. It also reports
-that `Firm.capacity_base` and the other candidate capacity-derived fields are
-absent. This handed-off **path was not present in this agent's shared box**
-when checked; the header has not been opened or independently line-audited
-here. The entries therefore remain **reported supplementary findings, not
-locally verified native proof**, until the supplied artifact is available at
-a stable path or commit.
+### What would settle the native gaps
 
-If independently verified, those **definitions alone still do not establish
-the operating-mode capacity formula**: no call sites, caller, mode-selection
-logic, or type-to-product mapping were supplied with this report. They are
-not authority to replace M1's provisional `60000` with `20000`, keep it, or
-apply a universal factor 3 to the rating table. Both existing M1 values stay
-provisional and unchanged. `BASE_UNIT_PRICE` and `COM_PRODUCT_BASE_CAP` may
-serve distinct modes; that hypothesis is not an implementation rule.
-
-### What Esteban can provide to settle the gaps
-
-1. An **authorized original game executable and its matching data files**, or
-   the **authorized decompiler-exported data and symbol map**. No unspecified
-   version or unrelated build: identify the game version/build and files
-   needed to match exported symbols with the shipped product, job and firm
-   records. Access must be supplied through an approved shared path or the
-   researcher's workspace, not assumed from a prose table.
-2. The exact **capacity-field declarations** in one export, retaining declared
-   type, fixed slots, units and contents for each `base_capacity` and
-   `type-factor` entry, plus every `Firm` field proposed as capacity-derived.
-   For the reported header above, supply the literal file with stable line
-   anchors for the 24–36 and 461–473 ranges.
-3. **Call-site functions, exact function identifiers/signatures and line
-   anchors** that read the two arrays, initialize production units, and select
-   their operating modes. Include the mapping between product, production type,
-   and `Firm` record. Without this use chain, identification of a constant is
-   not proof of scale or effect.
-4. Native job capacity/minimum-efficiency and view threshold functions, with
-   the same identifying details. Also provide livestock yield/input records;
-   software unit-price, base-cost and demand information; media initialization
-   records; market scalar functions; and the definitive `+50` predicate, as
-   relevant to the remaining gaps in §1–§4.
-5. Any symbol map or analysis function that identifies external or indirect
-   calls not apparent in the header. State what is directly extracted versus
-   inferred by the reverse-engineering tool.
+1. An **authorized original game executable with its matching data files**, or
+   the **authorized decompiler-exported data and symbol map**. Identify the
+   matching game version/build, provide an accessible full path for the file
+   or export and a cryptographic hash/commit for the artifact, and describe
+   how it was extracted. A filename or prose declaration is not enough.
+2. Exact **capacity/table declarations** for base capacity and type factor,
+   including declared type, entries and units, plus every proposed
+   capacity-derived `Firm` field. Identify stable source line anchors and
+   address/field offsets when available.
+3. **Call-site functions, identifiers/signatures and stable evidence anchors**
+   showing reads, initialization, operating-mode selection, and the mapping
+   among product, production type and firm record. A declaration alone is not
+   evidence of its runtime use, scale or effect.
+4. Native job capacity/minimum-efficiency and view-threshold evidence, with
+   matching identifiers, paths and hashes. Also provide the listed livestock,
+   software, media, market-scalar and `+50` records from §1–§4. No proportional
+   salary-versus-linear-staff rule or `+$30` staff constant is introduced.
+5. A symbol map or analysis identifying external/indirect calls not apparent
+   in table declarations. Distinguish direct extraction from inference by the
+   reverse-engineering tool.
 
 ### Acceptance standard
 
-A value becomes native-sourced only when a committed artifact and its stable
-evidence lines support the claimed declaration and its callers. No guessed
-constant, reconstructed field or unverified formula will be added to
-`capitalism.db`, docs/rules.md, gameplay code or an existing golden. The code
-and golden tests remain outside this research change.
+A value gains native evidence only when repo agents independently read an
+artifact whose accessible path, hash/version and provenance support the cited
+declaration, and its callers support the proposed behavior. Until then no
+such value or formula belongs in `capitalism.db`, docs/rules.md, gameplay code
+or existing goldens. This research note changes no runtime or tests.
