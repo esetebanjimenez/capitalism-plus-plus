@@ -25,6 +25,23 @@ the wide catalog tables) are ours, not the original game's.
 | 20 | 24 | 1 **provisional** | 1 | M1 provisional livestock yield and conversion; source yield missing |
 | 22 | 25 | 40 **provisional** | 1 | M1 provisional livestock yield and conversion; source yield missing |
 
+## Rating efficiency and storage
+
+| Rating | Efficiency % | Storage multiplier | Reference |
+|---|---|---|---|
+| 1 | 100 | 8 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
+| 2 | 130 | 10 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
+| 3 | 160 | 14 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
+| 4 | 200 | 16 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
+| 5 | 250 | 20 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
+| 6 | 300 | 24 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
+| 7 | 360 | 30 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
+| 8 | 430 | 35 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
+| 9 | 500 | 40 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
+
+The storage multiplier is registered but inactive: the native base capacity and
+type factor are missing, so M1 preserves the normalized product×size×3-day capacity.
+
 ## 1 — Clock and passes
 
 | Key | Value | Units | Reference |
@@ -135,10 +152,6 @@ the wide catalog tables) are ours, not the original game's.
 | `crop_moisture_step` | 25 **provisional** | moisture points / step | design.md slice 4 — moisture distance in steps |
 | `crop_soil_div` | 5 | divisor | Crop Growing — soil ÷ 5 |
 | `crop_yield_base` | 20 | yield | Crop Growing — yield (× −10 + 20) |
-| `eff_base` | 50 **provisional** | efficiency | design.md slice 4 call 3 |
-| `eff_max` | 100 **provisional** | efficiency | design.md slice 4 call 3 |
-| `eff_min` | 10 **provisional** | efficiency | design.md slice 4 call 3 |
-| `eff_per_rating` | 5 **provisional** | efficiency / rating | design.md slice 4 call 3 |
 | `extraction_rate` | 1 **provisional** | rate | design.md slice 4 call 7 — extraction |
 | `freight_distance_value_divisor` | 100 | currency-distance divisor | decompiled FUN_000785f1 review (Esteban 2026-11-06) |
 | `freight_floor_usd_per_unit` | 0.01 | USD per unit only if raw rate == 0 | decompiled FUN_000785f1 review (Esteban 2026-11-06) |
@@ -154,11 +167,10 @@ the wide catalog tables) are ours, not the original game's.
 | `rating_min` | 1 | rating | Job daily cycle — rating 1..9 |
 | `sales_mult_other` | 4 | multiplier | Sales — multiplier |
 | `sales_mult_store` | 2 | multiplier | Sales — live-inventory multiplier |
-| `train_hi` | 0.9 **provisional** | fraction of capacity / week | design.md slice 4 call 6 |
-| `train_lo` | 0.3 **provisional** | fraction of capacity / week | design.md slice 4 call 6 |
-| `train_step` | 900 | accumulator points | Job daily cycle — train |
-| `train_threshold` | 9000 **provisional** | accumulator points | design.md slice 4 call 6 |
 | `train_weekday` | 2 | weekday | Job daily cycle — train on weekday 2 |
+| `training_credit_budget_divisor` | 10 **provisional** | budget-value / divisor; budget10 neutral | docs/design.md slice 4 call 6 (PR22 d012404) — provisional neutral credit scaling |
+| `training_credit_education` | 100 **provisional** | global fallback education; no native field recovered | docs/design.md slice 4 call 6 (PR22 d012404) — provisional neutral credit scaling |
+| `training_credit_education_divisor` | 100 **provisional** | education / divisor; fallback100 neutral | docs/design.md slice 4 call 6 (PR22 d012404) — provisional neutral credit scaling |
 | `training_expense_divisor` | 100 | USD divisor | decompiled training review (2026-11-06) |
 | `wage_per_worker_month` | 2000 | usd / worker / month at labor cost 100 | Job daily cycle — post wages ((staff × 2000) / days-in-month × labor) / 100; design.md slice 4 call 5 |
 
@@ -575,22 +587,22 @@ Reference: docs/recipes.md — 1STD.SET METHOD. Speed is a throughput multiplier
 
 | Id | Name | Staff | Setup cost | Training factor | Capacity mult | Units | Reference |
 |---|---|---|---|---|---|---|---|
-| 1 | Crop Growing | 16 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 2 | Livestock Raising | 16 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 3 | Livestock Processing | 16 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 4 | Logging | 24 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 5 | Inventory | 1 | 50000 | 10 **p** | 3 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 6 | Private Labelling | 6 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 7 | Manufacturing | 24 | 300000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 8 | Mining | 24 | 1000000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 9 | Oil Extraction | 24 | 1000000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 10 | Purchasing | 4 | 50000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 11 | Research & Development | 12 | 500000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 12 | Sales | 8 | 100000 | 10 **p** | 3 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 13 | Software Development | 8 | 50000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 14 | Software Production | 4 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 15 | Advertising | 1 | 5000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 16 | Import | 0 **p** | 0 **p** | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | design.md slice 4 — Seaport ImportJob |
+| 1 | Crop Growing | 16 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 2 | Livestock Raising | 16 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 3 | Livestock Processing | 16 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 4 | Logging | 24 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 5 | Inventory | 1 | 50000 | 10 **p** | 3 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 6 | Private Labelling | 6 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 7 | Manufacturing | 24 | 300000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 8 | Mining | 24 | 1000000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 9 | Oil Extraction | 24 | 1000000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 10 | Purchasing | 4 | 50000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 11 | Research & Development | 12 | 500000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 12 | Sales | 8 | 100000 | 10 **p** | 3 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 13 | Software Development | 8 | 50000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 14 | Software Production | 4 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 15 | Advertising | 1 | 5000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 16 | Import | 0 **p** | 0 **p** | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | design.md slice 4 — Seaport ImportJob |
 
 ## Jobs allowed per firm type
 

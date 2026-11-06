@@ -606,7 +606,7 @@ def test_training_expense_is_budget_times_wage_over_divisor():
 def test_training_factor_is_independent_of_training_expense():
     """Spec: job-type training_factor drives monthly skill growth, never expense.
 
-    The exact monthly growth formula is an open research issue (design.md slice 4 call 6
+    The job field's role in daily-credit scaling is unresolved (design.md slice 4 call 6
     names the factor but not the formula), so only the separation is asserted here.
     """
     assert _one_day_training(training_factor=50)[0] == pytest.approx(_one_day_training()[0])

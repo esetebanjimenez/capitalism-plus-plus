@@ -215,6 +215,20 @@ class FirmTypeRow(StaticModel):
     provisional: frozenset[str] = frozenset()
 
 
+class RatingThroughputRow(StaticModel):
+    rating: int = Field(ge=1, le=9)
+    efficiency_pct: float = Field(gt=0)
+    storage_mult: float = Field(gt=0)
+    ref: str
+
+
+class FixedTrainingCreditRow(StaticModel):
+    job_type: int
+    base_daily: float = Field(gt=0)
+    ref: str
+    provisional: bool = False
+
+
 class JobTypeRow(StaticModel):
     id: int
     name: str
@@ -240,20 +254,15 @@ class JobRules(StaticModel):
     purchase_every_days: int
     purchase_order_mult: float
     train_weekday: int
-    train_step: float
-    train_threshold: float
-    train_hi: float
-    train_lo: float
+    training_credit_budget_divisor: float = Field(gt=0)
+    training_credit_education: float = Field(ge=0)
+    training_credit_education_divisor: float = Field(gt=0)
     rating_min: int
     rating_max: int
     livestock_scalar: float
     wage_per_worker_month: int
     ad_budget_min: float
     ad_budget_max: float
-    eff_base: float
-    eff_per_rating: float
-    eff_min: float
-    eff_max: float
     crop_climate_slope: float
     crop_moisture_slope: float
     crop_yield_base: float
@@ -546,6 +555,33 @@ def load_firm_job_allowed() -> dict[int, frozenset[int]]:
     return {k: frozenset(v) for k, v in out.items()}
 
 
+@lru_cache(maxsize=1)
+def load_rating_throughput() -> dict[int, RatingThroughputRow]:
+    return {
+        int(r["rating"]): RatingThroughputRow(**dict(r))
+        for r in _rows(
+            "SELECT rating, efficiency_pct, storage_mult, ref "
+            "FROM rating_throughput ORDER BY rating"
+        )
+    }
+
+
+@lru_cache(maxsize=1)
+def load_fixed_training_credits() -> dict[int, FixedTrainingCreditRow]:
+    return {
+        int(r["job_type"]): FixedTrainingCreditRow(
+            job_type=int(r["job_type"]),
+            base_daily=float(r["base_daily"]),
+            ref=r["ref"],
+            provisional=bool(r["provisional"]),
+        )
+        for r in _rows(
+            "SELECT job_type, base_daily, ref, provisional "
+            "FROM fixed_training_credits ORDER BY job_type"
+        )
+    }
+
+
 CITY_NAME_POOL: list[CityName] = list(load_city_names())
 TIER_GNP: dict[int, TierGnpRange] = load_tier_gnp()
 GNP_INDEX: GnpIndexTuning = load_gnp_index()
@@ -566,6 +602,8 @@ PRODUCT_CLASSES: dict[int, ProductClassRow] = load_product_classes()
 FIRM_TYPES: dict[int, FirmTypeRow] = load_firm_types()
 JOB_TYPES: dict[int, JobTypeRow] = load_job_types()
 FIRM_JOB_ALLOWED: dict[int, frozenset[int]] = load_firm_job_allowed()
+RATING_THROUGHPUT: dict[int, RatingThroughputRow] = load_rating_throughput()
+FIXED_TRAINING_CREDITS: dict[int, FixedTrainingCreditRow] = load_fixed_training_credits()
 
 
 class LivestockYieldRow(StaticModel):
