@@ -410,7 +410,11 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
 ### Tables
 
 - `firm_types(id, name, setup_cost, overhead_month, max_slots, live_inventory, ref, provisional)`
-- `job_types(id, name, staff, setup_cost, training_factor, ref, provisional)`
+- `job_types(id, name, staff, setup_cost, training_factor, ref, provisional)`;
+  `training_factor` controls monthly skill improvement, **not training expense**.
+- `products` gains `freight_rate` (raw SET coefficient: Wheat 70, Flour 70,
+  Bread 50) and `freight_currency_scale` (documented, initially provisional
+  dollars/coefficient). Do not substitute price for freight.
 - `firm_job_allowed(firm_type, job_type)`
 - `rules` rows (system `jobs`): `sales_mult_store=2`, `sales_mult_other=4`,
   `purchase_every_days=5`, `purchase_order_mult=4`, `train_weekday=2`,
@@ -457,8 +461,12 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
    where `rating_delta` is +1 if the job met 90%+ of capacity that week,
    −1 under 30%, else 0 (provisional). Rating moves one step when
    `|train_acc| ≥ 9000` (provisional), then the accumulator resets.
-   Training cost is `wage × training_factor / 100`, category 3 (ref),
-   where `wage` is that day's job wage.
+   Skill growth uses job-type `training_factor` in the monthly pass
+   (decompiled review; the weekly rating/progress above remains provisional).
+   It is independent of expense. Daily training cost is
+   `corp_training_budget × daily_wage / 1000`, category 3 (decompiled review).
+   The default corporation budget is 100, hence 10% of wages, $16,791 for
+   April; the fixed-10 `job_types` values must not determine the expense.
 7. **Per-type work** (ref unless marked):
    - Crop: stock grows only in its season; yield factor
      `(climate_dist × −10 + 20) + (moisture_dist × −10 + 20) + soil / 5`,
@@ -482,7 +490,10 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
      cycle's input cost plus that day's wages, divided by `output_qty`.
    - Purchasing: every 5 days, order `(efficiency × capacity × 4) / 100`,
      capped by room and by the supplier link quantity; freight is
-     category 5 at 2% of the purchase value (provisional).
+     category 5 at `freight_rate × received_qty × freight_currency_scale`.
+     Calculate it independently for each receipt and its own product. The
+     2%-of-price rule was a provisional fallback, not original mechanics;
+     exact currency scaling remains open pending the reference multiplier.
    - Sales: daily cap `(efficiency × mult × capacity) / 100`, mult 2 for
      live-inventory firms and 4 otherwise.
    - R&D: raises `corp_tech_level[product]` by 1 per completed project;
@@ -652,10 +663,20 @@ content. It is not silently treated as another consumer can:
 
 ### What was measured, and what changes
 
-April (30 days), seed 1, with 4a postings on main: bread revenue **273,577**,
-wages 167,910, training 16,791, overhead 300,000, freight 8,198, imported
-wheat 17,820, loss **−237,142**. This is an acceptance baseline, not a target
-to hide. Factory capacity is also wrong as a daily stock cap: it causes a
+April (30 days), seed 1, with the earlier 4a postings: bread revenue
+**273,577.26**, wages **167,910**, default-budget training **16,791**, overhead
+**300,000**, **provisional-model** freight **8,198.40**, imported wheat
+**17,820**, loss **−237,142.14**. These explain the old regression only. The
+reported freight total does **not** validate reference mechanics: it came from
+2% of purchase value, which gives wheat $356.40, flour $1,782
+and bread $6,060. After correcting the formula, recalculate freight and loss;
+do not assert a new dollar freight total until the raw rate's currency scale
+is recovered. Quantity-based examples belong in the regression: receiving
+1,000 wheat/flour/bread units posts 70,000/70,000/50,000 times the resolved
+common freight currency scale. Their relative product contributions must not
+become a 5:1:25 purchase-price ratio.
+
+Factory capacity is also wrong as a daily stock cap: it causes a
 seaport/ factory to repeatedly over-order cheap bulk inputs.
 
 1. **Keep reference demand and catalog prices.** `demand_per_1000` has the
@@ -752,8 +773,14 @@ seaport/ factory to repeatedly over-order cheap bulk inputs.
   advertising posts cat 6 to the sponsor and cat 0 to a same-town TV station.
 - A software project completes, produces copies at a measured daily rate,
   and cannot sell before that project's completion.
-- The regression 4a bread chain posts the measured April P&L above. Snapshot
-  its revenue and costs; do not change db rows to make its assertion green.
+- The regression 4a bread chain retains its exact old April P&L to describe
+  the fallback run. Its only formula-dependent tests are recomputed: per-
+  receipt freight on actual receipts (178,200 wheat, 178,200 flour, 202,000
+  bread units) uses the three product-specific db coefficients and resolved
+  scale. No dollar freight total is asserted before that scale is established.
+- With corp budget 100, training = 10% of daily wage; changing a job's
+  `training_factor` changes skill growth but not expense; changing the
+  corporation budget changes expense but not the skill-growth factor.
 - The dense-mixed-product plan's month-6 P&L reports its consumer revenue,
   external ingredients, wages, training, freight and all overhead, then
   asserts a positive consolidated operating profit.
