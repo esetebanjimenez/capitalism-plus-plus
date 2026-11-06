@@ -419,8 +419,11 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
 - `rules` rows (system `jobs`): `sales_mult_store=2`, `sales_mult_other=4`,
   `purchase_every_days=5`, `purchase_order_mult=4`, `train_weekday=2`,
   `train_step=900`, `livestock_scalar=36500`, `wage_per_worker_month=2000`,
-  `ad_budget_min=50000`, `ad_budget_max=500000` (all ref) and the
-  provisional ones below.
+  `training_expense_divisor=1000.0`, `corp_training_budget_default=100`,
+  `freight_currency_scale_default` (provisional until the SET multiplier is
+  known), `ad_budget_min=50000`, `ad_budget_max=500000`. The decompiled
+  review supplies the training values; the others above are ref except for
+  explicit provisional flags.
 
 ### Calls
 
@@ -464,9 +467,11 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
    Skill growth uses job-type `training_factor` in the monthly pass
    (decompiled review; the weekly rating/progress above remains provisional).
    It is independent of expense. Daily training cost is
-   `corp_training_budget × daily_wage / 1000`, category 3 (decompiled review).
-   The default corporation budget is 100, hence 10% of wages, $16,791 for
-   April; the fixed-10 `job_types` values must not determine the expense.
+   `corp_training_budget × daily_wage / training_expense_divisor`, category 3
+   (decompiled review). The db defaults are budget 100 and divisor 1000.0,
+   hence 10% of wages, $16,791 for April; the fixed-10 `job_types` values
+   must not determine the expense. No training expense is expressed as one
+   hardcoded percentage in application code.
 7. **Per-type work** (ref unless marked):
    - Crop: stock grows only in its season; yield factor
      `(climate_dist × −10 + 20) + (moisture_dist × −10 + 20) + soil / 5`,
