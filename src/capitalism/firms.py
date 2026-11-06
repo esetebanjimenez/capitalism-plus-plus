@@ -54,11 +54,12 @@ def decode_links(mask: int) -> list[tuple[int, int]]:
 class Ledger:
     """12 posting categories (ref). Revenue is category 0; everything else is a cost."""
 
-    __slots__ = ("cash", "month", "total", "year")
+    __slots__ = ("cash", "last_month", "month", "total", "year")
 
     def __init__(self) -> None:
         self.cash = 0.0
         self.month = [0.0] * N_CATEGORIES
+        self.last_month = [0.0] * N_CATEGORIES
         self.year = [0.0] * N_CATEGORIES
         self.total = [0.0] * N_CATEGORIES
 
@@ -73,6 +74,7 @@ class Ledger:
         return cat < OPERATING_CATEGORIES
 
     def roll_month(self) -> None:
+        self.last_month = self.month
         self.month = [0.0] * N_CATEGORIES
 
     def roll_year(self) -> None:
@@ -185,7 +187,8 @@ class Firm:
                 job.pull(eco)
 
     def post_overhead(self, fraction: float = 1.0) -> None:
-        self.post(CAT_OVERHEAD, self.row.overhead_month * FIRM_RULES.cost_scale * fraction)
+        """Overhead is usd_per_year in the db, posted monthly ÷ 12 (Esteban 2026-11-06)."""
+        self.post(CAT_OVERHEAD, self.row.overhead_year / FIRM_RULES.overhead_periods * fraction)
 
     def monthly(self, eco: Economy) -> None:
         self.ledger.roll_month()

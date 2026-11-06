@@ -188,6 +188,7 @@ class ProductRules(BaseModel):
     score_no_links: float
     diffusion_corp_weight: float
     diffusion_threshold: float
+    capacity_value_per_day: float
 
 
 # --- Slice 4: firms and jobs ----------------------------------------------------
@@ -197,7 +198,7 @@ class FirmTypeRow(BaseModel):
     id: int
     name: str
     setup_cost: float
-    overhead_month: float
+    overhead_year: float
     max_slots: int = Field(ge=0, le=9)
     live_inventory: bool
     ref: str
@@ -219,7 +220,8 @@ class FirmRules(BaseModel):
     slots: int
     link_bits: int
     size: int
-    cost_scale: float
+    overhead_periods: int
+    media_staff: int
     media_wage_mult: float
 
 
@@ -236,8 +238,7 @@ class JobRules(BaseModel):
     rating_min: int
     rating_max: int
     livestock_scalar: float
-    wage_hours: int
-    labor_factor: int
+    wage_per_worker_month: int
     ad_budget_min: float
     ad_budget_max: float
     eff_base: float
@@ -502,7 +503,7 @@ def load_rnd_prereqs() -> tuple[RndPrereqRow, ...]:
 def load_firm_types() -> dict[int, FirmTypeRow]:
     out: dict[int, FirmTypeRow] = {}
     for r in _rows(
-        "SELECT id, name, setup_cost, overhead_month, max_slots, live_inventory, ref, provisional "
+        "SELECT id, name, setup_cost, overhead_year, max_slots, live_inventory, ref, provisional "
         "FROM firm_types ORDER BY id"
     ):
         d = dict(r)

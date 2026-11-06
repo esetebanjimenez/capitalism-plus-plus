@@ -18,7 +18,7 @@ from capitalism.jobs import (
     Extraction,
     Manufacturing,
     cycle_quality,
-    wage_per_staff_day,
+    job_wage_day,
 )
 from capitalism.links import link_score, score_shares
 from capitalism.scenario import (
@@ -33,9 +33,10 @@ from capitalism.scenario import (
     SEAPORT,
     bread_town,
     build_bread_chain,
+    chain_month_profit,
     find_site,
 )
-from capitalism.tables import JOB_RULES, LINK_RULES, db_path
+from capitalism.tables import JOB_RULES, LINK_RULES, PRODUCT_RULES, db_path
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -199,8 +200,34 @@ def test_setup_jitter_is_reproducible_seed_1():
 # --- slice 4: firms and jobs -------------------------------------------------------------
 
 
-def test_wage_one_staff_labor_100_thirty_days():
-    assert wage_per_staff_day(100, 30) == (100 * 2000) // 30 == 6666
+def test_wages_per_job_at_labor_100_thirty_days():
+    # design.md golden: Manufacturing (24) $1,600, Purchasing (4) $266, Sales (8) $533.
+    assert job_wage_day(24, 100, 30) == 1600
+    assert job_wage_day(4, 100, 30) == 266
+    assert job_wage_day(8, 100, 30) == 533
+
+
+def test_wages_training_and_overhead_post_to_their_categories():
+    sim, town = bread_town(1)
+    eco = sim.economy
+    x, y = find_site(sim, town)
+    f = eco.build_firm(FACTORY, eco.add_corp("T"), x, y, town)
+    f.add_job(1, MANUFACTURING, eco.catalog["Flour"])
+    # January: first partial month of overhead posted at build, all 31 days.
+    assert f.ledger.month[2] == pytest.approx(100000 / 12)
+    sim.advance_day()
+    wage = job_wage_day(24, 100, 31)
+    assert f.ledger.month[1] == wage
+    assert f.ledger.month[3] == pytest.approx(wage * 10 / 100)  # training_factor 10
+    while sim.calendar.month == 1:
+        sim.advance_day()
+    assert f.ledger.month[2] == pytest.approx(100000 / 12)  # Feb overhead, ÷ 12
+
+
+def test_base_capacity_is_value_per_day_over_price():
+    k = PRODUCT_RULES.capacity_value_per_day
+    for p in Catalog().products:
+        assert p.row.base_capacity == max(1, round(k / p.row.base_price)), p.name
 
 
 def test_slot_bitmask_decodes():
@@ -255,11 +282,11 @@ def test_flour_factory_fed_by_seaport_30_days_seed_1():
     f.link_slots(0, 1)
     eco.link_b2b(imp, buy)
     sim.advance_days(30)
-    assert mfg.stock == pytest.approx(5657.0)  # filled to capacity
+    assert mfg.stock == pytest.approx(120000.0)  # filled to capacity (60k $/day)
     # Wheat at $0.10 plus each day's wages spread over that day's output.
-    assert mfg.unit_cost == pytest.approx(54.837139826763305)
+    assert mfg.unit_cost == pytest.approx(0.1258, abs=1e-4)
     assert mfg.quality == pytest.approx(41.6)  # 50 import × 70% + skill 22 × 30%
-    assert buy.stock == pytest.approx(12649.0)
+    assert buy.stock == pytest.approx(600000.0)
 
 
 def _engine_output(speed_pct: int) -> tuple[int, float]:
@@ -370,13 +397,33 @@ def _run_chain(seed: int = 1, days: int = 120):
 def test_bread_chain_end_to_end_seed_1():
     sim, chain = _run_chain()
     link = chain.store_link
-    assert sim.state_hash() == ("88419c1dc3ecaf15ce96d676d69c164873f95fa24269569a45dac0648f49d644")
-    assert sum(link.money_month) == pytest.approx(87663.0, abs=1e-6)
+    assert sim.state_hash() == ("ec138cc754db7b84e6d2782685208973e22a3ee82b523b4d49e4b191761801bd")
+    assert sum(link.money_month) == pytest.approx(952730.4030324987, abs=1e-3)
     assert chain.store_sales.unit_cost == pytest.approx(1.5)
-    assert link.brand == pytest.approx(2.2)
-    assert chain.store_sales.quality == pytest.approx(18.344125, abs=1e-5)
+    assert link.brand == pytest.approx(10.6, abs=1e-6)
+    assert chain.store_sales.quality == pytest.approx(17.903092, abs=1e-5)
     # Bread actually reached the shelf and sold every month after the first.
     assert all(link.units_month[m] > 0 for m in (1, 2, 3))
+
+
+def test_bread_chain_monthly_profit():
+    """After a two-month warm-up, every month March–June closes with a profit.
+
+    Profit (scenario.chain_month_profit) = consumers' money at the store minus
+    what leaves the corporation: seaport wheat, wages, training, overhead and
+    freight. Sales between the chain's own firms cancel out.
+    """
+    sim, town = bread_town(1)
+    chain = build_bread_chain(sim, town)
+    results = {}
+    for month in range(1, 7):
+        while not (sim.calendar.month == month + 1 and sim.calendar.real_day == 1):
+            sim.advance_day()
+        results[month] = chain_month_profit(chain, month - 1)
+    for month in (3, 4, 5, 6):
+        r = results[month]
+        assert r["profit"] > 0, (month, r)
+        assert r["revenue"] > r["wages"] + r["overhead"]
 
 
 def test_bread_chain_is_deterministic():

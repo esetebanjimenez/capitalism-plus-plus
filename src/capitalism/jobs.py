@@ -28,11 +28,16 @@ CAT_PURCHASE = 4
 CAT_FREIGHT = 5
 
 
-def wage_per_staff_day(labor_cost: float, days_in_month: int) -> int:
-    """Ref integer formula: ((target × 2000) / days-in-month × labor) / 100."""
+def job_wage_day(staff: int, labor_cost: float, days_in_month: int) -> int:
+    """One job's wage for one day, posted once per job (design.md slice 4 call 5).
+
+    Ref integer formula `((staff × 2000) / days-in-month × labor) / 100`, where
+    2000 is dollars per worker per month at labor cost index 100 and `labor`
+    is the town's labor cost index.
+    """
     r = JOB_RULES
-    target = round(labor_cost)
-    return ((target * r.wage_hours) // days_in_month * r.labor_factor) // 100
+    labor = round(labor_cost)
+    return ((staff * r.wage_per_worker_month) // days_in_month * labor) // 100
 
 
 def efficiency(rating: int, labor_quality: float) -> float:
@@ -140,10 +145,9 @@ class Job:
     def post_wages(self, eco: Economy) -> None:
         """Job daily step 1 (wages) and step 2 (training on the train weekday)."""
         if self.staff:
-            wage = wage_per_staff_day(self.firm.town.labor_cost, eco.calendar.real_month_days)
-            salary = wage * self.staff
-            self.firm.post(CAT_SALARIES, salary)
-            self.firm.post(CAT_TRAINING, salary * self.row.training_factor / 100.0)
+            wage = job_wage_day(self.staff, self.firm.town.labor_cost, eco.calendar.real_month_days)
+            self.firm.post(CAT_SALARIES, wage)
+            self.firm.post(CAT_TRAINING, wage * self.row.training_factor / 100.0)
         if eco.calendar.weekday == JOB_RULES.train_weekday:
             self.train()
 
@@ -328,9 +332,8 @@ class Manufacturing(Job):
         if done:
             quals = {i.input_id: self.inputs[i.input_id][1] for i in recipe.inputs}
             material = sum(i.qty * self.inputs[i.input_id][2] for i in recipe.inputs) * done
-            wages = (
-                wage_per_staff_day(self.firm.town.labor_cost, eco.calendar.real_month_days)
-                * self.staff
+            wages = job_wage_day(
+                self.staff, self.firm.town.labor_cost, eco.calendar.real_month_days
             )
             units = done * recipe.output_qty
             self.receive(
@@ -539,5 +542,5 @@ __all__ = [
     "Sales",
     "cycle_quality",
     "efficiency",
-    "wage_per_staff_day",
+    "job_wage_day",
 ]

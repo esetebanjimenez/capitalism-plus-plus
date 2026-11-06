@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .firms import Firm
-from .jobs import Job
+from .jobs import CAT_FREIGHT, CAT_OVERHEAD, CAT_SALARIES, CAT_TRAINING, Job
 from .links import Link
 from .sim import Sim
 from .town import Town
@@ -42,6 +42,7 @@ class BreadChain:
     store: Firm
     store_sales: Job
     store_link: Link
+    import_link: Link
 
 
 def build_bread_chain(sim: Sim, town: Town) -> BreadChain:
@@ -62,18 +63,17 @@ def build_bread_chain(sim: Sim, town: Town) -> BreadChain:
     port = place(SEAPORT, None)
     imp = port.add_job(0, IMPORT, wheat)
 
-    def factory(inp: Job, out_product: object) -> tuple[Firm, Job]:
+    def factory(inp: Job, out_product: object) -> tuple[Firm, Job, Link]:
         f = place(FACTORY, corp)
         buy = f.add_job(0, PURCHASING, inp.product)
         f.add_job(1, MANUFACTURING, out_product)  # type: ignore[arg-type]
         sell = f.add_job(2, SALES, out_product)  # type: ignore[arg-type]
         f.link_slots(0, 1)
         f.link_slots(1, 2)
-        eco.link_b2b(inp, buy)
-        return f, sell
+        return f, sell, eco.link_b2b(inp, buy)
 
-    flour_f, flour_sales = factory(imp, flour)
-    bread_f, bread_sales = factory(flour_sales, bread)
+    flour_f, flour_sales, import_link = factory(imp, flour)
+    bread_f, bread_sales, _ = factory(flour_sales, bread)
 
     store = place(DEPARTMENT_STORE, corp)
     s_buy = store.add_job(0, PURCHASING, bread)
@@ -81,7 +81,27 @@ def build_bread_chain(sim: Sim, town: Town) -> BreadChain:
     store.link_slots(0, 1)
     eco.link_b2b(bread_sales, s_buy)
     link = eco.link_consumer(s_sell, town)
-    return BreadChain(port, flour_f, bread_f, store, s_sell, link)
+    return BreadChain(port, flour_f, bread_f, store, s_sell, link, import_link)
+
+
+def chain_month_profit(chain: BreadChain, month0: int) -> dict[str, float]:
+    """The chain's economic result for the month just closed (`month0`, 0 = Jan).
+
+    Read right after that month's pass. Sales between the chain's own firms
+    cancel out, so profit is consumers' money at the store minus what leaves
+    the corporation: wheat bought from the (ownerless) seaport, wages,
+    training, overhead and freight from the firms' closed-month ledgers.
+    """
+    firms = (chain.flour_factory, chain.bread_factory, chain.store)
+    cost = {
+        "wages": sum(f.ledger.last_month[CAT_SALARIES] for f in firms),
+        "training": sum(f.ledger.last_month[CAT_TRAINING] for f in firms),
+        "overhead": sum(f.ledger.last_month[CAT_OVERHEAD] for f in firms),
+        "freight": sum(f.ledger.last_month[CAT_FREIGHT] for f in firms),
+        "wheat": chain.import_link.money_month[month0],
+    }
+    revenue = chain.store_link.money_month[month0]
+    return {"revenue": revenue, **cost, "profit": revenue - sum(cost.values())}
 
 
 def bread_town(seed: int = 1, population: float = 640_000) -> tuple[Sim, Town]:

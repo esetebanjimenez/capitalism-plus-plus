@@ -333,7 +333,7 @@ def render(con: sqlite3.Connection) -> str:
             "Id",
             "Name",
             "Setup cost",
-            "Overhead / month",
+            "Overhead / year",
             "Max slots",
             "Live inventory",
             "Units",
@@ -343,7 +343,7 @@ def render(con: sqlite3.Connection) -> str:
             [str(r["id"]), r["name"]]
             + [
                 _cell(r, c, _prov_set(r["provisional"]))
-                for c in ("setup_cost", "overhead_month", "max_slots")
+                for c in ("setup_cost", "overhead_year", "max_slots")
             ]
             + ["yes" if r["live_inventory"] else "no", r["units"], r["ref"]]
             for r in con.execute("SELECT * FROM firm_types ORDER BY id")
