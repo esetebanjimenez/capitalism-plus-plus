@@ -198,7 +198,7 @@ class FirmTypeRow(BaseModel):
     id: int
     name: str
     setup_cost: float
-    overhead_year: float
+    overhead_month: float
     max_slots: int = Field(ge=0, le=9)
     live_inventory: bool
     ref: str
@@ -220,7 +220,6 @@ class FirmRules(BaseModel):
     slots: int
     link_bits: int
     size: int
-    overhead_periods: int
     media_staff: int
     media_wage_mult: float
 
@@ -503,7 +502,7 @@ def load_rnd_prereqs() -> tuple[RndPrereqRow, ...]:
 def load_firm_types() -> dict[int, FirmTypeRow]:
     out: dict[int, FirmTypeRow] = {}
     for r in _rows(
-        "SELECT id, name, setup_cost, overhead_year, max_slots, live_inventory, ref, provisional "
+        "SELECT id, name, setup_cost, overhead_month, max_slots, live_inventory, ref, provisional "
         "FROM firm_types ORDER BY id"
     ):
         d = dict(r)

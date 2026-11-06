@@ -100,7 +100,6 @@ the wide catalog tables) are ours, not the original game's.
 | `link_bits` | 20 | links | design.md slice 4 call 1 — 3×3 neighbour grid |
 | `media_staff` | 20 **provisional** | staff | design.md slice 4 call 5 — media payroll staff (4b) |
 | `media_wage_mult` | 2 | multiplier | Firm daily cycle — media payroll |
-| `overhead_periods` | 12 **provisional** | postings / year | design.md slice 4 call 5 — overhead is usd_per_year, posted monthly ÷ 12 (Esteban 2026-11-06; provisional reading of the year) |
 | `size` | 1 **provisional** | size | design.md slice 4 — size 1 in M1 |
 | `slots` | 9 | slots | Firm-to-job mapping — nine job slots |
 
@@ -498,22 +497,22 @@ Reference: docs/recipes.md — 1STD.SET METHOD. Speed is a throughput multiplier
 
 ## Firm types
 
-| Id | Name | Setup cost | Overhead / year | Max slots | Live inventory | Units | Reference |
+| Id | Name | Setup cost | Overhead / month | Max slots | Live inventory | Units | Reference |
 |---|---|---|---|---|---|---|---|
-| 1 | Department Store | 1000000 | 100000 **p** | 9 | yes | usd (setup); usd_per_year (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 2 | Factory | 1500000 | 100000 **p** | 9 | no | usd (setup); usd_per_year (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 3 | R&D Center | 1500000 | 100000 **p** | 9 | no | usd (setup); usd_per_year (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 4 | Farm | 1000000 | 100000 **p** | 9 | no | usd (setup); usd_per_year (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 5 | Logging Camp | 1500000 | 100000 **p** | 9 | no | usd (setup); usd_per_year (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 6 | Mine | 5000000 | 300000 **p** | 9 | no | usd (setup); usd_per_year (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 7 | Oil Well | 5000000 | 300000 **p** | 9 | no | usd (setup); usd_per_year (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 8 | Software Developer | 100000 | 10000 **p** | 9 | no | usd (setup); usd_per_year (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 9 | Software Publisher | 1000000 | 100000 **p** | 9 | no | usd (setup); usd_per_year (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 10 | Restaurant | 2000000 | 100000 **p** | 9 **p** | yes | usd (setup); usd_per_year (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 11 | Television Station | 20000000 | 350000 **p** | 0 | no | usd (setup); usd_per_year (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 12 | Radio Station | 10000000 | 200000 **p** | 0 | no | usd (setup); usd_per_year (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 13 | Newspaper Publisher | 10000000 | 200000 **p** | 0 | no | usd (setup); usd_per_year (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 14 | Seaport | 0 | 0 **p** | 9 **p** | no | usd (setup); usd_per_year (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 1 | Department Store | 1000000 | 100000 | 9 | yes | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 2 | Factory | 1500000 | 100000 | 9 | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 3 | R&D Center | 1500000 | 100000 | 9 | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 4 | Farm | 1000000 | 100000 | 9 | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 5 | Logging Camp | 1500000 | 100000 | 9 | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 6 | Mine | 5000000 | 300000 | 9 | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 7 | Oil Well | 5000000 | 300000 | 9 | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 8 | Software Developer | 100000 | 10000 | 9 | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 9 | Software Publisher | 1000000 | 100000 | 9 | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 10 | Restaurant | 2000000 | 100000 | 9 **p** | yes | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 11 | Television Station | 20000000 | 350000 | 0 | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 12 | Radio Station | 10000000 | 200000 | 0 | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 13 | Newspaper Publisher | 10000000 | 200000 | 0 | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 14 | Seaport | 0 | 0 | 9 **p** | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
 
 ## Job types
 

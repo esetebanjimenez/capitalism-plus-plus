@@ -214,14 +214,14 @@ def test_wages_training_and_overhead_post_to_their_categories():
     f = eco.build_firm(FACTORY, eco.add_corp("T"), x, y, town)
     f.add_job(1, MANUFACTURING, eco.catalog["Flour"])
     # January: first partial month of overhead posted at build, all 31 days.
-    assert f.ledger.month[2] == pytest.approx(100000 / 12)
+    assert f.ledger.month[2] == pytest.approx(100000.0)
     sim.advance_day()
     wage = job_wage_day(24, 100, 31)
     assert f.ledger.month[1] == wage
     assert f.ledger.month[3] == pytest.approx(wage * 10 / 100)  # training_factor 10
     while sim.calendar.month == 1:
         sim.advance_day()
-    assert f.ledger.month[2] == pytest.approx(100000 / 12)  # Feb overhead, ÷ 12
+    assert f.ledger.month[2] == pytest.approx(100000.0)  # Feb overhead, full month
 
 
 def test_base_capacity_is_value_per_day_over_price():
@@ -397,7 +397,7 @@ def _run_chain(seed: int = 1, days: int = 120):
 def test_bread_chain_end_to_end_seed_1():
     sim, chain = _run_chain()
     link = chain.store_link
-    assert sim.state_hash() == ("ec138cc754db7b84e6d2782685208973e22a3ee82b523b4d49e4b191761801bd")
+    assert sim.state_hash() == ("807face6d592de02f3aa08fda1d4972b4c67fae81f5b41feaf0cee2147d5a79f")
     assert sum(link.money_month) == pytest.approx(952730.4030324987, abs=1e-3)
     assert chain.store_sales.unit_cost == pytest.approx(1.5)
     assert link.brand == pytest.approx(10.6, abs=1e-6)
@@ -406,12 +406,13 @@ def test_bread_chain_end_to_end_seed_1():
     assert all(link.units_month[m] > 0 for m in (1, 2, 3))
 
 
-def test_bread_chain_monthly_profit():
-    """After a two-month warm-up, every month March–June closes with a profit.
+def test_bread_chain_monthly_accounting():
+    """4a is accounting-correct, not profit-positive (Designer 2026-11-06).
 
-    Profit (scenario.chain_month_profit) = consumers' money at the store minus
-    what leaves the corporation: seaport wheat, wages, training, overhead and
-    freight. Sales between the chain's own firms cancel out.
+    A single-product chain can't break even at full-dollar monthly overhead
+    until the 4b/5 volume rebalance. This locks the postings instead:
+    wages cat 1, TV-scale $100k/month cat 2 overhead, positive consumer revenue
+    at reference prices. Don't tune capacity to force profit here.
     """
     sim, town = bread_town(1)
     chain = build_bread_chain(sim, town)
@@ -420,10 +421,13 @@ def test_bread_chain_monthly_profit():
         while not (sim.calendar.month == month + 1 and sim.calendar.real_day == 1):
             sim.advance_day()
         results[month] = chain_month_profit(chain, month - 1)
-    for month in (3, 4, 5, 6):
-        r = results[month]
-        assert r["profit"] > 0, (month, r)
-        assert r["revenue"] > r["wages"] + r["overhead"]
+    r = results[3]
+    assert r["overhead"] == pytest.approx(300000.0)  # 2 factories + dept store, $100k/mo each
+    assert r["revenue"] > 0
+    assert r["wages"] > 0
+    assert r["profit"] == pytest.approx(
+        r["revenue"] - r["wages"] - r["training"] - r["overhead"] - r["freight"] - r["wheat"]
+    )
 
 
 def test_bread_chain_is_deterministic():

@@ -187,8 +187,8 @@ class Firm:
                 job.pull(eco)
 
     def post_overhead(self, fraction: float = 1.0) -> None:
-        """Overhead is usd_per_year in the db, posted monthly ÷ 12 (Esteban 2026-11-06)."""
-        self.post(CAT_OVERHEAD, self.row.overhead_year / FIRM_RULES.overhead_periods * fraction)
+        """Overhead is full dollars per month (Esteban 2026-11-06); whole post on monthly."""
+        self.post(CAT_OVERHEAD, self.row.overhead_month * fraction)
 
     def monthly(self, eco: Economy) -> None:
         self.ledger.roll_month()
