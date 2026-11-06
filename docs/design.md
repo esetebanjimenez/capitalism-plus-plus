@@ -497,14 +497,20 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
      cycle's input cost plus that day's wages, divided by `output_qty`.
    - Purchasing: every 5 days, order `(efficiency × capacity × 4) / 100`,
      capped by room and by the supplier link quantity; freight is
-     category 5 at `max(freight_floor_usd_per_unit, raw_rate) × received_qty`,
+     category 5 at `(0.01 if raw_rate == 0 else raw_rate) × received_qty`,
      where `distance = |source.x - buyer.x| + |source.y - buyer.y|` and
      `raw_rate = freight_rate × distance × product.base_price /
      freight_distance_value_divisor² × freight_multiplier`. The default
-     divisor is 100, multiplier 0.5 and floor $0.01 per unit (decompiled
-     review). Calculate independently for each actual receipt using its
-     product and the source/destination **tile** coordinates, not town name.
-     The 2%-of-price rule was a provisional fallback, not original mechanics.
+     divisor is 100, multiplier 0.5 and zero-only floor $0.01 per unit
+     (decompiled review). With those constants,
+     `raw_rate = FREIGHT × distance × unit_price / 20,000`. Positive sub-cent
+     rates remain fractional: do **not** use `max(0.01, raw_rate)` or round
+     per unit. Calculate independently for each actual receipt using its
+     product and each **firm's** stored map coordinate, not town center.
+     In-firm slot transfers are not cross-firm purchasing receipts and are
+     not charged freight a second time. Preserve full-precision rates until
+     the posted expense; do not round individual unit rates. The 2%-of-price
+     rule was a provisional fallback, not original mechanics.
    - Sales: daily cap `(efficiency × mult × capacity) / 100`, mult 2 for
      live-inventory firms and 4 otherwise.
    - R&D: raises `corp_tech_level[product]` by 1 per completed project;
@@ -681,14 +687,17 @@ April (30 days), seed 1, with the earlier 4a postings: bread revenue
 reported freight total does **not** validate reference mechanics: it came from
 2% of purchase value, which gives wheat $356.40, flour $1,782 and bread $6,060.
 
-The April fixture's three receipt links each have Manhattan distance **1**.
-At catalog values $0.10/$0.50/$1.50, all three raw rates are below the floor,
-so the corrected formula yields $0.01 per received unit: wheat **$1,782**,
-flour **$1,782**, bread **$2,020**, total freight **$5,584**. Holding all other
-old-chain quantities fixed gives April loss **−$234,527.74**. That is the new
-formula result for the unchanged fixture, not a claim of reference balance.
-Distance tests must include two firms more than one tile apart and across
-tiles/towns; do not pretend the three adjacencies validate long-haul costs.
+The April receipt links use seaport (204,148) → flour factory (205,148) →
+bread factory (206,148) → department store (207,148), each Manhattan distance
+**1**. With catalog values $0.10/$0.50/$1.50, the raw per-unit freight rates are
+respectively **$0.00035 / $0.00175 / $0.00375**, all positive. April freight is
+therefore wheat **$62.37**, flour **$311.85**, bread **$757.50**, total
+**$1,131.72**. Holding other old-chain quantities fixed gives April loss
+**−$230,075.46**. These are formula results for the unchanged fixture; no
+raw rate hits the zero floor. This supersedes the erroneous `max(0.01, rate)`
+estimate of $5,584; being below $0.01 does not mean zero. Distance tests must
+include two firms more than one tile apart and across tiles/towns; do not
+pretend the three adjacencies validate long-haul costs.
 
 Factory capacity is also wrong as a daily stock cap: it causes a
 seaport/ factory to repeatedly over-order cheap bulk inputs.
@@ -788,15 +797,15 @@ seaport/ factory to repeatedly over-order cheap bulk inputs.
 - A software project completes, produces copies at a measured daily rate,
   and cannot sell before that project's completion.
 - The April regression retains the old P&L only as evidence of the fallback.
-  The corrected fixture posts freight **$5,584** and loss **−$234,527.74** from
-  178,200 wheat, 178,200 flour and 202,000 bread, all at distance 1 and the
-  floor. Use receipt-level assertions and exact per-product totals.
-- Independently test `raw_rate = FREIGHT × distance × base_price / 100² × 0.5`
-  above the floor, a zero raw rate flooring to $0.01/unit, and changing
-  source/buyer map distance without changing the product coefficient. Verify
-  whether the decompiled "formula yields zero" floor is exactly `max(.01, raw)`
-  or a zero-only branch before locking negative-value semantics; no negative
-  freight is allowed for a valid product/link.
+  With actual firm positions and exact products, the corrected fixture posts
+  freight **$1,131.72** and loss **−$230,075.46**. Assert all three products
+  separately, with positive sub-cent rates preserved and full receipt-detail
+  sums per job, not a single total applied arbitrarily.
+- Independently test `raw_rate = FREIGHT × distance × base_price / 20,000`, a
+  positive sub-cent rate that stays sub-cent, and a zero raw rate that becomes
+  $0.01/unit. Move a source farther from the buyer to assert freight varies by
+  Manhattan tile distance. Round no unit rate to cents. Valid product links
+  must never produce negative freight.
 - With corp budget 100, training = 10% of daily wage; changing a job's
   `training_factor` changes skill growth but not expense; changing the
   corporation budget changes expense but not the skill-growth factor.
