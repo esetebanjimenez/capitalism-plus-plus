@@ -398,23 +398,27 @@ Runs on the day the year changes, after the month pass:
 
 ## Firm types
 
-14 building types the player or AI can place on the map:
+14 building types the player or AI can place on the map.
 
-| Type | Name | Setup cost | Overhead |
+Setup cost is a one-time cash payment when the building is placed.
+Overhead is a monthly operating expense (prorated by remaining days
+when the firm is built mid-month). Both are in dollars.
+
+| Type | Name | Setup cost ($) | Overhead ($/month) |
 | --- | --- | --- | --- |
-| 1 | Department Store | 1,000 | 100 |
-| 2 | Factory | 1,500 | 100 |
-| 3 | R&D Center | 1,500 | 100 |
-| 4 | Farm | 1,000 | 100 |
-| 5 | Logging Camp | 1,500 | 100 |
-| 6 | Mine | 5,000 | 300 |
-| 7 | Oil Well | 5,000 | 300 |
-| 8 | Software Developer | 100 | 10 |
-| 9 | Software Publisher | 1,000 | 100 |
-| 10 | Restaurant | 2,000 | 100 |
-| 11 | Television Station | 20,000 | 350 |
-| 12 | Radio Station | 10,000 | 200 |
-| 13 | Newspaper Publisher | 10,000 | 200 |
+| 1 | Department Store | 1,000,000 | 100,000 |
+| 2 | Factory | 1,500,000 | 100,000 |
+| 3 | R&D Center | 1,500,000 | 100,000 |
+| 4 | Farm | 1,000,000 | 100,000 |
+| 5 | Logging Camp | 1,500,000 | 100,000 |
+| 6 | Mine | 5,000,000 | 300,000 |
+| 7 | Oil Well | 5,000,000 | 300,000 |
+| 8 | Software Developer | 100,000 | 10,000 |
+| 9 | Software Publisher | 1,000,000 | 100,000 |
+| 10 | Restaurant | 2,000,000 | 100,000 |
+| 11 | Television Station | 20,000,000 | 350,000 |
+| 12 | Radio Station | 10,000,000 | 200,000 |
+| 13 | Newspaper Publisher | 10,000,000 | 200,000 |
 | 14 | Seaport | 0 | 0 |
 
 ## Firm daily cycle
