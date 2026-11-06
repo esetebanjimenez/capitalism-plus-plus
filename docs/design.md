@@ -509,8 +509,10 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
    visit without multiplying that same10 twice, reserving the source-precedence
    question as provisional. R&D and SoftwareDevelopment share the R&D visit
    credit (963–970), separate from project completion. **Livestock Processing**
-   has output at851–860 but no credit constant or numeric work ratio: hold its
-   credit progress at0/gated pending research, never alias it to Manufacturing.
+   is continuous and returns 0 with no completion signal or supply-chain pull
+   (851–860). That continuous work pattern plus output expression supplies no
+   credit constant or numeric work ratio: hold credit progress at0/gated pending
+   research, never alias it to Manufacturing.
    Extraction (864–871) and SoftwareProduction (988–994) name only `production
    ratio` with no numeric coefficient. Hold that credit path too instead of
    borrowing Manufacturing's100/nominal-step proxy. This safe M1 gate isn't a

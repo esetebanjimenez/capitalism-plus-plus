@@ -66,7 +66,8 @@ nor tests, and any follow-up experiment must be measured by the Programmer.
   relationship to the general rating-scaled base remains an open source
   precedence question; it must not produce two independent base pools.
 - **Livestock Processing does not expose a numeric credit base or work
-  ratio.** Its production at851–860 is not Manufacturing training. Hold its
+  ratio.** Its continuous production returns0 and has no completion signal or
+  supply pull (851–860), but that does not identify training credits. Hold
   credit/progress path at0/pending research in this M1 correction as a safe
   explicit implementation gate, not a claim that the original never trains.
   Extraction and SoftwareProduction refer to a `production ratio`, but give
