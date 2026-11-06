@@ -1,10 +1,5 @@
 # 4b/5 corrections from the 4,192-line reference
 
-The separate [native-evidence audit and artifact request](native-evidence-gaps.md)
-records the audit and remaining native capacity gap. An unprovenanced header
-claim is explicitly excluded. Provisional `20000`/`60000` values are not
-native evidence and do not change db, runtime or goldens.
-
 The attachment supplied by Esteban on 2026-11-06 matches
 `docs/reference/gamelogic.md` byte-for-byte. References below are line ranges
 in that committed file. Relative to the earlier repo reference, its substantive
