@@ -11,17 +11,17 @@ import hashlib
 import struct
 from typing import TYPE_CHECKING
 
-from .catalog import Catalog, TownMarket
-from .firms import FIRM_CLASSES, Firm, Ledger
+from .catalog import Catalog, Product, TownMarket
+from .firms import FIRM_CLASSES, Firm, Ledger, MediaFirm
 from .links import Market
-from .tables import PRODUCT_RULES
+from .rng import Rng
+from .tables import JOB_RULES, PRODUCT_RULES
 from .world import TileCategory
 
 if TYPE_CHECKING:
     from .calendar import Calendar
     from .jobs import Job
     from .links import Link
-    from .rng import Rng
     from .town import Town
     from .world import World
 
@@ -29,18 +29,32 @@ if TYPE_CHECKING:
 class Corporation:
     """Minimal owner for slices 4–5: a scripted test corp with cash and books."""
 
-    __slots__ = ("id", "ledger", "name")
-
     def __init__(self, corp_id: int, name: str) -> None:
         self.id = corp_id
         self.name = name
         self.ledger = Ledger()
+        self.technology: dict[int, int] = {}
+        self.manufacturing_skill = 0
+        self.training_budget = JOB_RULES.corp_training_budget_default
+
+    __slots__ = ("id", "ledger", "manufacturing_skill", "name", "technology", "training_budget")
+
+    def technology_level(self, product: Product) -> int:
+        return self.technology.get(product.id, 0)
+
+    def has_technology(self, product: Product | int) -> bool:
+        key = product if isinstance(product, int) else product.id
+        return self.technology.get(key, 0) > 0
+
+    def add_technology(self, product: Product, level: int | None = None) -> None:
+        self.technology[product.id] = self.technology_level(product) + 1 if level is None else level
 
 
 class Economy:
     def __init__(self, calendar: Calendar, world: World, rng: Rng) -> None:
         self.calendar = calendar
         self.world = world
+        self.rng = rng
         self.catalog = Catalog()
         self.catalog.jitter(rng)
         self.corps: list[Corporation] = []
@@ -91,6 +105,8 @@ class Economy:
             self.firms.append(firm)
         else:
             self.firms[slot] = firm
+        if hasattr(firm, "initialize_audience"):
+            firm.initialize_audience(self)
         # First partial month of overhead (ref: (dim − day + 1) / dim).
         cal = self.calendar
         dim = cal.real_month_days
@@ -105,6 +121,20 @@ class Economy:
         t = town or seller.firm.town
         return self.market.add_link(seller, self.market.towns[(t.id, seller.product.id)])
 
+    def media_firms(self, town: Town) -> list[Firm]:
+        """Same-town payroll-only television, radio and newspaper firms."""
+        return [
+            f
+            for f in self.firms
+            if f is not None and f.town.id == town.id and isinstance(f, MediaFirm)
+        ]
+
+    def media_firm(self, town: Town) -> Firm:
+        candidates = self.media_firms(town)
+        if not candidates:
+            raise LookupError("no media firm in town")
+        return candidates[0]
+
     # --- daily layers --------------------------------------------------------
 
     def firms_daily(self) -> None:
@@ -115,7 +145,7 @@ class Economy:
     def jobs_daily(self) -> None:
         for firm in self.firms:
             if firm is not None:
-                for job in firm.slots:
+                for job in firm.jobs():
                     if job is not None:
                         job.post_wages(self)
 
@@ -194,8 +224,9 @@ class Economy:
                 h.update(b"-")
                 continue
             h.update(struct.pack("<iiiiQ", firm.id, firm.type_id, firm.x, firm.y, firm.links))
-            h.update(struct.pack("<d", firm.ledger.cash))
-            for job in firm.slots:
+            h.update(struct.pack("<id", firm.owner.id if firm.owner else -1, firm.ledger.cash))
+
+            for job in firm.jobs():
                 if job is None:
                     h.update(b".")
                     continue
@@ -211,6 +242,10 @@ class Economy:
                         job.price,
                     )
                 )
+        for corp in self.corps:
+            h.update(struct.pack("<i", corp.id))
+            for product_id, level in corp.technology.items():
+                h.update(struct.pack("<ii", product_id, level))
         for link in self.market.links:
             if link is None:
                 h.update(b"-")

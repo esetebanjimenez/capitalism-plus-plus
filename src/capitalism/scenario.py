@@ -43,6 +43,9 @@ class BreadChain:
     store_sales: Job
     store_link: Link
     import_link: Link
+    wheat_buy: Job
+    flour_buy: Job
+    bread_buy: Job
 
 
 def build_bread_chain(sim: Sim, town: Town) -> BreadChain:
@@ -55,25 +58,30 @@ def build_bread_chain(sim: Sim, town: Town) -> BreadChain:
     cat = eco.catalog
     wheat, flour, bread = cat["Wheat"], cat["Flour"], cat["Bread"]
     corp = eco.corps[0] if eco.corps else eco.add_corp("Test Corp")
+    # Preserve the 4a baseline: its scripted wheat chain used catalog tech as
+    # provisional skill. New 4b firms instead start with no discovered technology.
+    for product in (wheat, flour, bread):
+        corp.technology[product.id] = product.state.tech_level
 
     def place(ftype: int, owner: object) -> Firm:
+        # Each firm takes the next actually free tile; seed 1 gives (204..207, 148).
         x, y = find_site(sim, town)
         return eco.build_firm(ftype, owner, x, y, town)  # type: ignore[arg-type]
 
     port = place(SEAPORT, None)
     imp = port.add_job(0, IMPORT, wheat)
 
-    def factory(inp: Job, out_product: object) -> tuple[Firm, Job, Link]:
+    def factory(inp: Job, out_product: object) -> tuple[Firm, Job, Job, Link]:
         f = place(FACTORY, corp)
         buy = f.add_job(0, PURCHASING, inp.product)
         f.add_job(1, MANUFACTURING, out_product)  # type: ignore[arg-type]
         sell = f.add_job(2, SALES, out_product)  # type: ignore[arg-type]
         f.link_slots(0, 1)
         f.link_slots(1, 2)
-        return f, sell, eco.link_b2b(inp, buy)
+        return f, buy, sell, eco.link_b2b(inp, buy)
 
-    flour_f, flour_sales, import_link = factory(imp, flour)
-    bread_f, bread_sales, _ = factory(flour_sales, bread)
+    flour_f, wheat_buy, flour_sales, import_link = factory(imp, flour)
+    bread_f, flour_buy, bread_sales, _ = factory(flour_sales, bread)
 
     store = place(DEPARTMENT_STORE, corp)
     s_buy = store.add_job(0, PURCHASING, bread)
@@ -81,7 +89,9 @@ def build_bread_chain(sim: Sim, town: Town) -> BreadChain:
     store.link_slots(0, 1)
     eco.link_b2b(bread_sales, s_buy)
     link = eco.link_consumer(s_sell, town)
-    return BreadChain(port, flour_f, bread_f, store, s_sell, link, import_link)
+    return BreadChain(
+        port, flour_f, bread_f, store, s_sell, link, import_link, wheat_buy, flour_buy, s_buy
+    )
 
 
 def chain_month_profit(chain: BreadChain, month0: int) -> dict[str, float]:

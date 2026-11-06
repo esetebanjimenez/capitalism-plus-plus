@@ -26,6 +26,9 @@ SYSTEM_ORDER = [
     ("firms", "4 — Firms"),
     ("jobs", "4 — Jobs"),
     ("links", "5 — Product links and markets"),
+    ("research", "4b — Research and projects"),
+    ("software", "4b — Software"),
+    ("advertising", "4b — Advertising and media"),
 ]
 
 P = " **provisional**"
@@ -81,6 +84,31 @@ def render(con: sqlite3.Connection) -> str:
         "the wide catalog tables) are ours, not the original game's.",
         "",
     ]
+
+    _table(
+        lines,
+        "Research durations by tech-year bucket",
+        ["Bucket", "Months", "Reference"],
+        [
+            [str(r["tech_year_bucket"]), f"{r['months']}{_prov(r['provisional'])}", r["ref"]]
+            for r in con.execute("SELECT * FROM research_durations ORDER BY tech_year_bucket")
+        ],
+    )
+    _table(
+        lines,
+        "Provisional livestock processing",
+        ["Livestock", "Output", "Output / input", "Input ratio", "Reference"],
+        [
+            [
+                str(r["livestock_id"]),
+                str(r["product_id"]),
+                f"{r['yield_factor']:g} **provisional**",
+                f"{r['input_ratio']:g}",
+                r["ref"],
+            ]
+            for r in con.execute("SELECT * FROM livestock_yields ORDER BY livestock_id")
+        ],
+    )
 
     # Per-system scalar rules
     for system, title in SYSTEM_ORDER:
@@ -253,6 +281,9 @@ def render(con: sqlite3.Connection) -> str:
             "Capacity / day",
             "Tech importance",
             "Base tech",
+            "Tech year (years)",
+            "Freight coefficient",
+            "SPENDING (freight $)",
             "Plant month (0 = Jan)",
             "Grow months",
             "Climate",
@@ -267,6 +298,9 @@ def render(con: sqlite3.Connection) -> str:
                     "base_capacity",
                     "tech_importance",
                     "base_tech_level",
+                    "tech_year",
+                    "freight",
+                    "spending_usd",
                     "plant_month",
                     "grow_months",
                     "suit_climate",
@@ -336,6 +370,7 @@ def render(con: sqlite3.Connection) -> str:
             "Overhead / month",
             "Max slots",
             "Live inventory",
+            "Government",
             "Units",
             "Reference",
         ],
@@ -345,7 +380,13 @@ def render(con: sqlite3.Connection) -> str:
                 _cell(r, c, _prov_set(r["provisional"]))
                 for c in ("setup_cost", "overhead_month", "max_slots")
             ]
-            + ["yes" if r["live_inventory"] else "no", r["units"], r["ref"]]
+            + [
+                "yes" if r["live_inventory"] else "no",
+                ("yes" if r["government"] else "no")
+                + (P_SHORT if "government" in _prov_set(r["provisional"]) else ""),
+                r["units"],
+                r["ref"],
+            ]
             for r in con.execute("SELECT * FROM firm_types ORDER BY id")
         ],
     )

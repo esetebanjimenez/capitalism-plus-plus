@@ -11,8 +11,8 @@ from pathlib import Path
 import pytest
 
 from capitalism import Sim
-from capitalism.catalog import Catalog, compute_availability, daily_demand, nec_lux
-from capitalism.firms import Farm, decode_links, encode_links
+from capitalism.catalog import Catalog, Software, compute_availability, daily_demand, nec_lux
+from capitalism.firms import Farm, TVStation, decode_links, encode_links
 from capitalism.jobs import (
     CropGrowing,
     Extraction,
@@ -81,7 +81,7 @@ def test_unemployment_drift_is_provisional_and_swing_is_reference():
 def test_catalog_counts_and_checks():
     con = _db()
     assert con.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
-    assert con.execute("SELECT COUNT(*) FROM products").fetchone()[0] == 84
+    assert con.execute("SELECT COUNT(*) FROM products").fetchone()[0] == 85
     assert con.execute("SELECT COUNT(*) FROM product_classes").fetchone()[0] == 20
     for r in con.execute("SELECT * FROM products"):
         s = r["w_price"] + r["w_quality"] + r["w_brand"]
@@ -111,7 +111,10 @@ def test_catalog_counts_and_checks():
             "ON c.id = p.class_id GROUP BY c.code"
         ).fetchall()
     )
-    assert counts["RAW"] == 8 and counts["SEMI"] == 12 and counts["ELEAPP"] == 7
+    assert counts["RAW"] == 8 and counts["SEMI"] == 12 and counts["ELEAPP"] == 8
+    # Software is provisional reference-price content for M1, not a baseline recipe.
+    assert con.execute("SELECT tech_year FROM products WHERE name='Software'").fetchone()[0] == 0
+    assert con.execute("PRAGMA foreign_key_check").fetchall() == []
     # Printed reference values are not flagged; fills are.
     bread = con.execute("SELECT * FROM products WHERE name = 'Bread'").fetchone()
     assert (bread["base_price"], bread["demand_per_1000"]) == (1.5, 10.0)
@@ -190,7 +193,7 @@ def test_setup_jitter_is_reproducible_seed_1():
         f"{p.state.tech_level}:{p.state.score_jitter}" for p in sim.economy.catalog.products
     )
     assert hashlib.sha256(blob.encode()).hexdigest() == (
-        "5abce68c0dd2a0ba8301e8ee5fa5e14c2f2c83064dd0d2ece76fe62cad0c8a79"
+        "2f7c9ad14599229681a019e9e26a4f3fc656cc1e8862328c4f163a26e261ecb4"
     )
     for p in sim.economy.catalog.products:
         assert p.state.tech_level >= 0
@@ -227,7 +230,10 @@ def test_wages_training_and_overhead_post_to_their_categories():
 def test_base_capacity_is_value_per_day_over_price():
     k = PRODUCT_RULES.capacity_value_per_day
     for p in Catalog().products:
-        assert p.row.base_capacity == max(1, round(k / p.row.base_price)), p.name
+        if not isinstance(
+            p, Software
+        ):  # explicit provisional capacity row, not generic $60k/day fill
+            assert p.row.base_capacity == max(1, round(k / p.row.base_price)), p.name
 
 
 def test_slot_bitmask_decodes():
@@ -246,8 +252,8 @@ def test_firm_rejects_jobs_it_cannot_hold():
     with pytest.raises(ValueError):
         farm.add_job(0, MANUFACTURING, eco.catalog["Flour"])
     x, y = find_site(sim, town)
-    with pytest.raises(NotImplementedError):
-        eco.build_firm(11, None, x, y, town)  # Television Station is 4b
+    tv = eco.build_firm(11, None, x, y, town)
+    assert isinstance(tv, TVStation) and tv.jobs() == []
 
 
 def test_wheat_farm_fills_in_season():
@@ -274,9 +280,12 @@ def test_flour_factory_fed_by_seaport_30_days_seed_1():
     eco = sim.economy
     cat = eco.catalog
     x, y = find_site(sim, town)
+    eco.add_corp("Test Corp")  # fixture identity matches canonical chain: public port has id 0 only
+    corp = eco.add_corp("Manufacturer")
+    corp.technology[cat["Flour"].id] = cat["Flour"].state.tech_level
     imp = eco.build_firm(SEAPORT, None, x, y, town).add_job(0, IMPORT, cat["Wheat"])
     x, y = find_site(sim, town)
-    f = eco.build_firm(FACTORY, eco.add_corp("T"), x, y, town)
+    f = eco.build_firm(FACTORY, corp, x, y, town)
     buy = f.add_job(0, PURCHASING, cat["Wheat"])
     mfg = f.add_job(1, MANUFACTURING, cat["Flour"])
     f.link_slots(0, 1)
@@ -394,10 +403,10 @@ def _run_chain(seed: int = 1, days: int = 120):
     return sim, chain
 
 
-def test_bread_chain_end_to_end_seed_1():
+def test_bread_chain_end_to_end_seed_1():  # updated 4b hash also includes the Software catalog row
     sim, chain = _run_chain()
     link = chain.store_link
-    assert sim.state_hash() == ("807face6d592de02f3aa08fda1d4972b4c67fae81f5b41feaf0cee2147d5a79f")
+    assert sim.state_hash() == ("0f328495e5179a482eca7940a0134187d1891a6d7cc076efe108e87237d5b7e4")
     assert sum(link.money_month) == pytest.approx(952730.4030324987, abs=1e-3)
     assert chain.store_sales.unit_cost == pytest.approx(1.5)
     assert link.brand == pytest.approx(10.6, abs=1e-6)
@@ -421,10 +430,22 @@ def test_bread_chain_monthly_accounting():
         while not (sim.calendar.month == month + 1 and sim.calendar.real_day == 1):
             sim.advance_day()
         results[month] = chain_month_profit(chain, month - 1)
-    r = results[3]
+    r = results[4]  # month after April closes; ledger index remains zero-based April = 3
     assert r["overhead"] == pytest.approx(300000.0)  # 2 factories + dept store, $100k/mo each
-    assert r["revenue"] > 0
-    assert r["wages"] > 0
+    assert r["revenue"] == pytest.approx(273_577.26, abs=0.002)
+    assert (r["wages"], r["overhead"], r["wheat"]) == (167_910, 300_000, 17_820)
+    # Training is budget × daily wage / divisor accumulated in floats: equal to cents, not bits.
+    assert r["training"] == pytest.approx(16_791, abs=1e-6)
+    for job, qty, charge in zip(
+        (chain.wheat_buy, chain.flour_buy, chain.bread_buy),
+        (178_200, 178_200, 202_000),
+        (187.11, 311.85, 757.50),
+        strict=True,
+    ):
+        assert job.received_month[3] == pytest.approx(qty)
+        assert job.freight_month[3] == pytest.approx(charge)
+    assert r["freight"] == pytest.approx(1_256.46)
+    assert r["profit"] == pytest.approx(-230_200.20, abs=0.002)
     assert r["profit"] == pytest.approx(
         r["revenue"] - r["wages"] - r["training"] - r["overhead"] - r["freight"] - r["wheat"]
     )
