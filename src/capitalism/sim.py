@@ -1,4 +1,4 @@
-"""Headless simulation. Systems 1–2: clock/passes and world data."""
+"""Headless simulation: clock/passes, world, catalog, firms/jobs and links (systems 1–5)."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import struct
 from datetime import date
 
 from .calendar import DEFAULT_START, Calendar
+from .economy import Economy
 from .rng import Rng
 from .tables import GNP_INDEX, MAP_RULES, STAGGER_MOD, SetupOptions
 from .town import Town
@@ -39,6 +40,7 @@ class Sim:
         self.rng: Rng
         self.calendar: Calendar
         self.world: World
+        self.economy: Economy
         self.gnp_index: float = 1.0
         self.gnp_history: list[float] = []
         self.avg_gnp_growth_12m: float = 0.0
@@ -60,6 +62,7 @@ class Sim:
             detailed_cities=self.detailed_cities,
             target_cities=self.target_cities,
         )
+        self.economy = Economy(self.calendar, self.world, self.rng)
         self.gnp_index = 1.0
         self.gnp_history = []
         self.avg_gnp_growth_12m = 0.0
@@ -90,10 +93,13 @@ class Sim:
 
     def advance_day(self) -> None:
         """One economic day (design.md slice 1 order)."""
-        # 1–3: firms, jobs, links (stubs in slice 1)
+        # 1–3: firms (work + pull per slot), jobs (wages + training), links
         self._hook("firms")
+        self.economy.firms_daily()
         self._hook("jobs")
+        self.economy.jobs_daily()
         self._hook("links")
+        self.economy.links_daily()
 
         # 4. Daily batch
         # 4.1 Day advance (+ month/year passes on boundaries)
@@ -111,7 +117,9 @@ class Sim:
             self._hook("weekly_ratings")
         self._hook("random_events")
         self._hook("products")
-        self.product_slots_hit.add(self.calendar.day_serial % STAGGER_MOD)
+        product_slot = self.calendar.day_serial % STAGGER_MOD
+        self.product_slots_hit.add(product_slot)
+        self.economy.products_daily(product_slot)
         self._hook("natural_resources")
 
         self.history.append(
@@ -152,7 +160,7 @@ class Sim:
             elif growth > t.high_growth and self.gnp_index > 1.0:
                 self.gnp_index = max(t.floor, self.gnp_index - t.step)
 
-        # 2. Product catalog maintenance (stub)
+        # 2. Product catalog maintenance (obsolescence runs in the year pass)
         self._hook("month_products")
 
         # 3. Town monthly: stats ring, spawn, demand, centroid
@@ -162,16 +170,20 @@ class Sim:
                 self.world.towns
             )
         try_spawn_town(self.world, self.rng, self.calendar.day_serial)
+        self.economy.recompute_demand()
 
-        # 4–5. Corporations / firms / jobs / links monthly (stubs)
+        # 4. Corporations monthly (slice 7)
         self._hook("month_corporations")
+        # 5. Firms, jobs and links monthly
         self._hook("month_firms_jobs_links")
+        self.economy.monthly()
 
     def _year_pass(self) -> None:
         self._hook("year_pass")
         self.gnp_history.append(self.gnp_index)
         if len(self.gnp_history) > 10:
             self.gnp_history.pop(0)
+        self.economy.yearly()
 
     def state_hash(self) -> str:
         """Stable hash of full sim state for determinism tests."""
@@ -203,6 +215,7 @@ class Sim:
         for i in range(0, len(tiles), step):
             tile = tiles[i]
             h.update(struct.pack("<BBd", int(tile.kind), tile.climate, tile.height))
+        self.economy.hash_into(h)
         return h.hexdigest()
 
     def report(self) -> str:
@@ -229,6 +242,16 @@ class Sim:
                 f" GNP/cap {t.per_capita_gnp:,.0f}, tier {t.tier},"
                 f" stagger {t.stagger_slot}"
             )
+        firms = [f for f in self.economy.firms if f is not None]
+        if firms:
+            lines.append(f"  firms:  {len(firms)}, links {len(self.economy.market.live_links())}")
+            for f in firms:
+                jobs = ", ".join(
+                    f"{type(j).__name__}[{j.product.name if j.product else '-'}]"
+                    f" stock {j.stock:,.0f}"
+                    for j in f.jobs()
+                )
+                lines.append(f"    - #{f.id} {f.row.name} cash {f.ledger.cash:,.0f}: {jobs}")
         return "\n".join(lines) + "\n"
 
 

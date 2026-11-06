@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Capitalism++ Pyodide smoke</title>
+</head>
+<body>
+  <!-- Bare page: loads the sim under Pyodide and advances a few days.
+       Serve the repo root (see web/README.md) and open /web/. -->
+  <pre id="out">loading Pyodide…</pre>
+  <script type="module">
+    import { loadPyodide } from "https://cdn.jsdelivr.net/pyodide/v314.0.7/full/pyodide.mjs";
+    const out = document.getElementById("out");
+    try {
+      const pyodide = await loadPyodide();
+      const errors = [];
+      await pyodide.loadPackage(["pydantic"], { errorCallback: (e) => errors.push(e) });
+      if (errors.length) throw new Error(errors.join("\n"));
+      const bundle = await (await fetch("capitalism.zip")).arrayBuffer();
+      pyodide.unpackArchive(bundle, "zip", { extractDir: "/home/pyodide/sim" });
+      pyodide.runPython("import sys; sys.path.insert(0, '/home/pyodide/sim')");
+      const smoke = await (await fetch("smoke.py")).text();
+      const result = await pyodide.runPythonAsync(smoke);
+      out.textContent = `PASS ${result}`;
+      document.title = "PASS";
+    } catch (err) {
+      out.textContent = `FAIL ${err}`;
+      document.title = "FAIL";
+    }
+  </script>
+</body>
+</html>
