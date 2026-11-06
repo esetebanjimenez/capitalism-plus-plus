@@ -28,7 +28,9 @@ nor tests, and any follow-up experiment must be measured by the Programmer.
   provisional interpretations, not a recovered full growth equation.
 - Software Production stays literally `min(room, efficiency×capacity)`
   **without `/100`** (988–994), unlike production modes that include it.
-  This distinction does not recover native software units or capacity.
+  PR #20's provisional copy result 76.8 neither establishes native units nor
+  balanced software behavior. It may not be cited as an original target;
+  real unit base and normalization remain unknown awaiting later research.
 
 ## Training
 
@@ -171,17 +173,23 @@ nor tests, and any follow-up experiment must be measured by the Programmer.
    stay distinct. After implementation, measure a full new dense-scenario
    P&L under rating efficiency; positive consolidated profit remains its
    goal, but previous P&L predictions cannot be claimed as measured now.
-2. Budget/education credit conversion, `training_factor`, Processing ratio,
+2. **`20000/base_price` in slice 3 and live 60,000 db capacity global are not
+   consistent.** The latter is PR #11's provisional scale; neither the new
+   rating table nor media adds a universal factor3 measurement of base units.
+   Do not prescribe silent 20k rollback or 60k retention for more revenue.
+   Update the fill rule/reuse value explicitly after native extraction and
+   separately measured alternate-scaling scenarios; keep research gap open.
+3. Budget/education credit conversion, `training_factor`, Processing ratio,
    Extraction/SoftwareProduction ratio, and passive credit paths are unknown.
    R&D manager/2+own-tech duration/progress formulas remain existing
    provisional model, **not** `progress += skill − current technology`
    validated by this source. Software's price/cost/demand/capacity content
    and CPM calculations likewise need real product/media inputs first.
-3. Current `score²`, `/20` oversupply, brand and star normalizers stay
+4. Current `score²`, `/20` oversupply, brand and star normalizers stay
    provisional. **Do not cite** market `7.5%/2.5%` loss/recovery,
    `(100+status)/100` passive or `(400+status)/100` active multiplier, or
    `30/60` brand/techthresholds: none is supported by this reference.
-4. Independently confirmed freight remains
+5. Independently confirmed freight remains
    `FREIGHT × firm Manhattan distance × product SPENDING / 20,000`,
    with the $0.01/unit floor only when the rawrate is0. Positive fractional
    sub-cent rates must not round to that floor. April fixture receipts are

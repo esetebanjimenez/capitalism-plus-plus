@@ -456,7 +456,9 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
    where a type's expression supplies it (e.g. manufacturing, extraction).
    Software Production instead stays literally
    `min(room, efficiency×capacity)`, **with no added `/100`** (988–994);
-   this different equation doesn't recover software's native copy units.
+   Current provisional 76.8-unit result therefore isn't proven original or
+   balanced content; actual native copy units/coefficient must be recovered
+   or explicitly selected/tested as provisional, not assumed confirmed.
 4. **Storage-capacity inputs remain missing.** Add db lookup
    `rating_storage_multiplier = 8,10,14,16,20,24,30,35,40` and record native
    `base_capacity × type_factor × storage_multiplier` from 580–585, but do
@@ -848,6 +850,13 @@ seaport/ factory to repeatedly over-order cheap bulk inputs.
    and sales caps use `throughput_per_day`. A day can add a full batch even
    while carrying yesterday's inventory. Recipe inputs follow the same rule.
    This removes the 4a bulk-order feedback without inflating demand.
+   Reconcile the db's live `capacity_value_per_day = 60,000` (provisional)
+   against slice 3's stale fill-rule `round(20,000/base_price)` explicitly.
+   Don't quietly change to20k to contract revenue or retain 60k to manufacture
+   a profit. Neither is recovered by the source rating table. Whether the
+   provisional coefficient remains 60k or is adjusted needs native input research
+   and measured alternate-scaling scenarios, not another ad-hoc revenue scalar;
+   mark the mismatch in this docs PR instead of pretending agreement now.
 4. **Recipe cost is scale-correct.** Recipe `qty` is input units per **cycle**,
    `output_qty` output units per cycle. Raw-input cost for a cycle is
    `sum(qty * input.unit_cost)`; factory conversion cost is one daily
