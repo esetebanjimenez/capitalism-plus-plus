@@ -1,6 +1,10 @@
 # 4b/5 corrections from the 4,192-line reference
 
-The attachment supplied by Esteban on 2026-11-06 matches
+The separate [native-evidence audit and artifact request](native-evidence-gaps.md)
+records the provisional `20000`/`60000` split and a later **reported**, not
+independently verified header finding. It does not close the capacity gap or
+authorize any fill-rule, db, runtime or golden change.
+
 `docs/reference/gamelogic.md` byte-for-byte. References below are line ranges
 in that committed file. Relative to the earlier repo reference, its substantive
 additions are rating/capacity (558–585), media (608–713), and training
