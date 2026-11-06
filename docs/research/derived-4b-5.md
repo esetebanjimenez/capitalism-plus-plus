@@ -166,6 +166,18 @@ nor tests, and any follow-up experiment must be measured by the Programmer.
   pass any test.** Native threshold, media-stat fields and precise allocation
   details remain tracked gaps, not data hidden in a db table.
 
+## Citation boundaries
+
+The requested operative line ranges all point to the same committed reference:
+livestock quality **839**; manufacturing production/input **895–917**;
+purchasing **919–935**; sales **939–961**; software **988–994**; media
+**603–713**; advertising **996–1024**. Treat generic unit-price freight line
+933 as overridden by the confirmed freight mechanic, not released validation.
+The **3408+ sales/category** concern belongs in a separate code-and-ledger
+audit, not an invented ongoing watcher. Non-farmland against nondepartment
+`+50` at 1119–1124 versus 3356–3362 is also unresolved: current M1 selects
+non-farmland but cannot promote it as fact on the strength of a majority vote.
+
 ## Deliberate boundaries and preserved goldens
 
 1. Native product/type capacity, new livestock input/output mapping and
@@ -173,7 +185,7 @@ nor tests, and any follow-up experiment must be measured by the Programmer.
    stay distinct. After implementation, measure a full new dense-scenario
    P&L under rating efficiency; positive consolidated profit remains its
    goal, but previous P&L predictions cannot be claimed as measured now.
-2. **`20000/base_price` in slice 3 and live 60,000 db capacity global are not
+2. **`20000/base_price` in slice 3 and live `60000` db capacity global are not
    consistent.** The latter is PR #11's provisional scale; neither the new
    rating table nor media adds a universal factor3 measurement of base units.
    Do not prescribe silent 20k rollback or 60k retention for more revenue.

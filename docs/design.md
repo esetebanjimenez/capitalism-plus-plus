@@ -456,9 +456,9 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
    where a type's expression supplies it (e.g. manufacturing, extraction).
    Software Production instead stays literally
    `min(room, efficiency×capacity)`, **with no added `/100`** (988–994);
-   Current provisional 76.8-unit result therefore isn't proven original or
-   balanced content; actual native copy units/coefficient must be recovered
-   or explicitly selected/tested as provisional, not assumed confirmed.
+   The different equation does not recover native software copy units; the
+   cited production-ratio/credit constant also remains unresolved. The
+   provisional 76.8-unit result isn't proven original or balanced content.
 4. **Storage-capacity inputs remain missing.** Add db lookup
    `rating_storage_multiplier = 8,10,14,16,20,24,30,35,40` and record native
    `base_capacity × type_factor × storage_multiplier` from 580–585, but do
@@ -630,10 +630,12 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
    "factor1 / score-in" are taken as the same terms under other names.
 3. **Score drop.** Two versions again. We use `quantity × new / old`
    (no unknown scalar), applied when a link's score falls day over day.
-4. **Weight.** We read the "+50" as applying to non-farm sellers (two
-   sections say farmland, one says department store):
+4. **Weight is source-contradicted and provisional** (1119–1124 vs
+   3356–3362): one source places `+50` at non-farmland, another at
+   nondepartment-store retailers. M1 currently chooses non-farmland:
    `weight = min(100, adjust_rate × 5 + (0 if seller is a Farm else 50))`.
-   Growth per day is proportional to `(100 − weight)`.
+   Keep it only as that explicit pending-research interpretation, not a
+   resolved native mapping. Growth is proportional to `(100 − weight)`.
 5. **Consumer demand moves only on live-inventory links** (department
    store, restaurant). Each day the town's `demand` is split across those
    links by `score²` share (provisional; squaring makes the best store
@@ -766,7 +768,7 @@ not fabricated prior paid-ad-revenue history.
    paid category0 without clarifying native ledger mapping.
 
 **Advertising targets and cold start.** Product targeting runs every30 days
-and campaign-partner selection every60 days (1004–1024). Technology is
+and campaign-partner selection every60 days (701–713, 996–1024). Technology is
 **strictly >14**, not at least14; target eligibility also depends on rating
 being below its target plus an **unspecified threshold**. Leave that amount
 unresolved. If no product needs advertising, set0 budget, no $50,000 floor.
@@ -940,7 +942,7 @@ seaport/ factory to repeatedly over-order cheap bulk inputs.
   this newer M1 policy. Only after Programmer implements deterministic
   growth with passing test does this replace deliberate cold-start xfail.
   The docs branch alone doesn't modify code or tests; older1004–1011
-  media-revenue threshold must remain recognized as source conflict.
+  media-revenue threshold at 996–1024 remains a recognized source conflict.
 - A software project completes, produces copies at a measured daily rate,
   and cannot sell before that project's completion.
 - The April regression retains the old P&L only as evidence of the fallback.
@@ -959,6 +961,9 @@ seaport/ factory to repeatedly over-order cheap bulk inputs.
   Don't assert that `job_types.training_factor` directly drives monthly
   growth. Budget/default10% and education raw mappings/divisors remain
   **explicitly provisional**, separate from this confirmed expense golden.
+  Target each training boundary and formula gain by job; no blanket exception.
+  Compare alternate efficiency scale tests separately from a rating promotion:
+  do not loosen every expectation to rescue accumulated weak work credits.
   Adding Wheat $187.11, Flour $311.85 and Bread $757.50 gives $1,256.46;
   subtracting the April expense categories from its $273,577.25868064887
   revenue yields −$230,200.20131935113, reported to two decimals.
