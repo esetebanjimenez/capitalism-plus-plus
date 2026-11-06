@@ -446,10 +446,13 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
    start). So a Manufacturing job (24 staff) costs $1,600 a day, or
    $48,000 a month. Media firms post the same formula with
    `staff = media_staff = 20` (provisional) and no training post (ref).
-   **Money units in the firm and job tables:** `setup_cost` is in $1000s
-   (a Department Store costs $1M). `overhead` is in $1000s **per year**
-   (provisional reading), posted monthly as `overhead × 1000 / 12` to
-   category 2, so a Factory pays about $8,333 a month.
+   **Money units (Esteban, 2026-11-06):** the ref's setup, overhead and
+   job setup numbers are in $1000s, but the db stores full dollars with a
+   units column saying `usd` (a Department Store is 1,000,000, its setup
+   job slots likewise). `overhead` is `usd_per_year` (provisional
+   reading), posted monthly as `overhead / 12` to category 2, so a
+   Factory pays $100,000 / 12 = about $8,333 a month. "100" in the ref is
+   $100,000 a year.
 6. **Training** (ref): on weekday 2, `train_acc += rating_delta × 900`,
    where `rating_delta` is +1 if the job met 90%+ of capacity that week,
    −1 under 30%, else 0 (provisional). Rating moves one step when
