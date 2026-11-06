@@ -563,6 +563,211 @@ Provisional scalars for slice 5 go in `rules` under system `links`:
   department store in a 640k town for 120 days; store a state hash and
   the store's revenue, unit cost and brand at day 120.
 
+## Slice 4b: specialized firms and remaining jobs
+
+### Firms and job mapping
+
+Use the firm-to-job table in the reference verbatim. The corrected names
+are `ResearchCentre`, `SoftwareDeveloper`, `SoftwarePublisher`, `TVStation`,
+`RadioStation`, `NewspaperPublisher` and `Restaurant`; all fourteen types
+are subclasses of `Firm`. 4b completes `LivestockRaising`,
+`LivestockProcessing`, `PrivateLabelling`, `Research`, `SoftwareDevelopment`,
+`SoftwareProduction` and `Advertising`.
+
+**Seaport (reference clarified).** A seaport has **no nine-slot job grid**.
+It opens numbered import links per product, with no link cap. The 4a
+`ImportJob` objects are the implementation of a link's unlimited supply,
+not buildings' consumed slots. Do not allocate ten resources across nine
+job slots. Its stock has `quality = import_quality` and unit cost equal to
+the catalog's `base_price`. Import supply is unlimited in standard mode;
+`importable=0` products must be produced locally. A seaport costs and pays
+nothing (`0 / 0`).
+
+**Restaurant (reference).** Run the department-store variants of
+`Purchasing` and `Sales` with `live_inventory=True`. It can earn consumer
+demand just like a department store. Until prepared-food content exists,
+it sells catalog consumer goods; that is simplification, not a new recipe.
+
+### R&D
+
+`Research` and `SoftwareDevelopment` share the same engine; only the
+catalog target type differs.
+
+- One active project per job. Parameters are project product, repeat mode
+  (0 one-shot) and funded status. Unfunded or paused projects retain progress.
+- Prerequisites: every `rnd_prereqs` row for the target must be discovered.
+- Duration is **tech-year / 15 years rounded up**, then the reference table:
+  `0 -> 0, 1 -> 6, 2 -> 12, 3 -> 24, 4 -> 36, 5 -> 60, 6 -> 120 months`.
+  Software uses 0 years (one level per project, 6 months); tech-year 100 is
+  a completed sentinel, not a further project (provisional).
+- Progress is `(day_serial - start_day) / 30`; complete on crossing the
+  duration threshold. A one-shot project then stops; repeat begins the next
+  tech level if its prerequisites hold.
+- On completion add 1 to the corporation's technology level for that product.
+  Manufacturing skill is **no longer** simply catalog tech: it is
+  `min(100, hired_manager_manufacturing_skill/2 + own_tech_level)` until people
+  (slice 8); with no manager it is `min(100, own_tech_level)` (provisional).
+  Current stock does not improve retroactively.
+- Newly completed technology propagates from raw materials through recipes
+  before consumer-goods projects in that year (matching the reference's
+  dependency direction).
+
+### Advertising and media
+
+- `Advertising` selects the firm's selling products. Technology level <=14
+  is not advertised. It holds a monthly budget, a media link and one target
+  product per product/rating record.
+- Campaign selection runs every 60 days with the firm-index stagger against
+  `day_serial % 60`. Choose a media firm in the same town with revenue above
+  `media_min_revenue = 10,000` (provisional). Budget is 10% of last month's
+  sales revenue, capped between $50,000 and $500,000 (boundaries ref; rate
+  provisional). No qualifying product means no budget.
+- Ad spend posts category 6 to the advertiser and category 0 revenue to the
+  media firm (ref). The advertiser's budget is cash committed for the month,
+  not dependent on sales units.
+- Government media starts with audience `randint(10,39)`. Commercial media
+  audience starts at 10 and trends toward the town population / 10,000, capped
+  100 (provisional until the missing audience formula). Monthly retain the
+  twelve-month audience/revenue series (ref).
+- No job slots on media firms: daily payroll alone uses 20 staff (provisional).
+- A sale adjusts brand perception by <=0.1 toward expected product quality
+  (ref); campaign adds `budget/100,000` rating points before that cap, maximum
+  100 (provisional). Repeated identical budgets do not jump the brand to 100.
+
+### Software
+
+Software is an intentionally provisional M1 implementation pending real
+content. It is not silently treated as another consumer can:
+
+- A `SoftwareDevelopment` job yields one sellable software product per project.
+- `SoftwareProduction` copies it at `min(room, efficiency * capacity)` units
+  per day (ref), carrying current quality and consuming daily wages.
+- Its catalog price is $100, stock capacity 1,000 units/day, variable copy
+  cost $5, software tech 0, and consumer demand 0.1/1000/day (all provisional,
+  table-backed). Development copies already completed projects only.
+- `Sales` opens consumer links for it. These rules are modular content, easy
+  to cut before M3 modern-products work.
+
+## Slice 4b / 5 economy rebalance
+
+### What was measured, and what changes
+
+April (30 days), seed 1, with 4a postings on main: bread revenue **273,577**,
+wages 167,910, training 16,791, overhead 300,000, freight 8,198, imported
+wheat 17,820, loss **−237,142**. This is an acceptance baseline, not a target
+to hide. Factory capacity is also wrong as a daily stock cap: it causes a
+seaport/ factory to repeatedly over-order cheap bulk inputs.
+
+1. **Keep reference demand and catalog prices.** `demand_per_1000` has the
+   reference unit `units_per_1000_people_per_day`, with no multiplier buried
+   in `nec_lux`. At index 100 bread is 6,080 units/day for 640,000 people.
+   Do not change these rows to force profitability. The original strategy
+   is to supply many consumer needs, not to sell increasingly more of one
+   product to the same people.
+2. **A firm is expensive and must be full.** Firms charge monthly overhead
+   regardless of idle slots. A single-line factory and single-line store are
+   valid startup fixtures but are not expected to be profitable by themselves.
+   No wages or overhead discount for empty slots.
+3. **Throughput and stock buffer are distinct.** `base_capacity`
+   `base_capacity` is the provisional product-specific production scale,
+   but is no longer a daily hard stock ceiling. Each job has:
+   - `throughput_per_day = base_capacity * firm.size * job_cap_mult`
+   - `stock_buffer = 3 * throughput_per_day`
+   Purchasing room and inventory use `stock_buffer`; manufacturing efficiency
+   and sales caps use `throughput_per_day`. A day can add a full batch even
+   while carrying yesterday's inventory. Recipe inputs follow the same rule.
+   This removes the 4a bulk-order feedback without inflating demand.
+4. **Recipe cost is scale-correct.** Recipe `qty` is input units per **cycle**,
+   `output_qty` output units per cycle. Raw-input cost for a cycle is
+   `sum(qty * input.unit_cost)`; factory conversion cost is one daily
+   manufacturing wage divided by actual units produced that day. Goods sold
+   internally at market price cancel in consolidated corporation profit; they
+   cannot create profit. Validate every recipe so total reference-priced
+   input value per output is <=0.85 * base_price. Any offending recipe is a
+   unit-scale issue to report, never silently rewrite reference quantities.
+5. **Base-cost call.** Keep the ref's prices and make `base_cost` explicitly
+   **default simulated resource cost**, not guaranteed margin. Missing values
+   use 60% of `base_price` as now. All provisional quantities are content rows
+   with their unit exposed in `rules.md`. There is no extra global
+   cost/divisor; that earlier suggestion added an unexplained constant.
+6. **Dense layouts.** Canonical plans (slice 6 will serialize these):
+   - Food ingredient factories can hold several crops and process several
+     different semi-products.
+   - Consumer factories combine products sharing ingredients: Bread,
+     Chocolate Bar, Cola or Beer can share factory and store overhead, using
+     the reference recipes. One firm's up-to-9 slots may contain more than
+     one product. A slot is not dedicated to the firm type's first product.
+   - Stores buy each product once and allocate remaining slots to its Sales
+     job. Six consumer products need twelve Purchasing/Sales slots, so use
+     two stores or a selected three/four-product mix, not imaginary slots.
+   - Internal supply links point to the job holding the requested product.
+     Intermediate stock can be drawn from any valid linked source; the
+     source need not be a separate Sales slot when it is a transfer between
+     owned production jobs. An outside corporation's Purchasing needs a
+     Seller's Sales slot so the seller can post revenue. This is the original
+     supply-chain pull, with sales accounting only at actual ownership exits.
+     This does not allow arbitrary non-adjacent slots to transfer stock.
+7. **No profitability exemption for the old chain.** Keep the exact April
+   numbers above in a regression. Add a **dense mixed-product
+   corporation** on seed 1 using multiple products per firm, actual reference
+   recipes, actual consumer demand, full monthly overhead, wages, freight,
+   and intercompany postings eliminated. The golden records total consumer
+   revenue, external input cost and all costs before requiring positive
+   monthly profit by month 6. Tune only provisional capacity/buffer content
+   if necessary and report the final P&L, never reduce reference prices,
+   quantities, wages or overhead.
+
+### Link and market fixes for 5
+
+- Link `quantity` is today's intended demand, `quantity_sum` is this month's
+  fulfilled daily quantity. Never treat quantity as cumulative stock.
+- Consumer demand may only be claimed by live-inventory links. Several Sales
+  jobs of the same product in one store split the same market; they do not
+  each create a fresh market. No stock, no sale, no brand gain, no ad effect.
+- Score uses the provisional price term:
+  `price_score = 100 - 50 * link.price/base_price`,
+  `score = max(0, price_score + brand*w_brand/60 + quality*w_quality/60)`
+  (provisional price term). Do not apply the price weight a second time.
+- Sales cap is a throughput cap; retail price can be set per link. For M1 scripted/test firms the default is
+  `max(base_price, unit_cost*1.05)` (provisional); tests may set prices
+  explicitly. Seaport has no
+  markup; manufacturing is where value is created. This makes setting the
+  wrong price a real choice, not free guaranteed margin.
+- Weight starts at 0 and grows based on sales performance. Score-down
+  quantity uses `quantity * new_score / old_score`; overflow supply drops
+  by `quantity / 20` daily, matching the provisional oversupply rule.
+- `max_score_in` publishes once each month to each product in product-id order.
+- All links run each day in link-id order; deterministic floating-point
+  accumulations and no `random` outside the game RNG.
+
+## 4b / 5 golden tests
+
+- Seaport opens ten product imports without consuming ten building slots.
+- Restaurant buys and sells bread as live inventory with sales multiplier 2.
+- A level-up research project: durations 0/6/12/24/36/60/120 from the table;
+  prerequisite failure never starts a project; one-shot stops at completion.
+- At skill 50, a new Bread batch from quality-80 flour is quality 62; old
+  stock never retroactively changes after skill rises.
+- Media payroll posts 20 staff at the wage formula; $100,000 financed
+  advertising posts cat 6 to the sponsor and cat 0 to a same-town TV station.
+- A software project completes, produces copies at a measured daily rate,
+  and cannot sell before that project's completion.
+- The regression 4a bread chain posts the measured April P&L above. Snapshot
+  its revenue and costs; do not change db rows to make its assertion green.
+- The dense-mixed-product plan's month-6 P&L reports its consumer revenue,
+  external ingredients, wages, training, freight and all overhead, then
+  asserts a positive consolidated operating profit.
+- Two stores competing for one fixed 6,080-unit/day bread market still sell
+  no more than 6,080 units together. Repeated identical stores split demand.
+- A factory manufacturing three products uses each reference recipe and
+  consumes its declared ingredients exactly once per cycle.
+- A one-year stock-flow check: no job has a stock of 3x buffer, reserved
+  inputs are never sold twice, and no money is created by internal transfers.
+- Full scenario hash for seed 1 at 120 days and repeated runs are equal;
+  Pyodide smoke exercises the identical dense scenario and returns its P&L.
+
 ## Slices 6 and up
 
-To follow, in milestone-1.md order: plans, then finance and corporations.
+Plans canonicalize and save the dense layouts above; then finance and
+corporations. Product/media audience and technology calibrations remain
+explicit provisional content until we recover the original set's fields.
