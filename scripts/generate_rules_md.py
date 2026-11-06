@@ -110,6 +110,20 @@ def render(con: sqlite3.Connection) -> str:
         ],
     )
 
+    _table(
+        lines,
+        "Rating efficiency and storage",
+        ["Rating", "Efficiency %", "Storage multiplier", "Reference"],
+        [
+            [str(r["rating"]), f"{r['efficiency_pct']:g}", f"{r['storage_mult']:g}", r["ref"]]
+            for r in con.execute("SELECT * FROM rating_throughput ORDER BY rating")
+        ],
+    )
+    lines += [
+        "The storage multiplier is registered but inactive: the native base capacity and",
+        "type factor are missing, so M1 preserves the normalized product×size×3-day capacity.",
+        "",
+    ]
     # Per-system scalar rules
     for system, title in SYSTEM_ORDER:
         rows = con.execute(

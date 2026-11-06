@@ -7,6 +7,7 @@ import math
 import re
 import sqlite3
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -14,9 +15,16 @@ from capitalism import Sim
 from capitalism.catalog import Catalog, Software, compute_availability, daily_demand, nec_lux
 from capitalism.firms import Farm, TVStation, decode_links, encode_links
 from capitalism.jobs import (
+    Advertising,
     CropGrowing,
     Extraction,
+    ImportJob,
+    Inventory,
+    LivestockProcessing,
     Manufacturing,
+    PrivateLabelling,
+    Sales,
+    SoftwareProduction,
     cycle_quality,
     job_wage_day,
 )
@@ -36,7 +44,14 @@ from capitalism.scenario import (
     chain_month_profit,
     find_site,
 )
-from capitalism.tables import JOB_RULES, LINK_RULES, PRODUCT_RULES, db_path
+from capitalism.tables import (
+    FIXED_TRAINING_CREDITS,
+    JOB_RULES,
+    LINK_RULES,
+    PRODUCT_RULES,
+    RATING_THROUGHPUT,
+    db_path,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -221,7 +236,7 @@ def test_wages_training_and_overhead_post_to_their_categories():
     sim.advance_day()
     wage = job_wage_day(24, 100, 31)
     assert f.ledger.month[1] == wage
-    assert f.ledger.month[3] == pytest.approx(wage * 10 / 100)  # training_factor 10
+    assert f.ledger.month[3] == pytest.approx(wage * 10 / 100)  # corporate training budget 10%
     while sim.calendar.month == 1:
         sim.advance_day()
     assert f.ledger.month[2] == pytest.approx(100000.0)  # Feb overhead, full month
@@ -293,7 +308,7 @@ def test_flour_factory_fed_by_seaport_30_days_seed_1():
     sim.advance_days(30)
     assert mfg.stock == pytest.approx(120000.0)  # filled to capacity (60k $/day)
     # Wheat at $0.10 plus each day's wages spread over that day's output.
-    assert mfg.unit_cost == pytest.approx(0.1258, abs=1e-4)
+    assert mfg.unit_cost == pytest.approx(0.1129, abs=1e-4)
     assert mfg.quality == pytest.approx(41.6)  # 50 import × 70% + skill 22 × 30%
     assert buy.stock == pytest.approx(600000.0)
 
@@ -301,12 +316,15 @@ def test_flour_factory_fed_by_seaport_30_days_seed_1():
 def _engine_output(speed_pct: int) -> tuple[int, float]:
     """Cycles per day and one day's units for an Engine line with plentiful inputs."""
     sim, town = bread_town(1)
-    town.labor_quality = 50  # efficiency 27.5, so a 2× day still fits under capacity
+    town.labor_quality = 50  # labour quality does not lower efficiency a second time
     eco = sim.economy
     engine = eco.catalog["Engine"]
     rec = eco.catalog.recipes[engine.id]
     assert rec.speed_pct == 200  # docs/recipes.md
     eco.catalog.recipes[engine.id] = rec.model_copy(update={"speed_pct": speed_pct})
+    # Rating-1 efficiency is now 100%: native Engine base (20) fills before 2× speed can show.
+    # Local capacity override only — storage_mult stays inactive on the real capacity path.
+    engine.row = engine.row.model_copy(update={"base_capacity": 100.0})
     x, y = find_site(sim, town)
     f = eco.build_firm(FACTORY, eco.add_corp("T"), x, y, town)
     job = f.add_job(1, MANUFACTURING, engine)
@@ -318,29 +336,151 @@ def _engine_output(speed_pct: int) -> tuple[int, float]:
 
 
 def test_speed_pct_multiplies_throughput():
-    cycles_200, units_200 = _engine_output(200)
+    # At rating-1 efficiency 100%, speed≥100% fills the whole capacity room in one day,
+    # so 100→200 cannot show a 2× stock delta. 50→100 still fits under the room.
     cycles_100, units_100 = _engine_output(100)
-    assert cycles_100 > 0 and units_100 > 0
-    assert cycles_200 in (2 * cycles_100, 2 * cycles_100 + 1)  # whole cycles only
-    assert units_200 == pytest.approx(2 * units_100, abs=1)
-    assert (units_200, units_100) == (cycles_200, cycles_100)  # Engine output_qty is 1
+    cycles_50, units_50 = _engine_output(50)
+    assert cycles_50 > 0 and units_50 > 0
+    assert cycles_100 in (2 * cycles_50, 2 * cycles_50 + 1)  # whole cycles only
+    assert units_100 == pytest.approx(2 * units_50, abs=1e-9)
+    assert (units_100, units_50) == (cycles_100, cycles_50)  # Engine output_qty is 1
 
 
-def test_training_full_capacity_ten_weeks_rating_1_to_2():
+def test_rating_efficiency_table_and_inactive_storage():
+    assert [RATING_THROUGHPUT[i].efficiency_pct for i in range(1, 10)] == [
+        100,
+        130,
+        160,
+        200,
+        250,
+        300,
+        360,
+        430,
+        500,
+    ]
+    assert [RATING_THROUGHPUT[i].storage_mult for i in range(1, 10)] == [
+        8,
+        10,
+        14,
+        16,
+        20,
+        24,
+        30,
+        35,
+        40,
+    ]
+    sim, town = bread_town(1)
+    job = sim.economy.build_firm(FACTORY, None, *find_site(sim, town), town).add_job(
+        0, MANUFACTURING, sim.economy.catalog["Bread"]
+    )
+    # Storage multiplier is registered only; capacity stays product×size×cap_mult.
+    assert job.capacity == job.product.row.base_capacity * job.firm.size * job.row.cap_mult
+    assert job.capacity == pytest.approx(40000.0)
+
+
+def test_fixed_and_work_mode_credit_ratios():
+    """Half of a nominal-100 manufacturing step earns 50 raw credits (PR #22)."""
     sim, town = bread_town(1)
     eco = sim.economy
-    x, y = find_site(sim, town)
-    mine = eco.build_firm(6, eco.add_corp("T"), x, y, town)
-    job = mine.add_job(1, 8, eco.catalog["Coal"])
-    assert isinstance(job, Extraction) and job.rating == 1
-    trains = 0
-    while trains < 10:
-        job.stock = 0.0  # drained daily: the job works at full capacity
-        if sim.calendar.weekday == JOB_RULES.train_weekday:
-            trains += 1
-            assert job.rating == 1
-        sim.advance_day()
-    assert job.rating == 2 and job.train_acc == 0
+    engine = eco.catalog["Engine"]
+    # capacity 50 × efficiency 100 × speed 200% / 10000 = nominal 100 units.
+    engine.row = engine.row.model_copy(update={"base_capacity": 50.0})
+    f = eco.build_firm(FACTORY, eco.add_corp("F"), *find_site(sim, town), town)
+    job = f.add_job(0, MANUFACTURING, engine)
+    recipe = eco.catalog.recipe(job.product)
+    assert recipe is not None and recipe.output_qty == 1 and job.efficiency == 100
+    for ingredient in recipe.inputs:
+        job.inputs[ingredient.input_id] = [ingredient.qty * 50, 80.0, 1.0]
+    nominal = job.efficiency * job.capacity * recipe.speed_pct / 10000.0
+    assert (job.capacity, nominal) == (50.0, 100.0)
+    assert job.work(eco) and job.stock == 50
+    assert job.train_credits == pytest.approx(50.0)
+    for ingredient in recipe.inputs:
+        job.inputs[ingredient.input_id][0] = 0
+    prior = job.train_credits
+    job.stock = 0
+    assert job.work(eco) and job.train_credits == prior  # idle visit earns nothing
+    assert {k: v.base_daily for k, v in FIXED_TRAINING_CREDITS.items()} == {
+        1: 20,
+        2: 10,
+        11: 14,
+        13: 14,
+    }
+
+
+def test_weekly_training_strict_threshold_one_staff_step():
+    sim, town = bread_town(1)
+    f = sim.economy.build_firm(FACTORY, sim.economy.add_corp("T"), *find_site(sim, town), town)
+    job = f.add_job(0, MANUFACTURING, sim.economy.catalog["Bread"])
+    job.staff = 1
+    job.rating = 1
+    job.train_credits = 900.0  # exact threshold must not pass
+    job.train()
+    assert (job.rating, job.train_progress, job.train_credits) == (1, 0, 900.0)
+    job.train_credits = 901.0
+    job.train()
+    assert (job.rating, job.train_progress, job.train_credits) == (2, 0, 0.0)
+    job.rating = 9
+    job.train_credits = 9 * 900 + 1
+    job.train()
+    assert (job.rating, job.train_progress, job.train_credits) == (9, 0, 0.0)
+
+
+def test_low_stock_receipt_and_real_sale_credit_actual_units(monkeypatch):
+    from capitalism.jobs import Purchasing
+
+    sim, town = bread_town(1)
+    eco = sim.economy
+    corp = eco.add_corp("T")
+    factory = eco.build_firm(FACTORY, corp, *find_site(sim, town), town)
+    buy = factory.add_job(0, PURCHASING, eco.catalog["Wheat"])
+    # Rating-1 efficiency 100% makes order=4×capacity; room then caps receipt at 25% of order.
+    # Local 25% efficiency makes order==capacity so a full receipt scores the reference 80.
+    monkeypatch.setattr(Purchasing, "efficiency", property(lambda self: 25.0))
+    seller = ImportJob(factory, 0, buy.product)
+    buy.stock = 0.0
+    buy.supply = SimpleNamespace(
+        seller=seller, price=0.1, firm=factory, quantity=0.0, record_sale=lambda qty: None
+    )
+    calendar = SimpleNamespace(day_serial=(-factory.id) % JOB_RULES.purchase_every_days, month=1)
+    assert buy.work(SimpleNamespace(calendar=calendar)) is False
+    assert buy.train_credits == pytest.approx(80.0)
+    assert buy.stock == pytest.approx(buy.capacity)
+
+    store = eco.build_firm(DEPARTMENT_STORE, corp, *find_site(sim, town), town)
+    sale = store.add_job(0, SALES, eco.catalog["Bread"])
+    assert isinstance(sale, Sales)
+    cap = sale.daily_cap()
+    sale.stock = cap
+    sale.unit_cost = 1.5
+    sold = cap / 2
+    link = SimpleNamespace(price=1.5, record_sale=lambda qty: None)
+    sale.sell_left = cap
+    sale.sell_to(sold, link)
+    assert sale.train_credits == pytest.approx(50.0)
+    assert sale.stock == pytest.approx(cap - sold)
+
+
+def test_no_passive_credit_for_inventory_advertising_or_uncertain_ratios():
+    sim, town = bread_town(1)
+    eco = sim.economy
+    f = eco.build_firm(FACTORY, eco.add_corp("dummy"), *find_site(sim, town), town)
+    farm = eco.build_firm(FARM, None, *find_site(sim, town), town)
+    chicken = eco.catalog["Chicken"]
+    for j in (
+        Inventory(f, 0, eco.catalog["Bread"]),
+        Advertising(f, 0, eco.catalog["Bread"]),
+        SoftwareProduction(f, 0, eco.catalog["Software"]),
+        Extraction(f, 0, eco.catalog["Coal"]),
+        LivestockProcessing(farm, 0, chicken),
+        PrivateLabelling(f, 0, eco.catalog["Bread"]),  # credit only on_moved, not idle work
+    ):
+        if isinstance(j, SoftwareProduction):
+            j.has_master = False
+        j.work(eco)
+        assert j.train_credits == 0.0
+        j.train()
+        assert j.train_progress == 0
 
 
 # --- slice 5: links and markets ---------------------------------------------------------
@@ -406,11 +546,11 @@ def _run_chain(seed: int = 1, days: int = 120):
 def test_bread_chain_end_to_end_seed_1():  # updated 4b hash also includes the Software catalog row
     sim, chain = _run_chain()
     link = chain.store_link
-    assert sim.state_hash() == ("0f328495e5179a482eca7940a0134187d1891a6d7cc076efe108e87237d5b7e4")
-    assert sum(link.money_month) == pytest.approx(952730.4030324987, abs=1e-3)
+    assert sim.state_hash() == ("0b1012ba3d8a872ac3d09eb920662b4895b070d10634e749104ef1031bed784e")
+    assert sum(link.money_month) == pytest.approx(1003123.1072974899, abs=1e-3)
     assert chain.store_sales.unit_cost == pytest.approx(1.5)
-    assert link.brand == pytest.approx(10.6, abs=1e-6)
-    assert chain.store_sales.quality == pytest.approx(17.903092, abs=1e-5)
+    assert link.brand == pytest.approx(11.0, abs=1e-6)
+    assert chain.store_sales.quality == pytest.approx(17.687896898428896, abs=1e-5)
     # Bread actually reached the shelf and sold every month after the first.
     assert all(link.units_month[m] > 0 for m in (1, 2, 3))
 
@@ -432,20 +572,20 @@ def test_bread_chain_monthly_accounting():
         results[month] = chain_month_profit(chain, month - 1)
     r = results[4]  # month after April closes; ledger index remains zero-based April = 3
     assert r["overhead"] == pytest.approx(300000.0)  # 2 factories + dept store, $100k/mo each
-    assert r["revenue"] == pytest.approx(273_577.26, abs=0.002)
-    assert (r["wages"], r["overhead"], r["wheat"]) == (167_910, 300_000, 17_820)
+    assert r["revenue"] == pytest.approx(273_578.5119369011, abs=0.002)
+    assert (r["wages"], r["overhead"], r["wheat"]) == (167_910, 300_000, 16_414.2)
     # Training is budget × daily wage / divisor accumulated in floats: equal to cents, not bits.
     assert r["training"] == pytest.approx(16_791, abs=1e-6)
     for job, qty, charge in zip(
         (chain.wheat_buy, chain.flour_buy, chain.bread_buy),
-        (178_200, 178_200, 202_000),
-        (187.11, 311.85, 757.50),
+        (164_142, 164_142, 182_385.67462499382),
+        (172.34910000000002, 287.2485, 683.9462798437269),
         strict=True,
     ):
         assert job.received_month[3] == pytest.approx(qty)
         assert job.freight_month[3] == pytest.approx(charge)
-    assert r["freight"] == pytest.approx(1_256.46)
-    assert r["profit"] == pytest.approx(-230_200.20, abs=0.002)
+    assert r["freight"] == pytest.approx(1_143.543879843727)
+    assert r["profit"] == pytest.approx(-228_680.23194294266, abs=0.002)
     assert r["profit"] == pytest.approx(
         r["revenue"] - r["wages"] - r["training"] - r["overhead"] - r["freight"] - r["wheat"]
     )

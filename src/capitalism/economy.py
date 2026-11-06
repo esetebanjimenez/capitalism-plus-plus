@@ -238,10 +238,11 @@ class Economy:
                         job.stock,
                         job.quality,
                         job.unit_cost,
-                        job.train_acc,
+                        job.train_credits,
                         job.price,
                     )
                 )
+                h.update(struct.pack("<i", job.train_progress))
         for corp in self.corps:
             h.update(struct.pack("<i", corp.id))
             for product_id, level in corp.technology.items():

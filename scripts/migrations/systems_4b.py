@@ -231,7 +231,8 @@ def migrate(con: sqlite3.Connection) -> None:
         "ELSE provisional||',spending_usd' END WHERE name NOT IN ('Wheat','Flour','Bread') "
         "AND instr(provisional,'spending_usd')=0"
     )
-    # training_factor is the monthly skill-growth factor, not an expense percentage.
+    # Resolved expanded reference: job training_factor has no confirmed monthly-growth mapping;
+    # the separate budget × wage / 100 expense remains authoritative.
     con.execute(
         "UPDATE job_types SET units=replace(units,'% of salary (training)',"
         "'monthly skill-growth factor (training)')"
@@ -241,6 +242,82 @@ def migrate(con: sqlite3.Connection) -> None:
     con.execute("UPDATE firm_types SET provisional='max_slots' WHERE name='Seaport'")
     con.execute(
         "UPDATE firm_types SET provisional=CASE WHEN provisional='' THEN 'government' ELSE provisional||',government' END WHERE name!='Seaport' AND instr(provisional,'government')=0"
+    )
+    # Expanded reference: rating lookup and genuine work-credit progression.
+    con.execute(
+        "CREATE TABLE IF NOT EXISTS rating_throughput("
+        "rating INTEGER PRIMARY KEY CHECK(rating BETWEEN 1 AND 9),"
+        "efficiency_pct REAL NOT NULL CHECK(efficiency_pct>0),"
+        "storage_mult REAL NOT NULL CHECK(storage_mult>0),"
+        "ref TEXT NOT NULL, provisional INTEGER NOT NULL CHECK(provisional IN(0,1)))"
+    )
+    con.executemany(
+        "INSERT INTO rating_throughput VALUES(?,?,?,'docs/reference/gamelogic.md 558–585 — rating efficiency and storage',0) "
+        "ON CONFLICT(rating) DO UPDATE SET efficiency_pct=excluded.efficiency_pct,"
+        "storage_mult=excluded.storage_mult,ref=excluded.ref,provisional=0",
+        [
+            (i, eff, cap)
+            for i, (eff, cap) in enumerate(
+                zip(
+                    (100, 130, 160, 200, 250, 300, 360, 430, 500),
+                    (8, 10, 14, 16, 20, 24, 30, 35, 40),
+                    strict=True,
+                ),
+                1,
+            )
+        ],
+    )
+    con.execute(
+        "CREATE TABLE IF NOT EXISTS fixed_training_credits("
+        "job_type INTEGER PRIMARY KEY REFERENCES job_types(id),"
+        "base_daily REAL NOT NULL CHECK(base_daily>0),"
+        "ref TEXT NOT NULL, provisional INTEGER NOT NULL CHECK(provisional IN(0,1)))"
+    )
+    con.executemany(
+        "INSERT INTO fixed_training_credits VALUES(?,?,?,?) "
+        "ON CONFLICT(job_type) DO UPDATE SET base_daily=excluded.base_daily,"
+        "ref=excluded.ref, provisional=excluded.provisional",
+        [
+            (1, 20, "docs/reference/gamelogic.md 739–747 — Crop Growing fixed credits", 0),
+            (
+                2,
+                10,
+                "docs/reference/gamelogic.md 849 plus 739–747 — Raising visit reading, not Processing",
+                1,
+            ),
+            (11, 14, "docs/reference/gamelogic.md 739–747, 963–970 — shared R&D visit credits", 0),
+            (
+                13,
+                14,
+                "docs/reference/gamelogic.md 963–970 — shared Software Development visit credits",
+                0,
+            ),
+        ],
+    )
+    # The missing original budget/education mapping is neutral for M1 at defaults.
+    for key, value, units in [
+        ("training_credit_budget_divisor", 10, "budget-value / divisor; budget10 neutral"),
+        ("training_credit_education", 100, "global fallback education; no native field recovered"),
+        ("training_credit_education_divisor", 100, "education / divisor; fallback100 neutral"),
+    ]:
+        con.execute(
+            "INSERT INTO rules VALUES('jobs',?,?,?,?,1) "
+            "ON CONFLICT(system,key) DO UPDATE SET value=excluded.value,units=excluded.units,"
+            "ref=excluded.ref,provisional=1",
+            (
+                key,
+                value,
+                units,
+                "docs/design.md slice 4 call 6 (PR22 d012404) — provisional neutral credit scaling",
+            ),
+        )
+    con.execute(
+        "DELETE FROM rules WHERE system='jobs' AND key IN "
+        "('train_step','train_threshold','train_hi','train_lo','eff_base','eff_per_rating','eff_min','eff_max')"
+    )
+    con.execute(
+        "UPDATE job_types SET units=replace(units,'monthly skill-growth factor (training)',"
+        " 'daily-credit input (role unresolved)') WHERE instr(units,'monthly skill-growth factor')>0"
     )
     con.commit()
     assert con.execute("PRAGMA integrity_check").fetchone()[0] == "ok"

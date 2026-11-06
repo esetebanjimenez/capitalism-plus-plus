@@ -9,10 +9,12 @@ from .catalog import Crop, Product, Software
 from .projects import Project, ProjectEngine
 from .tables import (
     ADVERTISING_RULES,
+    FIXED_TRAINING_CREDITS,
     JOB_RULES,
     JOB_TYPES,
     LINK_RULES,
     LIVESTOCK_YIELDS,
+    RATING_THROUGHPUT,
     RESEARCH_RULES,
     SOFTWARE_RULES,
     JobTypeRow,
@@ -35,10 +37,8 @@ def job_wage_day(staff: int, labor_cost: float, days_in_month: int) -> int:
 
 
 def efficiency(rating: int, labor_quality: float) -> float:
-    r = JOB_RULES
-    return max(
-        r.eff_min, min(r.eff_max, (r.eff_base + r.eff_per_rating * rating) * labor_quality / 100)
-    )
+    """Reference rating percent; staff quality is not applied again."""
+    return RATING_THROUGHPUT[max(1, min(9, rating))].efficiency_pct
 
 
 class Job:
@@ -57,10 +57,9 @@ class Job:
         "slot",
         "staff",
         "stock",
-        "train_acc",
+        "train_credits",
+        "train_progress",
         "unit_cost",
-        "week_cap",
-        "week_work",
     )
 
     def __init__(self, firm: Firm, slot: int, product: Product | None, rating: int = 1) -> None:
@@ -71,7 +70,8 @@ class Job:
         self.stock = self.quality = self.unit_cost = 0.0
         self.price = product.row.base_price if product is not None else 0.0
         self.brand = -1
-        self.train_acc = self.week_work = self.week_cap = 0.0
+        self.train_credits = 0.0
+        self.train_progress = 0
         self.param1 = self.param2 = 0
 
     def __repr__(self) -> str:
@@ -133,21 +133,37 @@ class Job:
         if eco.calendar.weekday == JOB_RULES.train_weekday:
             self.train()
 
+    def _credit(self, raw: float) -> None:
+        self.train_credits += max(0.0, raw)
+
+    def fixed_visit_credit(self) -> None:
+        """Only database-listed fixed-credit job types enter here."""
+        row = FIXED_TRAINING_CREDITS.get(self.type_id)
+        if row is not None:
+            self._credit(row.base_daily * self.efficiency / 100.0)
+
     def train(self) -> None:
+        """Weekday 2: one staff-count step on strict credits > rating×900; clear to 0."""
         r = JOB_RULES
-        if self.week_cap > 0:
-            use = self.week_work / self.week_cap
-            delta = 1 if use >= r.train_hi else (-1 if use < r.train_lo else 0)
-            self.train_acc += delta * r.train_step
-        if self.train_acc >= r.train_threshold:
-            if self.rating < r.rating_max:
-                self.rating += 1
-            self.train_acc = 0.0
-        elif self.train_acc <= -r.train_threshold:
-            if self.rating > r.rating_min:
-                self.rating -= 1
-            self.train_acc = 0.0
-        self.week_work = self.week_cap = 0.0
+        budget = (
+            r.corp_training_budget_default
+            if self.firm.owner is None
+            else self.firm.owner.training_budget
+        )
+        # Provisional neutral mapping at budget10 / education100 (PR #22).
+        scaled = (
+            self.train_credits
+            * budget
+            / r.training_credit_budget_divisor
+            * (r.training_credit_education / r.training_credit_education_divisor)
+        )
+        if scaled > max(1, self.rating) * 900.0:
+            self.train_credits = 0.0
+            self.train_progress += 1
+            if self.train_progress >= self.staff:
+                self.train_progress = 0
+                if self.rating < r.rating_max:
+                    self.rating += 1
 
     def work(self, eco: Economy) -> bool:
         return False
@@ -199,10 +215,10 @@ class CropGrowing(Job):
         p = self.product
         if not isinstance(p, Crop) or not p.in_season(eco.calendar.month - 1):
             return False
-        step, added = self.daily_growth(), 0.0
+        step = self.daily_growth()
         added = min(self.room, step)
-        self.week_cap += step
-        self.week_work += added
+        if added > 0:
+            self.fixed_visit_credit()
         self.receive(added, self.produced_quality(), p.row.base_cost)
         return self.stock >= self.capacity
 
@@ -216,7 +232,8 @@ class LivestockRaising(Job):
             return False
         step = self.capacity / JOB_RULES.livestock_scalar * self.efficiency * self.capacity / 100
         added = min(self.room, step)
-        self.week_cap, self.week_work = self.week_cap + step, self.week_work + added
+        if added > 0:
+            self.fixed_visit_credit()
         self.receive(added, self.produced_quality(), self.product.row.base_cost)
         return False
 
@@ -230,7 +247,6 @@ class Extraction(Job):
             return False
         step = JOB_RULES.extraction_rate * self.efficiency * self.capacity / 100
         added = min(self.room, step)
-        self.week_cap, self.week_work = self.week_cap + step, self.week_work + added
         self.receive(added, self.produced_quality(), self.product.row.base_cost)
         return self.stock >= self.capacity
 
@@ -282,7 +298,6 @@ class Manufacturing(Job):
         if p is None or self.room <= 0 or (recipe := eco.catalog.recipe(p)) is None:
             return False
         cycles = min(self.cycles_per_day(recipe), int(self.room // recipe.output_qty))
-        self.week_cap += self.cycles_per_day(recipe) * recipe.output_qty
         done = 0
         for _ in range(cycles):
             if any(self.inputs.get(i.input_id, (0.0,))[0] < i.qty for i in recipe.inputs):
@@ -300,7 +315,8 @@ class Manufacturing(Job):
             self.receive(
                 units, cycle_quality(recipe, quals, self.skill()), (material + wages) / units
             )
-            self.week_work += units
+            nominal = self.efficiency * self.capacity * recipe.speed_pct / 10000.0
+            self._credit(units * 100.0 / nominal)
         return True
 
     def pull(self, eco: Economy) -> None:
@@ -410,7 +426,6 @@ class Purchasing(Job):
             return False
         order = self.efficiency * self.capacity * r.purchase_order_mult / 100
         link.quantity = order
-        self.week_cap += order
         seller = link.seller
         receipt = min(order, self.room, seller.available_stock())
         if receipt <= 0:
@@ -424,7 +439,7 @@ class Purchasing(Job):
         month = eco.calendar.month - 1
         self.received_month[month] += receipt
         self.freight_month[month] += charge
-        self.week_work += receipt
+        self._credit(receipt * 80.0 / order)
         return False
 
 
@@ -466,6 +481,8 @@ class PrivateLabelling(Job):
         return True
 
     def on_moved(self, src: Job, moved: float) -> None:
+        if self.capacity > 0:
+            self._credit(moved * 18.0 / self.capacity)
         if self.firm.owner is not None:
             self.brand = self.firm.owner.id
 
@@ -491,14 +508,15 @@ class Sales(Job):
         if self.product is None:
             return True
         self.sell_left = self.daily_cap()
-        self.week_cap += self.sell_left
         return self.stock < self.capacity
 
     def sell_to(self, qty: float, link: Link) -> None:
         qty = self.take(qty)
         if qty <= 0:
             return
-        self.sell_left, self.week_work = max(0.0, self.sell_left - qty), self.week_work + qty
+        self.sell_left = max(0.0, self.sell_left - qty)
+        if self.daily_cap() > 0:
+            self._credit(qty * 100.0 / self.daily_cap())
         self.firm.post(CAT_SALES, qty * link.price)
         if self.firm.posts_purchase_cost:
             self.firm.post(CAT_PURCHASE, qty * self.unit_cost)
@@ -555,6 +573,7 @@ class ProjectJob(Job):
         self.project.funded = bool(self.param2)
         self.project.paused = self.paused
         ProjectEngine.work(self, eco)
+        self.fixed_visit_credit()
         return False
 
 
@@ -604,11 +623,9 @@ class SoftwareProduction(Job):
             or not self.firm.owner.has_technology(self.product)
         ):
             return False
-        # M1 interpretation: efficiency is the 10..100 percentage scale used by other jobs.
-        added = min(self.room, self.efficiency / 100 * self.capacity)
+        # No divisor appears in the supplied formula. Base copy capacity stays provisional.
+        added = min(self.room, self.efficiency * self.capacity)
         self.receive(added, self.quality, self.product.row.base_cost)
-        self.week_cap += self.capacity
-        self.week_work += added
         return self.stock < self.capacity
 
     def pull(self, eco: Economy) -> None:
