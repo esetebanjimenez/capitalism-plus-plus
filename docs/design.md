@@ -412,18 +412,20 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
 - `firm_types(id, name, setup_cost, overhead_month, max_slots, live_inventory, ref, provisional)`
 - `job_types(id, name, staff, setup_cost, training_factor, ref, provisional)`;
   `training_factor` controls monthly skill improvement, **not training expense**.
-- `products` gains `freight_rate` (raw SET coefficient: Wheat 70, Flour 70,
-  Bread 50) and `freight_currency_scale` (documented, initially provisional
-  dollars/coefficient). Do not substitute price for freight.
+- `products` gains `freight_rate` (transport difficulty from SET: Wheat 70,
+  Flour 70, Bread 50). It is a coefficient, **not** dollars or a percentage.
 - `firm_job_allowed(firm_type, job_type)`
 - `rules` rows (system `jobs`): `sales_mult_store=2`, `sales_mult_other=4`,
   `purchase_every_days=5`, `purchase_order_mult=4`, `train_weekday=2`,
   `train_step=900`, `livestock_scalar=36500`, `wage_per_worker_month=2000`,
   `training_expense_divisor=1000.0`, `corp_training_budget_default=100`,
-  `freight_currency_scale_default` (provisional until the SET multiplier is
-  known), `ad_budget_min=50000`, `ad_budget_max=500000`. The decompiled
-  review supplies the training values; the others above are ref except for
-  explicit provisional flags.
+  `freight_distance_value_divisor=100.0`, `freight_multiplier=0.5`,
+  `freight_floor_usd_per_unit=0.01`, `ad_budget_min=50000`,
+  `ad_budget_max=500000`. The decompiled review supplies the training and
+  freight values; the others above are ref except for explicit provisional
+  flags. Freight divides the coefficient × distance × unit price by the
+  divisor **squared**, then multiplies by 0.5; `0.5` is not the numerator of
+  the quotient.
 
 ### Calls
 
@@ -495,10 +497,14 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
      cycle's input cost plus that day's wages, divided by `output_qty`.
    - Purchasing: every 5 days, order `(efficiency × capacity × 4) / 100`,
      capped by room and by the supplier link quantity; freight is
-     category 5 at `freight_rate × received_qty × freight_currency_scale`.
-     Calculate it independently for each receipt and its own product. The
-     2%-of-price rule was a provisional fallback, not original mechanics;
-     exact currency scaling remains open pending the reference multiplier.
+     category 5 at `max(freight_floor_usd_per_unit, raw_rate) × received_qty`,
+     where `distance = |source.x - buyer.x| + |source.y - buyer.y|` and
+     `raw_rate = freight_rate × distance × product.base_price /
+     freight_distance_value_divisor² × freight_multiplier`. The default
+     divisor is 100, multiplier 0.5 and floor $0.01 per unit (decompiled
+     review). Calculate independently for each actual receipt using its
+     product and the source/destination **tile** coordinates, not town name.
+     The 2%-of-price rule was a provisional fallback, not original mechanics.
    - Sales: daily cap `(efficiency × mult × capacity) / 100`, mult 2 for
      live-inventory firms and 4 otherwise.
    - R&D: raises `corp_tech_level[product]` by 1 per completed project;
@@ -673,13 +679,16 @@ April (30 days), seed 1, with the earlier 4a postings: bread revenue
 **300,000**, **provisional-model** freight **8,198.40**, imported wheat
 **17,820**, loss **−237,142.14**. These explain the old regression only. The
 reported freight total does **not** validate reference mechanics: it came from
-2% of purchase value, which gives wheat $356.40, flour $1,782
-and bread $6,060. After correcting the formula, recalculate freight and loss;
-do not assert a new dollar freight total until the raw rate's currency scale
-is recovered. Quantity-based examples belong in the regression: receiving
-1,000 wheat/flour/bread units posts 70,000/70,000/50,000 times the resolved
-common freight currency scale. Their relative product contributions must not
-become a 5:1:25 purchase-price ratio.
+2% of purchase value, which gives wheat $356.40, flour $1,782 and bread $6,060.
+
+The April fixture's three receipt links each have Manhattan distance **1**.
+At catalog values $0.10/$0.50/$1.50, all three raw rates are below the floor,
+so the corrected formula yields $0.01 per received unit: wheat **$1,782**,
+flour **$1,782**, bread **$2,020**, total freight **$5,584**. Holding all other
+old-chain quantities fixed gives April loss **−$234,527.74**. That is the new
+formula result for the unchanged fixture, not a claim of reference balance.
+Distance tests must include two firms more than one tile apart and across
+tiles/towns; do not pretend the three adjacencies validate long-haul costs.
 
 Factory capacity is also wrong as a daily stock cap: it causes a
 seaport/ factory to repeatedly over-order cheap bulk inputs.
@@ -778,11 +787,16 @@ seaport/ factory to repeatedly over-order cheap bulk inputs.
   advertising posts cat 6 to the sponsor and cat 0 to a same-town TV station.
 - A software project completes, produces copies at a measured daily rate,
   and cannot sell before that project's completion.
-- The regression 4a bread chain retains its exact old April P&L to describe
-  the fallback run. Its only formula-dependent tests are recomputed: per-
-  receipt freight on actual receipts (178,200 wheat, 178,200 flour, 202,000
-  bread units) uses the three product-specific db coefficients and resolved
-  scale. No dollar freight total is asserted before that scale is established.
+- The April regression retains the old P&L only as evidence of the fallback.
+  The corrected fixture posts freight **$5,584** and loss **−$234,527.74** from
+  178,200 wheat, 178,200 flour and 202,000 bread, all at distance 1 and the
+  floor. Use receipt-level assertions and exact per-product totals.
+- Independently test `raw_rate = FREIGHT × distance × base_price / 100² × 0.5`
+  above the floor, a zero raw rate flooring to $0.01/unit, and changing
+  source/buyer map distance without changing the product coefficient. Verify
+  whether the decompiled "formula yields zero" floor is exactly `max(.01, raw)`
+  or a zero-only branch before locking negative-value semantics; no negative
+  freight is allowed for a valid product/link.
 - With corp budget 100, training = 10% of daily wage; changing a job's
   `training_factor` changes skill growth but not expense; changing the
   corporation budget changes expense but not the skill-growth factor.
