@@ -210,11 +210,11 @@ attribution in the handoff, not merely its implementation proof. The claim is
 excluded as evidence, including its named fields, values, ranges and suggested
 mode distinction. It must not steer native capacity changes or a new media
 salary/staff formula. The first 199 lines above remain the original report
-verbatim; this request is an appended, separately dated editorial section.
+verbatim; this request is an appended editorial section dated **2026-11-06**.
 
-The Researcher is checking Esteban's designated reference folders read-only;
-this document records no results from that inspection until exact artifacts
-and evidence are independently available to the repo agents. No existing
+The Researcher has been assigned to inspect Esteban's designated reference
+folders read-only; this document records no results from that planned inspection
+until exact artifacts and evidence are independently available to the repo agents. No existing
 provisional capacity value is changed or promoted, and no binary claim is
 reconstructed from memory.
 
