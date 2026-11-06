@@ -509,7 +509,7 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
      freight_distance_value_divisor² × freight_multiplier`. The default
      divisor is 100, multiplier 0.5 and zero-only floor $0.01 per unit
      (decompiled review). With those constants,
-     `raw_rate = FREIGHT × distance × unit_price / 20,000`. Positive sub-cent
+     `raw_rate = FREIGHT × distance × SPENDING / 20,000`. Positive sub-cent
      rates remain fractional: do **not** use `max(0.01, raw_rate)` or round
      per unit. Calculate independently for each actual receipt using its
      product and each **firm's** stored map coordinate, not town center.
@@ -695,14 +695,15 @@ reported freight total does **not** validate reference mechanics: it came from
 
 The April receipt links use seaport (204,148) → flour factory (205,148) →
 bread factory (206,148) → department store (207,148), each Manhattan distance
-**1**. With catalog values $0.10/$0.50/$1.50, the raw per-unit freight rates are
+**1**. With SPENDING values $0.30/$0.50/$1.50, the raw per-unit freight rates are
 respectively **$0.00105 / $0.00175 / $0.00375**, all positive. April freight is
 therefore wheat **$187.11**, flour **$311.85**, bread **$757.50**, total
 **$1,256.46**. Holding other old-chain quantities fixed gives rounded April loss
-**−$230,200.20** (unrounded result −$230,200.20131935113). These are formula
+**−$230,200.20**. These are formula
 results for the current fixture; no raw rate hits the zero floor. This supersedes
-the already-superseded blanket-floor estimate of $5,584 and the result using Wheat import/resource price 0.10 instead of
-SPENDING 0.30, $1,131.72; below $0.01 does not mean zero. Distance tests must
+both the blanket-floor estimate $5,584 and the $1,131.72 result obtained by
+using Wheat's simulated import/resource price $0.10 instead of SPENDING $0.30;
+below $0.01 does not mean zero. Distance tests must
 include two firms more than one tile apart and across tiles/towns; do not
 pretend the three adjacencies validate long-haul costs.
 
@@ -817,6 +818,9 @@ seaport/ factory to repeatedly over-order cheap bulk inputs.
   daily wages ($26.60 on a Purchasing wage of $266): assert both db defaults.
   Changing a job's `training_factor` changes skill growth but not expense;
   changing the corporation budget changes expense, not the skill-growth factor.
+  Adding Wheat $187.11, Flour $311.85 and Bread $757.50 gives $1,256.46;
+  subtracting the April expense categories from its $273,577.25868064887
+  revenue yields −$230,200.20131935112, reported to two decimals.
 - The dense-mixed-product plan's month-6 P&L reports its consumer revenue,
   external ingredients, wages, training, freight and all overhead, then
   asserts a positive consolidated operating profit.
