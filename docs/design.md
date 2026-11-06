@@ -1,6 +1,6 @@
 # Capitalism++ — Design spec
 
-The rules reference is `docs/gamelogic.md`, and the build order is in
+The rules reference is `docs/reference/gamelogic.md`, and the build order is in
 `docs/milestone-1.md`. This spec doesn't restate the reference. For each
 slice it says what to build, where `gamelogic.md` contradicts itself or
 leaves out a number, which call we made, and which golden tests prove the
@@ -415,8 +415,10 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
 ### Tables
 
 - `firm_types(id, name, setup_cost, overhead_month, max_slots, live_inventory, ref, provisional)`
-- `job_types(id, name, staff, setup_cost, training_factor, ref, provisional)`;
-  `training_factor` controls monthly skill improvement, **not training expense**.
+- `job_types(id, name, staff, setup_cost, training_factor, ref, provisional)`.
+  The role of this field in daily credit scaling remains unresolved; it isn't
+  declared a direct monthly skill-growth rate. Posted training expense remains
+  `corp_training_budget × daily_wage / 100.0`, separately confirmed.
 - `products` gains `freight_rate` (transport difficulty from SET: Wheat 70,
   Flour 70, Bread 50). It is a coefficient, **not** dollars or a percentage;
   freight uses the separately table-backed `spending_usd` for its price term.
@@ -445,13 +447,28 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
    slots 0..8: `work()` then `pull()` for each. Daily overhead is not
    posted; overhead posts in the month pass (category 2), prorated
    `days_left / days_in_month` in the first month (ref).
-3. **Efficiency** (undefined in ref, provisional):
-   `efficiency = clamp((50 + 5 × rating) × labor_quality / 100, 10, 100)`.
-   Rating 1 gives 55, rating 9 gives 95 at labor quality 100.
-4. **Capacity** (undefined in ref, provisional):
-   `capacity = product.base_capacity × firm.size × job_cap_mult[job type]`,
-   with `job_cap_mult` 1 for all but Inventory and Sales (3), so a store
-   can hold three days of a factory's output.
+3. **Efficiency** (`docs/reference/gamelogic.md` 558–578). Put the retrieved
+   rating table into the db, not Python. At ratings 1..9 its efficiency and
+   fixed-credit multipliers are `100,130,160,200,250,300,360,430,500%`
+   (also 743–747). Replace the provisional `50 + 5×rating` throughput and
+   quality-scaled clamp. For M1, apply this once to the existing provisional
+   normalized production bases, not to quality a second time. Keep `/100`
+   where a type's expression supplies it (e.g. manufacturing, extraction).
+   Software Production instead stays literally
+   `min(room, efficiency×capacity)`, **with no added `/100`** (988–994);
+   this different equation doesn't recover software's native copy units.
+4. **Storage-capacity inputs remain missing.** Add db lookup
+   `rating_storage_multiplier = 8,10,14,16,20,24,30,35,40` and record native
+   `base_capacity × type_factor × storage_multiplier` from 580–585, but do
+   not apply it yet. Native base and type factors aren't supplied. **Don't**
+   multiply the already-normalized provisional product×size×3-day buffer
+   by 8..40: it would inflate rating-1 stock eightfold at unchanged input.
+   Preserve the current M1 capacity mapping pending real product/type data.
+   Livestock yield constants aren't recovered from this table; the `36,500`
+   conversion is only a partial interpretation. A rating loss can cause an
+   excess-stock write-off (584–585), but its account/cost value is unspecified.
+   For extraction, if capacity or efficiency is0 produce0 and draw0 rather
+   than divide by0; use efficiency/100 as M1's provisional percentage input.
 5. **Wages.** Ref formula, posted once per **job** per day (not per staff):
    `((staff × 2000) / days_in_month × labor_cost) / 100`, integer division,
    **category 1** (Salaries Expense; category 0 is Sales Revenue).
@@ -459,8 +476,9 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
    count, 2000 is dollars per worker per month at labor cost index 100,
    and `labor_cost` is the town's labor cost index (slice 2, 100 at
    start). So a Manufacturing job (24 staff) costs $1,600 a day, or
-   $48,000 a month. Media firms post the same formula with
-   `staff = media_staff = 20` (provisional) and no training post (ref).
+   $48,000 a month. Media uses `firm.salary` in that payroll formula with
+   no training post (615–620). The salary field's actual value and relation
+   to the revenue formula's `staff` are unknown—not an original 20 staff.
    **Money units (Esteban, 2026-11-06):** the ref's setup, overhead and
    job setup numbers are in $1000s, but the db stores full dollars with a
    units column saying `usd` (a Department Store is 1,000,000, its setup
@@ -468,18 +486,61 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
    2026-11-06): a Department Store costs $1,000,000 to build and pays
    $100,000 a month, a TV Station $20,000,000 and $350,000 a month. It
    posts to category 2 in the month pass, prorated in the first month.
-6. **Training** (ref): on weekday 2, `train_acc += rating_delta × 900`,
-   where `rating_delta` is +1 if the job met 90%+ of capacity that week,
-   −1 under 30%, else 0 (provisional). Rating moves one step when
-   `|train_acc| ≥ 9000` (provisional), then the accumulator resets.
-   Skill growth uses job-type `training_factor` in the monthly pass
-   (decompiled review; the weekly rating/progress above remains provisional).
-   It is independent of expense. Daily training cost is
-   `corp_training_budget × daily_wage / training_expense_divisor`, category 3
-   (decompiled review). The db defaults are budget 10 and divisor 100.0,
-   hence 10% of wages, $16,791 for April; the fixed-10 `job_types` values
-   must not determine the expense. No training expense is expressed as one
-   hardcoded percentage in application code.
+6. **Daily training credits and weekly progression** (730–794 replaces the
+   provisional 90%/30%/9000 quota). On every **actual work day**, accrue raw
+   credits; then weekly on **weekday2** check **strict** `credits >
+   current_rating×900`. One successful check completes **one** staff-count
+   step and resets credits exactly to0—never multiple steps or retained
+   overflow. After staff-count steps, rating gains1 to max9 and step count
+   resets. Staff count is steps per level (765–777), not automatic daily
+   credits: Inventory and Advertising with1 step don't get a free credit/day.
+   Manufacturing1→2 needs `24×1×900=21,600`;8→9 needs `24×8×900=172,800`.
+   Neutral100/day for ten weeks (70 daily events) gives7,000, so no level-up;
+   replace the invalid ten-week golden without adding hidden multipliers.
+   Exact900 at rating1 doesn't advance. The reference calls negative rating
+   loss theoretical (788–793) and provides neither full rewind boundary nor a
+   negative credit source for positive working days; don't restore 30% gating.
+
+   **Fixed credits** are Crop20, Livestock10, R&D14 multiplied once by the
+   rating percent (739–747). Livestock Raising additionally says "adds10
+   training credits per visit" (849). M1 explicitly chooses 10 per actual worked
+   visit without multiplying that same10 twice, reserving the source-precedence
+   question as provisional. R&D and SoftwareDevelopment share the R&D visit
+   credit (963–970), separate from project completion. **Livestock Processing**
+   has output at851–860 but no credit constant or numeric work ratio: hold its
+   credit progress at0/gated pending research, never alias it to Manufacturing.
+   Extraction (864–871) and SoftwareProduction (988–994) name only `production
+   ratio` with no numeric coefficient. Hold that credit path too instead of
+   borrowing Manufacturing's100/nominal-step proxy. This safe M1 gate isn't a
+   claim the original never trains these modes.
+
+   **Work-based raw credits** use actual units without a second rating
+   multiplier (749–752):
+   - Manufacturing: `actual_units×100 / nominal_step` (906). The denominator
+     is computed production step before output/ingredient caps: half of a
+     nominal 100 units earns 50 raw credits, not0 under obsolete90% quota.
+   - Purchasing: `received×80 / order_size` (934). This credit denominator
+     doesn't overwrite separately confirmed freight mechanics: freight is
+     `FREIGHT×distance×SPENDING/20,000`, only raw-zero rate floors at
+     $0.01/unit. Don't let older generic price text at933 undo that.
+   - Sales: `count_sold×100 / cap` (949).
+   - Private Labelling: `moved×18 / capacity` (890).
+   If a denominator or actual work is0, guard credits at0 defensively; an idle
+   visit isn't a successfully processed batch. Actual receipt and stock cycles
+   stay separate from credit accumulation.
+
+   **Both result scaling inputs are acknowledged:** the company training
+   budget (default10%) and city education for retail-type firms vs a global
+   default for others (754–759). Exact divisor/mapping and education field
+   aren't supplied here; the current eight town indicators have no education
+   field. If M1 uses neutral-at-budget10 or neutral-education interim values,
+   make those **provisional db-backed mappings**, not proof the original city
+   education is100%. Don't assert `job_types.training_factor` directly drives
+   monthly growth; AI firm30-day factors (481–496) are separate. **Confirmed
+   daily category3 expense does not change:**
+   `corp_training_budget × daily_wage / training_expense_divisor` with db
+   budget10/divisor100.0 gives10% actual wages, **$16,791 on April wages of
+   $167,910**, independent of provisional credit scaling.
 7. **Per-type work** (ref unless marked):
    - Crop: stock grows only in its season; yield factor
      `(climate_dist × −10 + 20) + (moisture_dist × −10 + 20) + soil / 5`,
@@ -539,7 +600,12 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
 - A wheat farm in season fills to capacity in `ceil(capacity / daily)` days.
 - Flour factory fed by a seaport: after 30 days, stock, unit cost and
   quality match stored values for seed 1.
-- Training: a job at full capacity for 10 weeks goes from rating 1 to 2.
+- Training: check strict `credits > rating×900` on weekday2, never `>=`.
+  At rating 1, exactly 900 doesn't pass; 901 does one staff step only and
+  clears to 0. Neutral 100/day over ten weeks totals 7,000, below the
+  Manufacturing first-level 24×1×900 = 21,600; rating 8→9 costs 172,800.
+  Half of nominal 100 manufacturing units earns 50 work credits, no old
+  90% quota or extra hidden multiplier.
 
 ## Slice 5: product links and markets
 
@@ -648,26 +714,79 @@ catalog target type differs.
 
 ### Advertising and media
 
-- `Advertising` selects the firm's selling products. Technology level <=14
-  is not advertised. It holds a monthly budget, a media link and one target
-  product per product/rating record.
-- Campaign selection runs every 60 days with the firm-index stagger against
-  `day_serial % 60`. Choose a media firm in the same town with revenue above
-  `media_min_revenue = 10,000` (provisional). Budget is 10% of last month's
-  sales revenue, capped between $50,000 and $500,000 (boundaries ref; rate
-  provisional). No qualifying product means no budget.
-- Ad spend posts category 6 to the advertiser and category 0 revenue to the
-  media firm (ref). The advertiser's budget is cash committed for the month,
-  not dependent on sales units.
-- Government media starts with audience `randint(10,39)`. Commercial media
-  audience starts at 10 and trends toward the town population / 10,000, capped
-  100 (provisional until the missing audience formula). Monthly retain the
-  twelve-month audience/revenue series (ref).
-- No job slots on media firms: daily payroll alone uses 20 staff (provisional).
-- A sale adjusts brand perception by <=0.1 toward expected product quality
-  (ref); campaign adds `budget/100,000` rating points before that cap, maximum
-  100 (provisional). Repeated identical budgets do not jump the brand to 100.
+Media has no discrete nine-slot jobs (603–620). Its direct daily payroll
+uses `(firm.salary×2000/days_in_month×town_labor_factor)/100`, with no
+training post. The mapping between native `salary` and revenue `staff` is
+unknown; the former staff20 is not recovered fact. An Advertising job lives
+in a DepartmentStore/Factory and points at a **separate same-town media
+firm**, not an invented MediaSales internal slot.
 
+**Initialization (635–641).** Eligible Government corporation4 media gets
+random audience10..39 inclusive for its established town/product slot. All
+other commercial media start **audience0, reputation100**. Backfill twelve
+months with independently random variation of up to±10% from initial audience,
+not fabricated prior paid-ad-revenue history.
+
+**Monthly behavior (621–679) in this prescribed order:**
+
+1. Apply random reputation drift up to±30; audience<15 gets an extra boost,
+   audience>40 an extra penalty, then clamp [-100,+100]. Extra amounts and
+   bounds are **absent**, not simply another identical ±30. Mark any interim
+   db fixture provisional and retain this explicit native-input gap.
+2. `audience += (random(0..100)+reputation−50)/200`, floored at0, **retaining
+   fractional audience**. Exact original random endpoint/type and rounding
+   are not fully specified by the "about±0.75" narrative; use one game-RNG
+   stream without claiming exact binary RNG equivalence.
+3. Positive gains transfer from **same-type, same-town** rivals with aggregate
+   share50%; they are not simply free extra audience. Until exact allocation
+   is recovered, use a labelled-provisional stable, proportional, nonnegative
+   allocator. No second compensation or global reallocation pass.
+4. When same-type town total exceeds **90**, the **currently updated firm**
+   loses the excess, floored at0. Preserve sequential firm-walk semantics;
+   don't claim a synchronous month-end cap is already proven for every firm.
+5. Compute **revenue after audience**, then roll twelve-month history and
+   current series (621–633):
+   ```
+   reach = staff * audience / 100
+   ad_base = (town_economic_stat / 200) * reach / 100
+   revenue_base = town_purchasing_power * ad_base / 100
+   seasonal = (seasonal_component + town_stat / 200) * (audience / 100 + 2) / 100
+   revenue = max(100, ad_rate * (revenue_base / 1000) * seasonal / 100)
+   ```
+   Never invert `/200`. Native `staff`, `ad_rate`, economic-stat fields, season
+   and purchasing-power mappings are unknown. Any required temporary fixture
+   must be explicitly provisional and db-backed, not a guessed mapping to
+   existing unrelated town indicators. The other town's economic-stat field
+   is also missing in the expected denormalized input table. CPM is
+   `revenue×1000/revenue_base`, guarded at denominator0, **not** a second
+   revenue multiplier. Direct min100 formula even at audience0 is not already
+   proof of a separate paid-ad receipt; don't double-post direct revenue with
+   paid category0 without clarifying native ledger mapping.
+
+**Advertising targets and cold start.** Product targeting runs every30 days
+and campaign-partner selection every60 days (1004–1024). Technology is
+**strictly >14**, not at least14; target eligibility also depends on rating
+being below its target plus an **unspecified threshold**. Leave that amount
+unresolved. If no product needs advertising, set0 budget, no $50,000 floor.
+A real nonzero budget is bounded **$50,000..$500,000**. Existing last-sales
+10% and brand increment `budget/100000` capped at100 remain provisional.
+Exact paid campaign posts equal advertiser category6 expense and media
+category0 revenue once, never multiplied by displayed CPM again.
+
+For M1, replace provisional `media_min_revenue=10,000` with the newer
+701–713 requirement **same-town TV or Newspaper, audience strictly >5**.
+Radio still has media audience/revenue, but this selector doesn't include it;
+don't silently substitute it. Older lines1004–1011 still mention media revenue
+above threshold: a genuine unresolved source conflict. This **provisional M1
+choice** uses newer audience eligibility for the cold-start fix, not proof of
+native equivalence or complete mapping of older revenue. New commercial
+audience0 grows normally past5, then its first paid partner needs no prior
+advertising receipt. Follow-up golden should get above5 through deterministic
+normal game-RNG growth, reject exactly5, permit only same-town TV/Newspaper,
+and replace intentional cold-start xfail with success. Don't preserve it
+through fabricated prior category0 income. **This docs PR neither alters
+production code nor claims passing tests**; the Programmer reports that
+follow-up. Unresolved native values stay explicit, not cleanly-labeled facts.
 ### Software
 
 Software is an intentionally provisional M1 implementation pending real
@@ -800,8 +919,19 @@ seaport/ factory to repeatedly over-order cheap bulk inputs.
   prerequisite failure never starts a project; one-shot stops at completion.
 - At skill 50, a new Bread batch from quality-80 flour is quality 62; old
   stock never retroactively changes after skill rises.
-- Media payroll posts 20 staff at the wage formula; $100,000 financed
-  advertising posts cat 6 to the sponsor and cat 0 to a same-town TV station.
+- Media payroll uses `firm.salary` with no training post; staff20 isn't
+  proven. Prescribed direct revenue runs after monthly audience with
+  literal divisions, and computed CPM guards0 denominator. Native staff,
+  town stat and season mappings stay provisional db-backed fixtures.
+  Actual paid $100,000 campaign has equal category6 sponsor expense and
+  category0 media receipt once; CPM is never another payable multiplier.
+- New commercial TV/Newspaper starts audience0/reputation100. Ordinary
+  deterministic game-RNG growth past5 enables initial same-town partner
+  without previous ad receipt; exactly5 fails; Radio isn't eligible under
+  this newer M1 policy. Only after Programmer implements deterministic
+  growth with passing test does this replace deliberate cold-start xfail.
+  The docs branch alone doesn't modify code or tests; older1004–1011
+  media-revenue threshold must remain recognized as source conflict.
 - A software project completes, produces copies at a measured daily rate,
   and cannot sell before that project's completion.
 - The April regression retains the old P&L only as evidence of the fallback.
@@ -816,8 +946,10 @@ seaport/ factory to repeatedly over-order cheap bulk inputs.
   must never produce negative freight.
 - With corp training budget 10 and global divisor 100.0, training = 10% of
   daily wages ($26.60 on a Purchasing wage of $266): assert both db defaults.
-  Changing a job's `training_factor` changes skill growth but not expense;
-  changing the corporation budget changes expense, not the skill-growth factor.
+  Raw work credits and strict weekday2 staff steps now govern progress;
+  Don't assert that `job_types.training_factor` directly drives monthly
+  growth. Budget/default10% and education raw mappings/divisors remain
+  **explicitly provisional**, separate from this confirmed expense golden.
   Adding Wheat $187.11, Flour $311.85 and Bread $757.50 gives $1,256.46;
   subtracting the April expense categories from its $273,577.25868064887
   revenue yields −$230,200.20131935113, reported to two decimals.
