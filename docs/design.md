@@ -820,7 +820,7 @@ seaport/ factory to repeatedly over-order cheap bulk inputs.
   changing the corporation budget changes expense, not the skill-growth factor.
   Adding Wheat $187.11, Flour $311.85 and Bread $757.50 gives $1,256.46;
   subtracting the April expense categories from its $273,577.25868064887
-  revenue yields −$230,200.20131935112, reported to two decimals.
+  revenue yields −$230,200.20131935113, reported to two decimals.
 - The dense-mixed-product plan's month-6 P&L reports its consumer revenue,
   external ingredients, wages, training, freight and all overhead, then
   asserts a positive consolidated operating profit.
