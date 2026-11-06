@@ -212,6 +212,9 @@ class Catalog:
     def __len__(self) -> int:
         return len(self.products)
 
+    def prerequisites(self, product: Product) -> tuple[RndPrereqRow, ...]:
+        return tuple(self.rnd_prereqs.get(product.id, ()))
+
     def recipe(self, product: Product) -> RecipeRow | None:
         return self.recipes.get(product.id)
 
@@ -220,6 +223,10 @@ class Catalog:
         tj = PRODUCT_RULES.tech_jitter
         sj = PRODUCT_RULES.score_jitter
         for p in self.products:
+            if p.kind == "software":
+                # M1 provisional content has no original tech/score jitter fields.
+                # Keep its row free of random draws to preserve existing seeded runs.
+                continue
             p.state.tech_level = max(0, p.row.base_tech_level + rng.randint(-tj, tj))
             p.state.score_jitter = rng.randint(-sj, sj)
 

@@ -89,7 +89,9 @@ class Link:
 
     @property
     def live(self) -> bool:
-        return self.consumer and self.seller.firm.row.live_inventory
+        return self.consumer and (
+            self.seller.firm.row.live_inventory or self.product.row.kind == "software"
+        )
 
     def compute_score(self) -> float:
         return link_score(

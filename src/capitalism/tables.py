@@ -7,21 +7,27 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TypeVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class CityName(BaseModel):
+class StaticModel(BaseModel):
+    """Static db content shared by every Sim: frozen, so runtime state lives elsewhere."""
+
+    model_config = ConfigDict(frozen=True)
+
+
+class CityName(StaticModel):
     name: str
     tier: int = Field(ge=0, le=3)
 
 
-class TierGnpRange(BaseModel):
+class TierGnpRange(StaticModel):
     tier: int
     lo: int
     hi: int
 
 
-class GnpIndexTuning(BaseModel):
+class GnpIndexTuning(StaticModel):
     low_growth: float
     high_growth: float
     step_chance: float
@@ -29,14 +35,14 @@ class GnpIndexTuning(BaseModel):
     floor: float
 
 
-class ClimateThresholds(BaseModel):
+class ClimateThresholds(StaticModel):
     boom: float
     prosperous: float
     normal: float
     recession: float
 
 
-class TownGrowth(BaseModel):
+class TownGrowth(StaticModel):
     pop_growth_lo: float
     pop_growth_hi: float
     rolling_gnp_weight: float
@@ -60,7 +66,7 @@ class TownGrowth(BaseModel):
     pop_tier_noise: int
 
 
-class LandValueRules(BaseModel):
+class LandValueRules(StaticModel):
     floor: int
     bonus_cap: int
     base_mult: float
@@ -68,12 +74,12 @@ class LandValueRules(BaseModel):
     small_town_level_max: int
 
 
-class LevelRules(BaseModel):
+class LevelRules(StaticModel):
     max_level: int
     pop_per_level_sq: int
 
 
-class MapRules(BaseModel):
+class MapRules(StaticModel):
     width: int
     height: int
     min_land_fraction: float
@@ -85,7 +91,7 @@ class MapRules(BaseModel):
     spawn_min_days: int
 
 
-class SimpleCity(BaseModel):
+class SimpleCity(StaticModel):
     level: int
     per_capita_gnp: float
     labor_cost: float
@@ -101,7 +107,7 @@ def _prov_cols(raw: str) -> frozenset[str]:
     return frozenset(c for c in raw.split(",") if c)
 
 
-class ProductClassRow(BaseModel):
+class ProductClassRow(StaticModel):
     id: int
     code: str
     name: str
@@ -112,7 +118,7 @@ class ProductClassRow(BaseModel):
     provisional: frozenset[str] = frozenset()
 
 
-class ProductRow(BaseModel):
+class ProductRow(StaticModel):
     id: int
     code: str
     name: str
@@ -121,6 +127,8 @@ class ProductRow(BaseModel):
     unit: str
     base_price: float = Field(gt=0)
     base_cost: float = Field(ge=0)
+    freight: float = Field(ge=0)
+    spending_usd: float = Field(gt=0)
     demand_per_1000: float = Field(ge=0)
     luxury: int = Field(ge=0, le=9)
     necessity: int = Field(ge=0, le=9)
@@ -129,6 +137,7 @@ class ProductRow(BaseModel):
     w_quality: int
     w_brand: int
     base_tech_level: int = Field(ge=0)
+    tech_year: int = Field(ge=0, le=100)
     base_capacity: float = Field(ge=1)
     plant_month: int | None = None
     grow_months: int | None = None
@@ -143,13 +152,13 @@ class ProductRow(BaseModel):
         return self.demand_per_1000 > 0
 
 
-class RecipeInputRow(BaseModel):
+class RecipeInputRow(StaticModel):
     input_id: int
     qty: int = Field(ge=1)
     quality_weight: int = Field(ge=0, lt=100)
 
 
-class RecipeRow(BaseModel):
+class RecipeRow(StaticModel):
     """One manufacturing recipe (docs/recipes.md, reference data)."""
 
     product_id: int
@@ -168,13 +177,13 @@ class RecipeRow(BaseModel):
         return 100 - self.input_weight
 
 
-class RndPrereqRow(BaseModel):
+class RndPrereqRow(StaticModel):
     product_id: int
     requires_id: int
     ref: str
 
 
-class ProductRules(BaseModel):
+class ProductRules(StaticModel):
     nec_lux_base: float
     nec_lux_necessity: float
     nec_lux_luxury: float
@@ -194,18 +203,19 @@ class ProductRules(BaseModel):
 # --- Slice 4: firms and jobs ----------------------------------------------------
 
 
-class FirmTypeRow(BaseModel):
+class FirmTypeRow(StaticModel):
     id: int
     name: str
     setup_cost: float
     overhead_month: float
     max_slots: int = Field(ge=0, le=9)
     live_inventory: bool
+    government: bool
     ref: str
     provisional: frozenset[str] = frozenset()
 
 
-class JobTypeRow(BaseModel):
+class JobTypeRow(StaticModel):
     id: int
     name: str
     staff: int = Field(ge=0)
@@ -216,7 +226,7 @@ class JobTypeRow(BaseModel):
     provisional: frozenset[str] = frozenset()
 
 
-class FirmRules(BaseModel):
+class FirmRules(StaticModel):
     slots: int
     link_bits: int
     size: int
@@ -224,7 +234,7 @@ class FirmRules(BaseModel):
     media_wage_mult: float
 
 
-class JobRules(BaseModel):
+class JobRules(StaticModel):
     sales_mult_store: float
     sales_mult_other: float
     purchase_every_days: int
@@ -251,7 +261,11 @@ class JobRules(BaseModel):
     crop_moisture_step: float
     extraction_rate: float
     mfg_skill_max: float
-    freight_rate: float
+    freight_distance_value_divisor: float = Field(gt=0)
+    freight_multiplier: float = Field(gt=0)
+    freight_floor_usd_per_unit: float = Field(gt=0)
+    training_expense_divisor: float = Field(gt=0)
+    corp_training_budget_default: float = Field(ge=0)
     import_quality: float
     quality_base: float
     quality_per_rating: float
@@ -260,7 +274,7 @@ class JobRules(BaseModel):
 # --- Slice 5: links and markets -------------------------------------------------
 
 
-class LinkRules(BaseModel):
+class LinkRules(StaticModel):
     price_base: float
     price_slope: float
     score_div: float
@@ -502,7 +516,7 @@ def load_rnd_prereqs() -> tuple[RndPrereqRow, ...]:
 def load_firm_types() -> dict[int, FirmTypeRow]:
     out: dict[int, FirmTypeRow] = {}
     for r in _rows(
-        "SELECT id, name, setup_cost, overhead_month, max_slots, live_inventory, ref, provisional "
+        "SELECT id, name, setup_cost, overhead_month, max_slots, live_inventory, government, ref, provisional "
         "FROM firm_types ORDER BY id"
     ):
         d = dict(r)
@@ -552,3 +566,59 @@ PRODUCT_CLASSES: dict[int, ProductClassRow] = load_product_classes()
 FIRM_TYPES: dict[int, FirmTypeRow] = load_firm_types()
 JOB_TYPES: dict[int, JobTypeRow] = load_job_types()
 FIRM_JOB_ALLOWED: dict[int, frozenset[int]] = load_firm_job_allowed()
+
+
+class LivestockYieldRow(StaticModel):
+    livestock_id: int
+    product_id: int
+    yield_factor: float = Field(gt=0)
+    input_ratio: float = Field(gt=0)
+    ref: str
+
+
+class ResearchRules(StaticModel):
+    days_per_project_month: int
+    manager_skill_divisor: float
+    max_technology: int
+    tech_year_divisor: int
+
+
+class AdvertisingRules(StaticModel):
+    ad_revenue_fraction: float
+    ad_campaign_every_days: int
+    ad_tech_min_exclusive: int
+    media_min_revenue: float
+    media_audience_min: float
+    media_government_max: int
+    media_audience_population_div: float
+    media_audience_cap: float
+    media_audience_adjust_rate: float
+
+
+class SoftwareRules(StaticModel):
+    software_project_months: int
+    software_copy_quality: float
+    software_copy_cost_per_day: float
+
+
+@lru_cache(maxsize=1)
+def load_livestock_yields() -> dict[int, LivestockYieldRow]:
+    rows = _rows(
+        "SELECT livestock_id, product_id, yield_factor, input_ratio, ref FROM livestock_yields"
+    )
+    return {int(r["livestock_id"]): LivestockYieldRow(**dict(r)) for r in rows}
+
+
+@lru_cache(maxsize=1)
+def load_research_durations() -> tuple[int, ...]:
+    return tuple(
+        int(r["months"])
+        for r in _rows("SELECT months FROM research_durations ORDER BY tech_year_bucket")
+    )
+
+
+LIVESTOCK_YIELDS = load_livestock_yields()
+RESEARCH_DURATIONS = load_research_durations()
+RESEARCH_RULES = _rules_model(ResearchRules, "research")
+ADVERTISING_RULES = _rules_model(AdvertisingRules, "advertising")
+SOFTWARE_RULES = _rules_model(SoftwareRules, "software")

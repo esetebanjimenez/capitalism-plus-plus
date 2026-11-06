@@ -7,7 +7,10 @@
 <body>
   <!-- Bare page: loads the sim under Pyodide and advances a few days.
        Serve the repo root (see web/README.md) and open /web/. -->
-  <pre id="out">loading Pyodide…</pre>
+  <main>
+    <h1>Capitalism++ Pyodide smoke</h1>
+    <pre id="out" role="status" aria-live="polite">loading Pyodide…</pre>
+  </main>
   <script type="module">
     import { loadPyodide } from "https://cdn.jsdelivr.net/pyodide/v314.0.7/full/pyodide.mjs";
     const out = document.getElementById("out");

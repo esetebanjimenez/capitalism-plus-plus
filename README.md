@@ -43,8 +43,16 @@ See [`docs/code-style.md`](docs/code-style.md). Short version: OOP for `Game` / 
 
 1. **Clock and passes** — Gregorian calendar (day display clamped at 30), day-serial stagger, month/year passes, hook order, state hash.
 2. **World data** — 240×198 map, city placement (default 5), town indicators, land-value floor.
-3. **Product catalog and demand** — 84 products / 20 classes, the 54 reference recipes (`docs/recipes.md`), town demand per 1,000 people per day, availability.
-4. **Firms and jobs (4a)** — Farm, Mine, Oil Well, Logging Camp, Factory, Department Store and Seaport with their jobs on the 3×3 slot grid; 4b (media, restaurant, R&D, software) is next.
+3. **Product catalog and demand** — 85 products / 20 classes (84 reference + provisional Software), the 54 reference recipes (`docs/recipes.md`), town demand per 1,000 people per day, availability.
+4. **Firms and jobs (4a)** — Farm, Mine, Oil Well, Logging Camp, Factory, Department Store and Seaport with their jobs on the 3×3 slot grid.
+   **4b** adds the remaining firm types: Restaurant (live-inventory store), R&D Center and the
+   shared research/software project engine, Software Developer → Publisher copies and sales
+   (one generic provisional `Software` title, no per-title choice), TV/Radio/Newspaper media
+   (payroll, audience, 60-day staggered campaigns; brand gain only on stocked live links), and
+   seaports with unlimited numbered import links instead of slots. Freight is the decompiled
+   distance formula (`FREIGHT × Manhattan distance × SPENDING / 20,000`, $0.01 only when zero);
+   training expense is `corp budget × wage / divisor` (db 10 / 100.0). Open spec issues: media
+   cold start and the exact monthly `training_factor` skill-growth formula.
 5. **Links and markets (for the chain)** — B2B and consumer links, score² shares, oversupply drain, brand nudge. `capitalism.scenario.build_bread_chain` runs seaport wheat → flour → bread → store.
 
 Pyodide smoke check: see [`web/README.md`](web/README.md).

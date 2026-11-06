@@ -5,6 +5,26 @@ Generated from `src/capitalism/data/capitalism.db` by
 database, then regenerate. Numbers marked **provisional** (or **p** in
 the wide catalog tables) are ours, not the original game's.
 
+## Research durations by tech-year bucket
+
+| Bucket | Months | Reference |
+|---|---|---|
+| 0 | 0 | design.md slice 4b R&D duration table |
+| 1 | 6 | design.md slice 4b R&D duration table |
+| 2 | 12 | design.md slice 4b R&D duration table |
+| 3 | 24 | design.md slice 4b R&D duration table |
+| 4 | 36 | design.md slice 4b R&D duration table |
+| 5 | 60 | design.md slice 4b R&D duration table |
+| 6 | 120 | design.md slice 4b R&D duration table |
+
+## Provisional livestock processing
+
+| Livestock | Output | Output / input | Input ratio | Reference |
+|---|---|---|---|---|
+| 19 | 23 | 20 **provisional** | 1 | M1 provisional livestock yield and conversion; source yield missing |
+| 20 | 24 | 1 **provisional** | 1 | M1 provisional livestock yield and conversion; source yield missing |
+| 22 | 25 | 40 **provisional** | 1 | M1 provisional livestock yield and conversion; source yield missing |
+
 ## 1 — Clock and passes
 
 | Key | Value | Units | Reference |
@@ -109,6 +129,7 @@ the wide catalog tables) are ours, not the original game's.
 |---|---|---|---|
 | `ad_budget_max` | 500000 | $ / month | Advertising — budget clamp |
 | `ad_budget_min` | 50000 | $ / month | Advertising — budget clamp |
+| `corp_training_budget_default` | 10 | training budget | decompiled training review (2026-11-06) |
 | `crop_climate_slope` | -10 | yield / climate step | Crop Growing — yield |
 | `crop_moisture_slope` | -10 | yield / moisture step | Crop Growing — yield |
 | `crop_moisture_step` | 25 **provisional** | moisture points / step | design.md slice 4 — moisture distance in steps |
@@ -119,7 +140,9 @@ the wide catalog tables) are ours, not the original game's.
 | `eff_min` | 10 **provisional** | efficiency | design.md slice 4 call 3 |
 | `eff_per_rating` | 5 **provisional** | efficiency / rating | design.md slice 4 call 3 |
 | `extraction_rate` | 1 **provisional** | rate | design.md slice 4 call 7 — extraction |
-| `freight_rate` | 0.02 **provisional** | fraction of purchase value | design.md slice 4 call 7 — purchasing |
+| `freight_distance_value_divisor` | 100 | currency-distance divisor | decompiled FUN_000785f1 review (Esteban 2026-11-06) |
+| `freight_floor_usd_per_unit` | 0.01 | USD per unit only if raw rate == 0 | decompiled FUN_000785f1 review (Esteban 2026-11-06) |
+| `freight_multiplier` | 0.5 | multiplier | decompiled FUN_000785f1 review (Esteban 2026-11-06) |
 | `import_quality` | 50 **provisional** | quality | design.md slice 4 call 7 — Seaport (Moderate) |
 | `livestock_scalar` | 36500 | days | Livestock Raising — 36,500 |
 | `mfg_skill_max` | 100 **provisional** | quality | design.md slice 4 — manufacturing skill = min(this, product tech level) until R&D lands |
@@ -136,6 +159,7 @@ the wide catalog tables) are ours, not the original game's.
 | `train_step` | 900 | accumulator points | Job daily cycle — train |
 | `train_threshold` | 9000 **provisional** | accumulator points | design.md slice 4 call 6 |
 | `train_weekday` | 2 | weekday | Job daily cycle — train on weekday 2 |
+| `training_expense_divisor` | 100 | USD divisor | decompiled training review (2026-11-06) |
 | `wage_per_worker_month` | 2000 | usd / worker / month at labor cost 100 | Job daily cycle — post wages ((staff × 2000) / days-in-month × labor) / 100; design.md slice 4 call 5 |
 
 ## 5 — Product links and markets
@@ -154,6 +178,37 @@ the wide catalog tables) are ours, not the original game's.
 | `weight_max` | 100 | weight | Product links — weight clamp |
 | `weight_nonfarm` | 50 | weight | Product links — weight (+50, non-farm per design.md call 4) |
 | `weight_rate_mult` | 5 | weight / rate point | Product links — weight (× 5) |
+
+## 4b — Research and projects
+
+| Key | Value | Units | Reference |
+|---|---|---|---|
+| `days_per_project_month` | 30 **provisional** | days / month | design.md slice 4b project elapsed time |
+| `manager_skill_divisor` | 2 **provisional** | divisor | design.md slice 4b manufacturing skill provisional |
+| `max_technology` | 100 **provisional** | technology | design.md slice 4b completed sentinel |
+| `tech_year_divisor` | 15 **provisional** | tech years / duration bucket | design.md slice 4b R&D duration formula |
+
+## 4b — Software
+
+| Key | Value | Units | Reference |
+|---|---|---|---|
+| `software_copy_cost_per_day` | 0 **provisional** | usd per copy-unit day | M1 no additional daily copy cost; wages already posted once daily |
+| `software_copy_quality` | 50 **provisional** | quality | M1 provisional software initial quality |
+| `software_project_months` | 6 **provisional** | months | design.md slice 4b software one level project |
+
+## 4b — Advertising and media
+
+| Key | Value | Units | Reference |
+|---|---|---|---|
+| `ad_campaign_every_days` | 60 **provisional** | days | design.md slice 4b advertising campaign stagger |
+| `ad_revenue_fraction` | 0.1 **provisional** | fraction of previous month revenue | design.md slice 4b provisional budget rate |
+| `ad_tech_min_exclusive` | 14 **provisional** | tech level | design.md slice 4b no ads at tech <= 14 |
+| `media_audience_adjust_rate` | 0.1 **provisional** | fraction / month | M1 provisional gradual audience adjustment |
+| `media_audience_cap` | 100 **provisional** | audience | design.md slice 4b provisional audience |
+| `media_audience_min` | 10 **provisional** | audience | design.md slice 4b provisional audience |
+| `media_audience_population_div` | 10000 **provisional** | people / audience point | design.md slice 4b provisional audience |
+| `media_government_max` | 39 **provisional** | audience | design.md slice 4b government audience |
+| `media_min_revenue` | 10000 **provisional** | usd / month | design.md slice 4b media partner threshold |
 
 ## City name pool
 
@@ -328,97 +383,99 @@ Drift: design.md slice 2 — unemployment drift. Swing: Towns and cities — une
 | 82 | Wrist Computer | COMPUTER | consumer | unit **p** | 900 | 0.03 | 9 | 1 | 25 | 45 | 30 | 0 |
 | 83 | Car | AUTO | consumer | unit **p** | 20000 | 0.005 | 8 | 2 | 30 | 35 | 35 | 1 |
 | 84 | Motorcycle | AUTO | consumer | unit **p** | 10000 | 0.002 | 7 | 2 | 30 | 35 | 35 | 1 |
+| 85 | Software | ELEAPP | software | copy **p** | 100 **p** | 0.1 **p** | 0 **p** | 0 **p** | 30 **p** | 40 **p** | 30 **p** | 0 **p** |
 
 Reference: Product catalog and demand — complete product catalog.
 
 ## Products — production
 
-| Id | Code | Name | Base cost | Capacity / day | Tech importance | Base tech | Plant month (0 = Jan) | Grow months | Climate | Moisture |
-|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | ALUMINUM **p** | Aluminum | 0.78 **p** | 46154 **p** | 3 **p** | 0 **p** | — | — | — | — |
-| 2 | CHEMICAL **p** | Chemical Minerals | 1.2 **p** | 30000 **p** | 3 **p** | 0 **p** | — | — | — | — |
-| 3 | COAL **p** | Coal | 0.12 **p** | 300000 **p** | 3 **p** | 0 **p** | — | — | — | — |
-| 4 | GOLD **p** | Gold | 180 **p** | 200 **p** | 3 **p** | 0 **p** | — | — | — | — |
-| 5 | IRONORE **p** | Iron Ore | 0.18 **p** | 200000 **p** | 3 **p** | 0 **p** | — | — | — | — |
-| 6 | OIL **p** | Oil | 12 **p** | 3000 **p** | 3 **p** | 0 **p** | — | — | — | — |
-| 7 | SILICA **p** | Silica | 0.12 **p** | 300000 **p** | 3 **p** | 0 **p** | — | — | — | — |
-| 8 | TIMBER **p** | Timber | 0.12 **p** | 300000 **p** | 3 **p** | 0 **p** | — | — | — | — |
-| 9 | RUBBERPL **p** | Rubber Plant | 0.18 **p** | 200000 **p** | 3 **p** | 0 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
-| 10 | SUGARCAN **p** | Sugar Cane | 0.18 **p** | 200000 **p** | 3 **p** | 0 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
-| 11 | BARLEY **p** | Barley | 0.06 **p** | 600000 **p** | 3 **p** | 0 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
-| 12 | COCOA **p** | Cocoa | 0.3 **p** | 120000 **p** | 3 **p** | 0 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
-| 13 | COTTON **p** | Cotton | 0.3 **p** | 120000 **p** | 3 **p** | 0 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
-| 14 | GRAPES **p** | Grapes | 0.3 **p** | 120000 **p** | 3 **p** | 0 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
-| 15 | RUBBER **p** | Rubber | 0.24 **p** | 150000 **p** | 3 **p** | 0 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
-| 16 | SUGAR **p** | Sugar | 0.12 **p** | 300000 **p** | 3 **p** | 0 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
-| 17 | TOBACCO **p** | Tobacco | 0.6 **p** | 60000 **p** | 3 **p** | 0 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
-| 18 | WHEAT **p** | Wheat | 0.06 **p** | 600000 **p** | 3 **p** | 0 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
-| 19 | CATTLE **p** | Cattle | 300 **p** | 120 **p** | 3 **p** | 0 **p** | — | — | — | — |
-| 20 | CHICKEN **p** | Chicken | 3 **p** | 12000 **p** | 3 **p** | 0 **p** | — | — | — | — |
-| 21 | PIG **p** | Pig | 90 **p** | 400 **p** | 3 **p** | 0 **p** | — | — | — | — |
-| 22 | SHEEP **p** | Sheep | 90 **p** | 400 **p** | 3 **p** | 0 **p** | — | — | — | — |
-| 23 | LEATHER **p** | Leather | 6 **p** | 6000 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 24 | MILK **p** | Milk | 0.6 **p** | 60000 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 25 | WOOL **p** | Wool | 12 **p** | 3000 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 26 | CARBODY **p** | Car Body | 3000 **p** | 12 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 27 | CPU **p** | CPU | 120 **p** | 300 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 28 | ELECTRON **p** | Electronic Components | 6 **p** | 6000 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 29 | ENGINE **p** | Engine | 1800 **p** | 20 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 30 | FLOUR **p** | Flour | 0.3 **p** | 120000 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 31 | GLASS **p** | Glass | 0.6 **p** | 60000 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 32 | PAPER **p** | Paper | 0.6 **p** | 60000 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 33 | PLASTIC **p** | Plastic | 0.6 **p** | 60000 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 34 | SILICON **p** | Silicon | 0.6 **p** | 60000 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 35 | STEEL **p** | Steel | 0.6 **p** | 60000 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 36 | TEXTILES **p** | Textiles | 6 **p** | 6000 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 37 | WHEELTIR **p** | Wheel & Tire | 600 **p** | 60 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 38 | BREAD **p** | Bread | 0.9 **p** | 40000 **p** | 3 **p** | 0 **p** | — | — | — | — |
-| 39 | CHOCOLAT **p** | Chocolate Bar | 0.9 **p** | 40000 **p** | 3 **p** | 0 **p** | — | — | — | — |
-| 40 | COOKIES **p** | Cookies | 2.4 **p** | 15000 **p** | 3 **p** | 0 **p** | — | — | — | — |
-| 41 | ICECREAM **p** | Ice Cream | 0.9 **p** | 40000 **p** | 3 **p** | 0 **p** | — | — | — | — |
-| 42 | BEER **p** | Beer | 1.2 **p** | 30000 **p** | 3 **p** | 0 **p** | — | — | — | — |
-| 43 | BOTTLEDM **p** | Bottled Milk | 1.2 **p** | 30000 **p** | 3 **p** | 0 **p** | — | — | — | — |
-| 44 | COLA **p** | Cola | 0.6 **p** | 60000 **p** | 3 **p** | 0 **p** | — | — | — | — |
-| 45 | WINE **p** | Wine | 12 **p** | 3000 **p** | 3 **p** | 0 **p** | — | — | — | — |
-| 46 | EGGS **p** | Eggs | 1.2 **p** | 30000 **p** | 3 **p** | 0 **p** | — | — | — | — |
-| 47 | FROZENBE **p** | Frozen Beef | 1.8 **p** | 20000 **p** | 3 **p** | 0 **p** | — | — | — | — |
-| 48 | FROZENCH **p** | Frozen Chicken | 1.8 **p** | 20000 **p** | 3 **p** | 0 **p** | — | — | — | — |
-| 49 | FROZENPO **p** | Frozen Pork | 1.8 **p** | 20000 **p** | 3 **p** | 0 **p** | — | — | — | — |
-| 50 | FROZENLA **p** | Frozen Lamb | 1.8 **p** | 20000 **p** | 3 **p** | 0 **p** | — | — | — | — |
-| 51 | DETERGEN **p** | Detergent | 2.4 **p** | 15000 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 52 | DIAPER **p** | Diaper | 3.6 **p** | 10000 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 53 | SHAMPOO **p** | Shampoo | 2.4 **p** | 15000 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 54 | TOOTHPAS **p** | Toothpaste | 1.8 **p** | 20000 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 55 | EYESHADO **p** | Eye Shadow | 18 **p** | 2000 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 56 | PERFUME **p** | Perfume | 18 **p** | 2000 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 57 | CIGARETT **p** | Cigarettes | 1.8 **p** | 20000 **p** | 3 **p** | 20 **p** | — | — | — | — |
-| 58 | LEATHERB **p** | Leather Briefcase | 120 **p** | 300 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 59 | LEATHERJ **p** | Leather Jacket | 150 **p** | 240 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 60 | JEANS **p** | Jeans | 18 **p** | 2000 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 61 | LEATHERS **p** | Leather Shoes | 30 **p** | 1200 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 62 | SOCKS **p** | Socks | 3 **p** | 12000 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 63 | SWEATER **p** | Sweater | 48 **p** | 750 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 64 | SPORTSHO **p** | Sport Shoes | 30 **p** | 1200 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 65 | BED **p** | Bed | 210 **p** | 171 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 66 | SOFA **p** | Sofa | 150 **p** | 240 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 67 | JEWELRY **p** | Jewelry | 360 **p** | 100 **p** | 12 **p** | 20 **p** | — | — | — | — |
-| 68 | WATCH **p** | Watch | 36 **p** | 1000 **p** | 12 **p** | 20 **p** | — | — | — | — |
-| 69 | TOYTRAIN **p** | Toy Train | 12 **p** | 3000 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 70 | TOYBEAR **p** | Toy Bear | 12 **p** | 3000 **p** | 6 **p** | 20 **p** | — | — | — | — |
-| 71 | AIRCONDI **p** | Air Conditioner | 240 **p** | 150 **p** | 10 **p** | 20 **p** | — | — | — | — |
-| 72 | CAMERA **p** | Camera | 90 **p** | 400 **p** | 10 **p** | 20 **p** | — | — | — | — |
-| 73 | DVDPLAYE **p** | DVD Player | 300 **p** | 120 **p** | 10 **p** | 20 **p** | — | — | — | — |
-| 74 | HIFI **p** | Hi-fi | 240 **p** | 150 **p** | 10 **p** | 20 **p** | — | — | — | — |
-| 75 | TELEVISI **p** | Television | 240 **p** | 150 **p** | 10 **p** | 20 **p** | — | — | — | — |
-| 76 | VIDEOCAM **p** | Video Camera | 480 **p** | 75 **p** | 10 **p** | 20 **p** | — | — | — | — |
-| 77 | VIDEOREC **p** | Video Recorder | 240 **p** | 150 **p** | 10 **p** | 20 **p** | — | — | — | — |
-| 78 | DESKTOPC **p** | Desktop Computer | 900 **p** | 40 **p** | 10 **p** | 20 **p** | — | — | — | — |
-| 79 | INTERNET **p** | Internet-TV | 360 **p** | 100 **p** | 10 **p** | 20 **p** | — | — | — | — |
-| 80 | PDA **p** | PDA | 192 **p** | 188 **p** | 10 **p** | 20 **p** | — | — | — | — |
-| 81 | VRCOMPUT **p** | VR Computer | 1080 **p** | 33 **p** | 10 **p** | 20 **p** | — | — | — | — |
-| 82 | WRISTCOM **p** | Wrist Computer | 540 **p** | 67 **p** | 10 **p** | 20 **p** | — | — | — | — |
-| 83 | CAR **p** | Car | 12000 **p** | 3 **p** | 15 | 20 **p** | — | — | — | — |
-| 84 | MOTORCYC **p** | Motorcycle | 6000 **p** | 6 **p** | 15 | 20 **p** | — | — | — | — |
+| Id | Code | Name | Base cost | Capacity / day | Tech importance | Base tech | Tech year (years) | Freight coefficient | SPENDING (freight $) | Plant month (0 = Jan) | Grow months | Climate | Moisture |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | ALUMINUM **p** | Aluminum | 0.78 **p** | 46154 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 1.3 **p** | — | — | — | — |
+| 2 | CHEMICAL **p** | Chemical Minerals | 1.2 **p** | 30000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 2 **p** | — | — | — | — |
+| 3 | COAL **p** | Coal | 0.12 **p** | 300000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 0.2 **p** | — | — | — | — |
+| 4 | GOLD **p** | Gold | 180 **p** | 200 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 300 **p** | — | — | — | — |
+| 5 | IRONORE **p** | Iron Ore | 0.18 **p** | 200000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 0.3 **p** | — | — | — | — |
+| 6 | OIL **p** | Oil | 12 **p** | 3000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 20 **p** | — | — | — | — |
+| 7 | SILICA **p** | Silica | 0.12 **p** | 300000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 0.2 **p** | — | — | — | — |
+| 8 | TIMBER **p** | Timber | 0.12 **p** | 300000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 0.2 **p** | — | — | — | — |
+| 9 | RUBBERPL **p** | Rubber Plant | 0.18 **p** | 200000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 0.3 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
+| 10 | SUGARCAN **p** | Sugar Cane | 0.18 **p** | 200000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 0.3 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
+| 11 | BARLEY **p** | Barley | 0.06 **p** | 600000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 0.1 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
+| 12 | COCOA **p** | Cocoa | 0.3 **p** | 120000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 0.5 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
+| 13 | COTTON **p** | Cotton | 0.3 **p** | 120000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 0.5 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
+| 14 | GRAPES **p** | Grapes | 0.3 **p** | 120000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 0.5 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
+| 15 | RUBBER **p** | Rubber | 0.24 **p** | 150000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 0.4 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
+| 16 | SUGAR **p** | Sugar | 0.12 **p** | 300000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 0.2 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
+| 17 | TOBACCO **p** | Tobacco | 0.6 **p** | 60000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 1 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
+| 18 | WHEAT **p** | Wheat | 0.06 **p** | 600000 **p** | 3 **p** | 0 **p** | 0 **p** | 70 | 0.3 | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
+| 19 | CATTLE **p** | Cattle | 300 **p** | 120 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 500 **p** | — | — | — | — |
+| 20 | CHICKEN **p** | Chicken | 3 **p** | 12000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 5 **p** | — | — | — | — |
+| 21 | PIG **p** | Pig | 90 **p** | 400 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 150 **p** | — | — | — | — |
+| 22 | SHEEP **p** | Sheep | 90 **p** | 400 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 150 **p** | — | — | — | — |
+| 23 | LEATHER **p** | Leather | 6 **p** | 6000 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 10 **p** | — | — | — | — |
+| 24 | MILK **p** | Milk | 0.6 **p** | 60000 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 1 **p** | — | — | — | — |
+| 25 | WOOL **p** | Wool | 12 **p** | 3000 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 20 **p** | — | — | — | — |
+| 26 | CARBODY **p** | Car Body | 3000 **p** | 12 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 5000 **p** | — | — | — | — |
+| 27 | CPU **p** | CPU | 120 **p** | 300 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 200 **p** | — | — | — | — |
+| 28 | ELECTRON **p** | Electronic Components | 6 **p** | 6000 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 10 **p** | — | — | — | — |
+| 29 | ENGINE **p** | Engine | 1800 **p** | 20 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 3000 **p** | — | — | — | — |
+| 30 | FLOUR **p** | Flour | 0.3 **p** | 120000 **p** | 6 **p** | 20 **p** | 15 **p** | 70 | 0.5 | — | — | — | — |
+| 31 | GLASS **p** | Glass | 0.6 **p** | 60000 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 1 **p** | — | — | — | — |
+| 32 | PAPER **p** | Paper | 0.6 **p** | 60000 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 1 **p** | — | — | — | — |
+| 33 | PLASTIC **p** | Plastic | 0.6 **p** | 60000 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 1 **p** | — | — | — | — |
+| 34 | SILICON **p** | Silicon | 0.6 **p** | 60000 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 1 **p** | — | — | — | — |
+| 35 | STEEL **p** | Steel | 0.6 **p** | 60000 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 1 **p** | — | — | — | — |
+| 36 | TEXTILES **p** | Textiles | 6 **p** | 6000 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 10 **p** | — | — | — | — |
+| 37 | WHEELTIR **p** | Wheel & Tire | 600 **p** | 60 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 1000 **p** | — | — | — | — |
+| 38 | BREAD **p** | Bread | 0.9 **p** | 40000 **p** | 3 **p** | 0 **p** | 0 **p** | 50 | 1.5 | — | — | — | — |
+| 39 | CHOCOLAT **p** | Chocolate Bar | 0.9 **p** | 40000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 1.5 **p** | — | — | — | — |
+| 40 | COOKIES **p** | Cookies | 2.4 **p** | 15000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 4 **p** | — | — | — | — |
+| 41 | ICECREAM **p** | Ice Cream | 0.9 **p** | 40000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 1.5 **p** | — | — | — | — |
+| 42 | BEER **p** | Beer | 1.2 **p** | 30000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 2 **p** | — | — | — | — |
+| 43 | BOTTLEDM **p** | Bottled Milk | 1.2 **p** | 30000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 2 **p** | — | — | — | — |
+| 44 | COLA **p** | Cola | 0.6 **p** | 60000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 1 **p** | — | — | — | — |
+| 45 | WINE **p** | Wine | 12 **p** | 3000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 20 **p** | — | — | — | — |
+| 46 | EGGS **p** | Eggs | 1.2 **p** | 30000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 2 **p** | — | — | — | — |
+| 47 | FROZENBE **p** | Frozen Beef | 1.8 **p** | 20000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 3 **p** | — | — | — | — |
+| 48 | FROZENCH **p** | Frozen Chicken | 1.8 **p** | 20000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 3 **p** | — | — | — | — |
+| 49 | FROZENPO **p** | Frozen Pork | 1.8 **p** | 20000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 3 **p** | — | — | — | — |
+| 50 | FROZENLA **p** | Frozen Lamb | 1.8 **p** | 20000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 3 **p** | — | — | — | — |
+| 51 | DETERGEN **p** | Detergent | 2.4 **p** | 15000 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 4 **p** | — | — | — | — |
+| 52 | DIAPER **p** | Diaper | 3.6 **p** | 10000 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 6 **p** | — | — | — | — |
+| 53 | SHAMPOO **p** | Shampoo | 2.4 **p** | 15000 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 4 **p** | — | — | — | — |
+| 54 | TOOTHPAS **p** | Toothpaste | 1.8 **p** | 20000 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 3 **p** | — | — | — | — |
+| 55 | EYESHADO **p** | Eye Shadow | 18 **p** | 2000 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 30 **p** | — | — | — | — |
+| 56 | PERFUME **p** | Perfume | 18 **p** | 2000 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 30 **p** | — | — | — | — |
+| 57 | CIGARETT **p** | Cigarettes | 1.8 **p** | 20000 **p** | 3 **p** | 20 **p** | 0 **p** | 0 **p** | 3 **p** | — | — | — | — |
+| 58 | LEATHERB **p** | Leather Briefcase | 120 **p** | 300 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 200 **p** | — | — | — | — |
+| 59 | LEATHERJ **p** | Leather Jacket | 150 **p** | 240 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 250 **p** | — | — | — | — |
+| 60 | JEANS **p** | Jeans | 18 **p** | 2000 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 30 **p** | — | — | — | — |
+| 61 | LEATHERS **p** | Leather Shoes | 30 **p** | 1200 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 50 **p** | — | — | — | — |
+| 62 | SOCKS **p** | Socks | 3 **p** | 12000 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 5 **p** | — | — | — | — |
+| 63 | SWEATER **p** | Sweater | 48 **p** | 750 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 80 **p** | — | — | — | — |
+| 64 | SPORTSHO **p** | Sport Shoes | 30 **p** | 1200 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 50 **p** | — | — | — | — |
+| 65 | BED **p** | Bed | 210 **p** | 171 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 350 **p** | — | — | — | — |
+| 66 | SOFA **p** | Sofa | 150 **p** | 240 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 250 **p** | — | — | — | — |
+| 67 | JEWELRY **p** | Jewelry | 360 **p** | 100 **p** | 12 **p** | 20 **p** | 45 **p** | 0 **p** | 600 **p** | — | — | — | — |
+| 68 | WATCH **p** | Watch | 36 **p** | 1000 **p** | 12 **p** | 20 **p** | 45 **p** | 0 **p** | 60 **p** | — | — | — | — |
+| 69 | TOYTRAIN **p** | Toy Train | 12 **p** | 3000 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 20 **p** | — | — | — | — |
+| 70 | TOYBEAR **p** | Toy Bear | 12 **p** | 3000 **p** | 6 **p** | 20 **p** | 15 **p** | 0 **p** | 20 **p** | — | — | — | — |
+| 71 | AIRCONDI **p** | Air Conditioner | 240 **p** | 150 **p** | 10 **p** | 20 **p** | 30 **p** | 0 **p** | 400 **p** | — | — | — | — |
+| 72 | CAMERA **p** | Camera | 90 **p** | 400 **p** | 10 **p** | 20 **p** | 30 **p** | 0 **p** | 150 **p** | — | — | — | — |
+| 73 | DVDPLAYE **p** | DVD Player | 300 **p** | 120 **p** | 10 **p** | 20 **p** | 30 **p** | 0 **p** | 500 **p** | — | — | — | — |
+| 74 | HIFI **p** | Hi-fi | 240 **p** | 150 **p** | 10 **p** | 20 **p** | 30 **p** | 0 **p** | 400 **p** | — | — | — | — |
+| 75 | TELEVISI **p** | Television | 240 **p** | 150 **p** | 10 **p** | 20 **p** | 30 **p** | 0 **p** | 400 **p** | — | — | — | — |
+| 76 | VIDEOCAM **p** | Video Camera | 480 **p** | 75 **p** | 10 **p** | 20 **p** | 30 **p** | 0 **p** | 800 **p** | — | — | — | — |
+| 77 | VIDEOREC **p** | Video Recorder | 240 **p** | 150 **p** | 10 **p** | 20 **p** | 30 **p** | 0 **p** | 400 **p** | — | — | — | — |
+| 78 | DESKTOPC **p** | Desktop Computer | 900 **p** | 40 **p** | 10 **p** | 20 **p** | 30 **p** | 0 **p** | 1500 **p** | — | — | — | — |
+| 79 | INTERNET **p** | Internet-TV | 360 **p** | 100 **p** | 10 **p** | 20 **p** | 30 **p** | 0 **p** | 600 **p** | — | — | — | — |
+| 80 | PDA **p** | PDA | 192 **p** | 188 **p** | 10 **p** | 20 **p** | 30 **p** | 0 **p** | 320 **p** | — | — | — | — |
+| 81 | VRCOMPUT **p** | VR Computer | 1080 **p** | 33 **p** | 10 **p** | 20 **p** | 30 **p** | 0 **p** | 1800 **p** | — | — | — | — |
+| 82 | WRISTCOM **p** | Wrist Computer | 540 **p** | 67 **p** | 10 **p** | 20 **p** | 30 **p** | 0 **p** | 900 **p** | — | — | — | — |
+| 83 | CAR **p** | Car | 12000 **p** | 3 **p** | 15 | 20 **p** | 60 **p** | 0 **p** | 20000 **p** | — | — | — | — |
+| 84 | MOTORCYC **p** | Motorcycle | 6000 **p** | 6 **p** | 15 | 20 **p** | 60 **p** | 0 **p** | 10000 **p** | — | — | — | — |
+| 85 | SOFTWARE | Software | 5 **p** | 1000 **p** | 0 **p** | 0 **p** | 0 **p** | 0 **p** | 100 **p** | — | — | — | — |
 
 ## Recipes
 
@@ -497,43 +554,43 @@ Reference: docs/recipes.md — 1STD.SET METHOD. Speed is a throughput multiplier
 
 ## Firm types
 
-| Id | Name | Setup cost | Overhead / month | Max slots | Live inventory | Units | Reference |
-|---|---|---|---|---|---|---|---|
-| 1 | Department Store | 1000000 | 100000 | 9 | yes | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 2 | Factory | 1500000 | 100000 | 9 | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 3 | R&D Center | 1500000 | 100000 | 9 | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 4 | Farm | 1000000 | 100000 | 9 | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 5 | Logging Camp | 1500000 | 100000 | 9 | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 6 | Mine | 5000000 | 300000 | 9 | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 7 | Oil Well | 5000000 | 300000 | 9 | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 8 | Software Developer | 100000 | 10000 | 9 | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 9 | Software Publisher | 1000000 | 100000 | 9 | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 10 | Restaurant | 2000000 | 100000 | 9 **p** | yes | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 11 | Television Station | 20000000 | 350000 | 0 | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 12 | Radio Station | 10000000 | 200000 | 0 | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 13 | Newspaper Publisher | 10000000 | 200000 | 0 | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
-| 14 | Seaport | 0 | 0 | 9 **p** | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| Id | Name | Setup cost | Overhead / month | Max slots | Live inventory | Government | Units | Reference |
+|---|---|---|---|---|---|---|---|---|
+| 1 | Department Store | 1000000 | 100000 | 9 | yes | no **p** | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 2 | Factory | 1500000 | 100000 | 9 | no | no **p** | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 3 | R&D Center | 1500000 | 100000 | 9 | no | no **p** | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 4 | Farm | 1000000 | 100000 | 9 | no | no **p** | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 5 | Logging Camp | 1500000 | 100000 | 9 | no | no **p** | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 6 | Mine | 5000000 | 300000 | 9 | no | no **p** | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 7 | Oil Well | 5000000 | 300000 | 9 | no | no **p** | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 8 | Software Developer | 100000 | 10000 | 9 | no | no **p** | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 9 | Software Publisher | 1000000 | 100000 | 9 | no | no **p** | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 10 | Restaurant | 2000000 | 100000 | 9 **p** | yes | no **p** | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 11 | Television Station | 20000000 | 350000 | 0 | no | no **p** | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 12 | Radio Station | 10000000 | 200000 | 0 | no | no **p** | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 13 | Newspaper Publisher | 10000000 | 200000 | 0 | no | no **p** | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
+| 14 | Seaport | 0 | 0 | 0 **p** | no | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
 
 ## Job types
 
 | Id | Name | Staff | Setup cost | Training factor | Capacity mult | Units | Reference |
 |---|---|---|---|---|---|---|---|
-| 1 | Crop Growing | 16 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); % of salary (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 2 | Livestock Raising | 16 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); % of salary (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 3 | Livestock Processing | 16 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); % of salary (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 4 | Logging | 24 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); % of salary (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 5 | Inventory | 1 | 50000 | 10 **p** | 3 **p** | staff; usd (setup); % of salary (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 6 | Private Labelling | 6 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); % of salary (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 7 | Manufacturing | 24 | 300000 | 10 **p** | 1 **p** | staff; usd (setup); % of salary (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 8 | Mining | 24 | 1000000 | 10 **p** | 1 **p** | staff; usd (setup); % of salary (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 9 | Oil Extraction | 24 | 1000000 | 10 **p** | 1 **p** | staff; usd (setup); % of salary (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 10 | Purchasing | 4 | 50000 | 10 **p** | 1 **p** | staff; usd (setup); % of salary (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 11 | Research & Development | 12 | 500000 | 10 **p** | 1 **p** | staff; usd (setup); % of salary (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 12 | Sales | 8 | 100000 | 10 **p** | 3 **p** | staff; usd (setup); % of salary (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 13 | Software Development | 8 | 50000 | 10 **p** | 1 **p** | staff; usd (setup); % of salary (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 14 | Software Production | 4 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); % of salary (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 15 | Advertising | 1 | 5000 | 10 **p** | 1 **p** | staff; usd (setup); % of salary (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 16 | Import | 0 **p** | 0 **p** | 10 **p** | 1 **p** | staff; usd (setup); % of salary (training); × base_capacity | design.md slice 4 — Seaport ImportJob |
+| 1 | Crop Growing | 16 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 2 | Livestock Raising | 16 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 3 | Livestock Processing | 16 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 4 | Logging | 24 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 5 | Inventory | 1 | 50000 | 10 **p** | 3 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 6 | Private Labelling | 6 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 7 | Manufacturing | 24 | 300000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 8 | Mining | 24 | 1000000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 9 | Oil Extraction | 24 | 1000000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 10 | Purchasing | 4 | 50000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 11 | Research & Development | 12 | 500000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 12 | Sales | 8 | 100000 | 10 **p** | 3 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 13 | Software Development | 8 | 50000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 14 | Software Production | 4 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 15 | Advertising | 1 | 5000 | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 16 | Import | 0 **p** | 0 **p** | 10 **p** | 1 **p** | staff; usd (setup); monthly skill-growth factor (training); × base_capacity | design.md slice 4 — Seaport ImportJob |
 
 ## Jobs allowed per firm type
 
