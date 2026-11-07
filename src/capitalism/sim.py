@@ -11,7 +11,7 @@ from .economy import Economy
 from .rng import Rng
 from .tables import GNP_INDEX, MAP_RULES, STAGGER_MOD, SetupOptions
 from .town import Town
-from .world import World, generate_world, try_spawn_town
+from .world import World
 
 
 class Sim:
@@ -25,6 +25,7 @@ class Sim:
         target_cities: int = MAP_RULES.default_cities,
         start_year: int = 1990,
         record_hooks: bool = False,
+        world_cls: type[World] = World,
     ) -> None:
         self.setup = SetupOptions(
             seed=seed,
@@ -37,6 +38,7 @@ class Sim:
         self.target_cities = target_cities
         self.start_year = start_year
         self.record_hooks = record_hooks
+        self.world_cls = world_cls
         self.rng: Rng
         self.calendar: Calendar
         self.world: World
@@ -57,7 +59,7 @@ class Sim:
         self.rng = Rng(self.seed)
         start = date(self.start_year, 1, 1) if self.start_year != 1990 else DEFAULT_START
         self.calendar = Calendar(start)
-        self.world = generate_world(
+        self.world = self.world_cls.generate(
             self.rng,
             detailed_cities=self.detailed_cities,
             target_cities=self.target_cities,
@@ -169,7 +171,7 @@ class Sim:
             self.avg_gnp_growth_12m = sum(t.rolling_gnp_growth for t in self.world.towns) / len(
                 self.world.towns
             )
-        try_spawn_town(self.world, self.rng, self.calendar.day_serial)
+        self.world.try_spawn(self.rng, self.calendar.day_serial)
         self.economy.recompute_demand()
 
         # 4. Corporations monthly (slice 7)
@@ -265,12 +267,14 @@ class Game:
         detailed_cities: bool = True,
         target_cities: int = MAP_RULES.default_cities,
         start_year: int = 1990,
+        world_cls: type[World] = World,
     ) -> None:
         self.sim = Sim(
             seed=seed,
             detailed_cities=detailed_cities,
             target_cities=target_cities,
             start_year=start_year,
+            world_cls=world_cls,
         )
 
     def advance_days(self, n: int) -> None:

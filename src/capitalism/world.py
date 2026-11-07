@@ -126,6 +126,175 @@ class World:
             value = base * (1.0 - best_d / radius)
         return max(LAND_VALUE_FLOOR, int(min(value, LAND_VALUE_BONUS_CAP)))
 
+    def can_build(self, x: int, y: int) -> bool:
+        """True when a firm may be placed here. Subclasses override the rule."""
+        if not (0 <= x < self.width and 0 <= y < self.height):
+            return False
+        return self.tile_at(x, y).kind in (TileCategory.GRASSLAND, TileCategory.FOREST_HILL)
+
+    @classmethod
+    def generate(
+        cls,
+        rng: Rng,
+        *,
+        detailed_cities: bool = True,
+        target_cities: int = MAP_RULES.default_cities,
+    ) -> World:
+        """Procedural map + city placement. Constructs `cls`, not `World` by name."""
+        world = cls(detailed_cities=detailed_cities, target_cities=target_cities)
+        world._build_terrain(rng)
+        world._place_cities(rng)
+        world._update_centroid()
+        return world
+
+    def _build_terrain(self, rng: Rng) -> None:
+        """Heightmap, waterline, and tile classification. Override for a new geology."""
+        w, h = self.width, self.height
+        n_tiles = w * h
+        min_land = int(n_tiles * MAP_RULES.min_land_fraction)
+        heightmap = _diamond_square(rng)
+        raw = [
+            _sample_height(heightmap, x, y, w, h) + rng.uniform(-2, 2)
+            for y in range(h)
+            for x in range(w)
+        ]
+        # Water-level normalization: shift so at least min_land tiles sit at 100+.
+        sorted_h = sorted(raw)
+        boundary = sorted_h[n_tiles - min_land]
+        # Nudge past 100 so float noise can't leave a boundary tile as water.
+        shift = (100.0 + 1e-6) - boundary
+        raw = [v + shift for v in raw]
+
+        equator = rng.randint(34, 164)
+        dmax = max(equator, 197 - equator)
+        soil_map = _neighbour_avg_noise(rng, w, h, 0, 3)
+        moist_map = _neighbour_avg_noise(rng, w, h, 0, 100)
+
+        tiles: list[Tile] = []
+        for y in range(h):
+            for x in range(w):
+                hv = raw[y * w + x]
+                if hv < 1:
+                    kind = TileCategory.DEEP_OCEAN
+                elif hv < 100:
+                    kind = TileCategory.WATER
+                elif hv < 215:
+                    kind = TileCategory.GRASSLAND
+                else:
+                    kind = TileCategory.FOREST_HILL
+                d = abs(y - equator)
+                climate = rainfall = 4 - floor(5 * d / (dmax + 1))
+                climate = max(0, min(4, climate))
+                rainfall = max(0, min(4, rainfall))
+                moisture = (
+                    0
+                    if kind in (TileCategory.DEEP_OCEAN, TileCategory.WATER)
+                    else moist_map[y * w + x]
+                )
+                tiles.append(
+                    Tile(
+                        kind=kind,
+                        rainfall=rainfall,
+                        soil=soil_map[y * w + x],
+                        moisture=moisture,
+                        climate=climate,
+                        height=hv,
+                    )
+                )
+        self.tiles = tiles
+        self.equator_row = equator
+
+    def _update_centroid(self) -> None:
+        if self.towns:
+            cx = sum(t.x for t in self.towns) / len(self.towns)
+            cy = sum(t.y for t in self.towns) / len(self.towns)
+            self.centroid = (cx, cy)
+        else:
+            self.centroid = (0.0, 0.0)
+
+    def _is_grass_block(self, cx: int, cy: int) -> bool:
+        for dy in range(-2, 3):
+            for dx in range(-2, 3):
+                x, y = cx + dx, cy + dy
+                if not (0 <= x < self.width and 0 <= y < self.height):
+                    return False
+                if self.tile_at(x, y).kind != TileCategory.GRASSLAND:
+                    return False
+        return True
+
+    def _far_enough(self, x: int, y: int) -> bool:
+        for t in self.towns:
+            if abs(t.x - x) < CITY_MIN_DIST and abs(t.y - y) < CITY_MIN_DIST:
+                return False
+        return True
+
+    def _place_cities(self, rng: Rng) -> None:
+        used_names: set[str] = set()
+        pool = list(CITY_NAME_POOL)
+        attempts = 0
+        consecutive_fail = 0
+        target = min(self.target_cities, MAX_CITIES)
+        while len(self.towns) < target and attempts < 1000 and consecutive_fail < 10:
+            attempts += 1
+            entry = rng.choice(pool)
+            if entry.name in used_names:
+                consecutive_fail += 1
+                continue
+            placed = False
+            for _ in range(4_752):
+                x = rng.randint(CITY_BORDER, self.width - 1 - CITY_BORDER)
+                y = rng.randint(CITY_BORDER, self.height - 1 - CITY_BORDER)
+                if self.tile_at(x, y).kind != TileCategory.GRASSLAND:
+                    continue
+                if not self._is_grass_block(x, y):
+                    continue
+                if not self._far_enough(x, y):
+                    continue
+                town = Town.create(
+                    len(self.towns),
+                    entry.name,
+                    entry.tier,
+                    x,
+                    y,
+                    rng,
+                    detailed=self.detailed_cities,
+                )
+                self.towns.append(town)
+                tile = self.tile_at(x, y)
+                tile.kind = TileCategory.TOWN
+                tile.ref = town.id
+                used_names.add(entry.name)
+                placed = True
+                consecutive_fail = 0
+                break
+            if not placed:
+                consecutive_fail += 1
+
+    def try_spawn(self, rng: Rng, day_serial: int) -> bool:
+        """Month-pass town spawn: 1-in-10, gates from design.md."""
+        n_tiles = self.width * self.height
+        if not self.detailed_cities:
+            return False
+        if len(self.towns) >= MAX_CITIES:
+            return False
+        if len(self.towns) >= n_tiles // 30:
+            return False
+        if day_serial - self.last_spawn_day_serial < MAP_RULES.spawn_min_days and self.towns:
+            return False
+        if not rng.chance(MAP_RULES.spawn_chance):
+            return False
+        before = len(self.towns)
+        # one placement attempt burst
+        old_target = self.target_cities
+        self.target_cities = before + 1
+        self._place_cities(rng)
+        self.target_cities = old_target
+        if len(self.towns) > before:
+            self.last_spawn_day_serial = day_serial
+            self._update_centroid()
+            return True
+        return False
+
 
 def _diamond_square(rng: Rng, levels: int = 5) -> list[list[float]]:
     """257×257 heightmap (2^8+1) with displacements 320,160,80,40,20."""
@@ -187,165 +356,3 @@ def _neighbour_avg_noise(rng: Rng, w: int, h: int, lo: int, hi: int) -> list[int
                     vals.append(raw[ny * w + nx])
             out[y * w + x] = round(sum(vals) / len(vals))
     return out
-
-
-def generate_world(
-    rng: Rng,
-    *,
-    detailed_cities: bool = True,
-    target_cities: int = MAP_RULES.default_cities,
-) -> World:
-    """Procedural map + city placement."""
-    w, h = MAP_W, MAP_H
-    heightmap = _diamond_square(rng)
-    raw = [
-        _sample_height(heightmap, x, y, w, h) + rng.uniform(-2, 2)
-        for y in range(h)
-        for x in range(w)
-    ]
-    # Water-level normalization: shift so at least MIN_LAND_TILES sit at 100+.
-    sorted_h = sorted(raw)
-    boundary = sorted_h[MAP_TILES - MIN_LAND_TILES]
-    # Nudge past 100 so float noise can't leave a boundary tile as water.
-    shift = (100.0 + 1e-6) - boundary
-    raw = [v + shift for v in raw]
-
-    equator = rng.randint(34, 164)
-    dmax = max(equator, 197 - equator)
-    soil_map = _neighbour_avg_noise(rng, w, h, 0, 3)
-    moist_map = _neighbour_avg_noise(rng, w, h, 0, 100)
-
-    tiles: list[Tile] = []
-    for y in range(h):
-        for x in range(w):
-            hv = raw[y * w + x]
-            if hv < 1:
-                kind = TileCategory.DEEP_OCEAN
-            elif hv < 100:
-                kind = TileCategory.WATER
-            elif hv < 215:
-                kind = TileCategory.GRASSLAND
-            else:
-                kind = TileCategory.FOREST_HILL
-            d = abs(y - equator)
-            climate = rainfall = 4 - floor(5 * d / (dmax + 1))
-            climate = max(0, min(4, climate))
-            rainfall = max(0, min(4, rainfall))
-            moisture = (
-                0 if kind in (TileCategory.DEEP_OCEAN, TileCategory.WATER) else moist_map[y * w + x]
-            )
-            tiles.append(
-                Tile(
-                    kind=kind,
-                    rainfall=rainfall,
-                    soil=soil_map[y * w + x],
-                    moisture=moisture,
-                    climate=climate,
-                    height=hv,
-                )
-            )
-
-    world = World(
-        tiles=tiles,
-        equator_row=equator,
-        detailed_cities=detailed_cities,
-        target_cities=target_cities,
-    )
-    _place_cities(world, rng)
-    _update_centroid(world)
-    return world
-
-
-def _update_centroid(world: World) -> None:
-    if world.towns:
-        cx = sum(t.x for t in world.towns) / len(world.towns)
-        cy = sum(t.y for t in world.towns) / len(world.towns)
-        world.centroid = (cx, cy)
-    else:
-        world.centroid = (0.0, 0.0)
-
-
-def _is_grass_block(world: World, cx: int, cy: int) -> bool:
-    for dy in range(-2, 3):
-        for dx in range(-2, 3):
-            x, y = cx + dx, cy + dy
-            if not (0 <= x < world.width and 0 <= y < world.height):
-                return False
-            if world.tile_at(x, y).kind != TileCategory.GRASSLAND:
-                return False
-    return True
-
-
-def _far_enough(world: World, x: int, y: int) -> bool:
-    for t in world.towns:
-        if abs(t.x - x) < CITY_MIN_DIST and abs(t.y - y) < CITY_MIN_DIST:
-            return False
-    return True
-
-
-def _place_cities(world: World, rng: Rng) -> None:
-    used_names: set[str] = set()
-    pool = list(CITY_NAME_POOL)
-    attempts = 0
-    consecutive_fail = 0
-    target = min(world.target_cities, MAX_CITIES)
-    while len(world.towns) < target and attempts < 1000 and consecutive_fail < 10:
-        attempts += 1
-        entry = rng.choice(pool)
-        if entry.name in used_names:
-            consecutive_fail += 1
-            continue
-        placed = False
-        for _ in range(4_752):
-            x = rng.randint(CITY_BORDER, world.width - 1 - CITY_BORDER)
-            y = rng.randint(CITY_BORDER, world.height - 1 - CITY_BORDER)
-            if world.tile_at(x, y).kind != TileCategory.GRASSLAND:
-                continue
-            if not _is_grass_block(world, x, y):
-                continue
-            if not _far_enough(world, x, y):
-                continue
-            town = Town.create(
-                len(world.towns),
-                entry.name,
-                entry.tier,
-                x,
-                y,
-                rng,
-                detailed=world.detailed_cities,
-            )
-            world.towns.append(town)
-            tile = world.tile_at(x, y)
-            tile.kind = TileCategory.TOWN
-            tile.ref = town.id
-            used_names.add(entry.name)
-            placed = True
-            consecutive_fail = 0
-            break
-        if not placed:
-            consecutive_fail += 1
-
-
-def try_spawn_town(world: World, rng: Rng, day_serial: int) -> bool:
-    """Month-pass town spawn: 1-in-10, gates from design.md."""
-    if not world.detailed_cities:
-        return False
-    if len(world.towns) >= MAX_CITIES:
-        return False
-    if len(world.towns) >= MAP_TILES // 30:
-        return False
-    if day_serial - world.last_spawn_day_serial < MAP_RULES.spawn_min_days and world.towns:
-        return False
-    if not rng.chance(MAP_RULES.spawn_chance):
-        return False
-    before = len(world.towns)
-    # one placement attempt burst
-    old_target = world.target_cities
-    world.target_cities = before + 1
-    _place_cities(world, rng)
-    world.target_cities = old_target
-    if len(world.towns) > before:
-        world.last_spawn_day_serial = day_serial
-        _update_centroid(world)
-        return True
-    return False
