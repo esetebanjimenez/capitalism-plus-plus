@@ -663,6 +663,24 @@ class SoftwareRules(StaticModel):
     software_gate_no_revenue_months: int
 
 
+class PersonRules(StaticModel):
+    max_persons: int
+    spawn_chance: float
+    spawn_first_day_gate: float
+    dormant_year_threshold: int
+    dormant_chance: float
+    skill_level_step: float
+    skill_range: float
+    raise_penalty_min: int
+    raise_penalty_max: int
+    loyalty_base: float
+    raise_wealth_ratio: float
+    service_salary_factor: float
+    random_raise_base: float
+    max_competitors: int
+    wealth_floor: float
+
+
 class CorporationRules(StaticModel):
     interest_rate_default: float
     interest_rate_floor: float
@@ -694,4 +712,5 @@ RESEARCH_DURATIONS = load_research_durations()
 RESEARCH_RULES = _rules_model(ResearchRules, "research")
 ADVERTISING_RULES = _rules_model(AdvertisingRules, "advertising")
 SOFTWARE_RULES = _rules_model(SoftwareRules, "software")
+PERSON_RULES = _rules_model(PersonRules, "persons")
 CORPORATION_RULES = _rules_model(CorporationRules, "corporations")

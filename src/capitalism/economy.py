@@ -15,8 +15,12 @@ from .catalog import Catalog, Product, TownMarket
 from .firms import FIRM_CLASSES, N_CATEGORIES, OPERATING_CATEGORIES, Firm, Ledger, MediaFirm
 from .jobs import CAT_LOAN_INTEREST, CAT_SALES
 from .links import Market
+from .person import (
+    STATE_ACTIVE,
+    Person,
+)
 from .rng import Rng
-from .tables import CORPORATION_RULES, JOB_RULES, PRODUCT_RULES
+from .tables import CORPORATION_RULES, JOB_RULES, PERSON_RULES, PRODUCT_RULES
 from .world import TileCategory
 
 if TYPE_CHECKING:
@@ -36,6 +40,7 @@ BRAND_RANGE = 1
 BRAND_UNIQUE = 2
 
 _CR = CORPORATION_RULES
+_PR = PERSON_RULES
 
 
 class Corporation:
@@ -241,6 +246,7 @@ class Economy:
         self.catalog = Catalog()
         self.catalog.jitter(rng)
         self.corps: list[Corporation] = []
+        self.persons: list[Person | None] = [None] * int(_PR.max_persons)
         self.firms: list[Firm | None] = []
         self.market = Market()
         self.interest_rate = _CR.interest_rate_default
@@ -261,6 +267,36 @@ class Economy:
 
     def town_market(self, town: Town, product_name: str) -> TownMarket:
         return self.market.towns[(town.id, self.catalog[product_name].id)]
+
+    def add_person(
+        self, name: str, *, is_player: bool = False, randomize: bool = False
+    ) -> Person:
+        slot = next((i for i, p in enumerate(self.persons) if p is None), None)
+        if slot is None:
+            raise RuntimeError("person array full")
+        person = Person(slot, name, is_player=is_player)
+        if randomize:
+            person.randomize_traits(self.rng)
+            person.randomize_gender(self.rng)
+            person.randomize_skills(self.rng, 1)
+        self.persons[slot] = person
+        return person
+
+    def active_persons(self) -> list[Person]:
+        return [p for p in self.persons if p is not None and p.state in (STATE_ACTIVE,)]
+
+    def linked_persons(self) -> list[Person]:
+        from .person import STATE_LINKED
+        return [p for p in self.persons if p is not None and p.state == STATE_LINKED]
+
+    def all_persons(self) -> list[Person]:
+        return [p for p in self.persons if p is not None]
+
+    def person_count(self) -> int:
+        return sum(1 for p in self.persons if p is not None)
+
+    def competitor_count(self) -> int:
+        return sum(1 for c in self.corps if c.corp_type in (CORP_AI, CORP_HIRED))
 
     def add_corp(self, name: str, corp_type: int = CORP_PLAYER) -> Corporation:
         corp = Corporation(len(self.corps), name, corp_type)
@@ -341,6 +377,18 @@ class Economy:
         for corp in self.corps:
             corp.daily_finance(self.interest_rate)
 
+    def persons_daily(self, day_serial: int) -> None:
+        """Staggered person processing: one person per day on a 30-day cycle."""
+        from .person import STATE_LINKED
+        slot = day_serial % int(_PR.max_persons)
+        person = self.persons[slot] if slot < len(self.persons) else None
+        if person is None:
+            return
+        if person.state == STATE_LINKED:
+            person.years_of_service += 1 if day_serial % 365 == 0 else 0
+        if person.cooldown > 0:
+            person.cooldown -= 1
+
     def products_daily(self, slot: int) -> None:
         """1/30 of the catalog per day: publish the product score (design.md call 7)."""
         by_product: dict[int, list[TownMarket]] = {}
@@ -362,6 +410,18 @@ class Economy:
         self.ensure_markets()
         for key in sorted(self.market.towns):
             self.market.towns[key].recompute()
+
+    def persons_monthly(self) -> None:
+        """Monthly satisfaction drift for all active/linked persons."""
+        for person in self.all_persons():
+            person.monthly_satisfaction_drift(self.rng)
+
+    def persons_yearly(self) -> None:
+        """Yearly service increment for linked persons."""
+        from .person import STATE_LINKED
+        for person in self.all_persons():
+            if person.state == STATE_LINKED:
+                person.years_of_service += 1
 
     def corps_monthly(self) -> None:
         """Corporation monthly pass — runs before firms monthly."""
@@ -461,6 +521,11 @@ class Economy:
             h.update(struct.pack("<i", corp.id))
             for product_id, level in corp.technology.items():
                 h.update(struct.pack("<ii", product_id, level))
+        for person in self.persons:
+            if person is None:
+                h.update(b"_")
+                continue
+            h.update(struct.pack("<iii", person.id, person.state, person.satisfaction))
         for link in self.market.links:
             if link is None:
                 h.update(b"-")
