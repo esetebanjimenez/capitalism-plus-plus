@@ -16,7 +16,7 @@ from .firms import FIRM_CLASSES, N_CATEGORIES, OPERATING_CATEGORIES, Firm, Ledge
 from .jobs import CAT_LOAN_INTEREST, CAT_SALES
 from .links import Market
 from .rng import Rng
-from .tables import JOB_RULES, PRODUCT_RULES
+from .tables import CORPORATION_RULES, JOB_RULES, PRODUCT_RULES
 from .world import TileCategory
 
 if TYPE_CHECKING:
@@ -35,13 +35,7 @@ BRAND_CORPORATE = 0
 BRAND_RANGE = 1
 BRAND_UNIQUE = 2
 
-INTEREST_RATE_DEFAULT = 10.0
-INTEREST_RATE_FLOOR = 1.0
-INTEREST_RATE_STEP = 0.5
-OVERDRAFT_SPREAD = 2.0
-WEAK_GNP_THRESHOLD = 5.0
-INTEREST_RISE_CHANCE = 10
-INTEREST_FALL_CHANCE = 50
+_CR = CORPORATION_RULES
 
 
 class Corporation:
@@ -174,7 +168,7 @@ class Corporation:
         """Overdraft and debt interest (gamelogic.md Cash flow and daily finance)."""
         cash = self.ledger.cash
         if cash < 0:
-            daily_rate = (interest_rate + OVERDRAFT_SPREAD) / 100.0 / 365.0
+            daily_rate = (interest_rate + _CR.overdraft_spread) / 100.0 / 365.0
             charge = abs(cash) * daily_rate
             self.ledger.post(CAT_LOAN_INTEREST, charge)
             self.liabilities += charge
@@ -249,8 +243,8 @@ class Economy:
         self.corps: list[Corporation] = []
         self.firms: list[Firm | None] = []
         self.market = Market()
-        self.interest_rate = INTEREST_RATE_DEFAULT
-        self.interest_rate_history: list[float] = [INTEREST_RATE_DEFAULT]
+        self.interest_rate = _CR.interest_rate_default
+        self.interest_rate_history: list[float] = [_CR.interest_rate_default]
         self.ensure_markets()
 
     # --- setup -------------------------------------------------------------
@@ -407,10 +401,10 @@ class Economy:
         if not towns:
             return
         avg_gnp = sum(t.per_capita_gnp for t in towns) / len(towns) / 1000.0
-        if avg_gnp <= WEAK_GNP_THRESHOLD or self.rng.chance(1.0 / INTEREST_RISE_CHANCE):
-            self.interest_rate += INTEREST_RATE_STEP
-        if self.rng.chance(1.0 / INTEREST_FALL_CHANCE):
-            self.interest_rate = max(INTEREST_RATE_FLOOR, self.interest_rate - INTEREST_RATE_STEP)
+        if avg_gnp <= _CR.weak_gnp_threshold or self.rng.chance(1.0 / _CR.interest_rise_chance):
+            self.interest_rate += _CR.interest_rate_step
+        if self.rng.chance(1.0 / _CR.interest_fall_chance):
+            self.interest_rate = max(_CR.interest_rate_floor, self.interest_rate - _CR.interest_rate_step)
 
     def diffuse_tech(self) -> None:
         """design.md slice 3 call 5: generally available and obsolete at the same test."""

@@ -7,14 +7,11 @@ from capitalism.economy import (
     BRAND_UNIQUE,
     CORP_AI,
     CORP_PLAYER,
-    INTEREST_RATE_DEFAULT,
-    INTEREST_RATE_FLOOR,
-    INTEREST_RATE_STEP,
-    OVERDRAFT_SPREAD,
     Corporation,
 )
 from capitalism.jobs import CAT_LOAN_INTEREST, CAT_SALES
 from capitalism.scenario import bread_town, build_bread_chain
+from capitalism.tables import CORPORATION_RULES
 
 
 class TestCorporationInit:
@@ -138,7 +135,7 @@ class TestDailyFinance:
         corp = Corporation(0, "Test")
         corp.ledger.cash = -1_000_000.0
         corp.daily_finance(10.0)
-        overdraft = 1_000_000.0 * (10.0 + OVERDRAFT_SPREAD) / 100.0 / 365.0
+        overdraft = 1_000_000.0 * (10.0 + CORPORATION_RULES.overdraft_spread) / 100.0 / 365.0
         debt_on_new = overdraft * 10.0 / 100.0 / 365.0
         assert corp.ledger.month[CAT_LOAN_INTEREST] == pytest.approx(overdraft + debt_on_new, rel=1e-6)
         assert corp.liabilities == pytest.approx(overdraft, rel=1e-6)
@@ -222,11 +219,11 @@ class TestBankruptcy:
 class TestInterestRate:
     def test_initial_rate(self):
         sim, _ = bread_town(1)
-        assert sim.economy.interest_rate == INTEREST_RATE_DEFAULT
+        assert sim.economy.interest_rate == CORPORATION_RULES.interest_rate_default
 
     def test_rate_history_starts_with_default(self):
         sim, _ = bread_town(1)
-        assert sim.economy.interest_rate_history == [INTEREST_RATE_DEFAULT]
+        assert sim.economy.interest_rate_history == [CORPORATION_RULES.interest_rate_default]
 
     def test_rate_adjustment_weak_economy(self):
         sim, _ = bread_town(1)
@@ -235,17 +232,17 @@ class TestInterestRate:
             town.per_capita_gnp = 2000.0
         old_rate = eco.interest_rate
         eco.adjust_interest_rate()
-        assert eco.interest_rate == old_rate + INTEREST_RATE_STEP
+        assert eco.interest_rate == old_rate + CORPORATION_RULES.interest_rate_step
 
     def test_rate_never_below_floor(self):
         sim, _ = bread_town(1)
         eco = sim.economy
-        eco.interest_rate = INTEREST_RATE_FLOOR
+        eco.interest_rate = CORPORATION_RULES.interest_rate_floor
         for town in sim.world.towns:
             town.per_capita_gnp = 20000.0
         for _ in range(200):
             eco.adjust_interest_rate()
-        assert eco.interest_rate >= INTEREST_RATE_FLOOR
+        assert eco.interest_rate >= CORPORATION_RULES.interest_rate_floor
 
 
 class TestBrandStrategy:
@@ -279,7 +276,7 @@ class TestCorpIntegration:
             t.tier = 0
         initial = eco.interest_rate
         eco.adjust_interest_rate()
-        assert eco.interest_rate == initial + INTEREST_RATE_STEP
+        assert eco.interest_rate == initial + CORPORATION_RULES.interest_rate_step
 
     def test_corp_monthly_history_populated(self):
         """After several months, corporation history has data."""

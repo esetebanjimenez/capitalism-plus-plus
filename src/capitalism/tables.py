@@ -663,6 +663,16 @@ class SoftwareRules(StaticModel):
     software_gate_no_revenue_months: int
 
 
+class CorporationRules(StaticModel):
+    interest_rate_default: float
+    interest_rate_floor: float
+    interest_rate_step: float
+    overdraft_spread: float
+    weak_gnp_threshold: float
+    interest_rise_chance: float
+    interest_fall_chance: float
+
+
 @lru_cache(maxsize=1)
 def load_livestock_yields() -> dict[int, LivestockYieldRow]:
     rows = _rows(
@@ -684,3 +694,4 @@ RESEARCH_DURATIONS = load_research_durations()
 RESEARCH_RULES = _rules_model(ResearchRules, "research")
 ADVERTISING_RULES = _rules_model(AdvertisingRules, "advertising")
 SOFTWARE_RULES = _rules_model(SoftwareRules, "software")
+CORPORATION_RULES = _rules_model(CorporationRules, "corporations")
