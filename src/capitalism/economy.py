@@ -12,10 +12,11 @@ import struct
 from typing import TYPE_CHECKING
 
 from .catalog import Catalog, Product, TownMarket
-from .firms import FIRM_CLASSES, Firm, Ledger, MediaFirm
+from .firms import FIRM_CLASSES, N_CATEGORIES, OPERATING_CATEGORIES, Firm, Ledger, MediaFirm
+from .jobs import CAT_LOAN_INTEREST, CAT_SALES
 from .links import Market
 from .rng import Rng
-from .tables import JOB_RULES, PRODUCT_RULES
+from .tables import CORPORATION_RULES, JOB_RULES, PRODUCT_RULES
 from .world import TileCategory
 
 if TYPE_CHECKING:
@@ -25,19 +26,67 @@ if TYPE_CHECKING:
     from .town import Town
     from .world import World
 
+CORP_PLAYER = 1
+CORP_HIRED = 2
+CORP_AI = 3
+CORP_GOVERNMENT = 4
+
+BRAND_CORPORATE = 0
+BRAND_RANGE = 1
+BRAND_UNIQUE = 2
+
+_CR = CORPORATION_RULES
+
 
 class Corporation:
-    """Minimal owner for slices 4–5: a scripted test corp with cash and books."""
+    """Corporation: owner of firms with full financial system (gamelogic.md Corporation internals)."""
 
-    def __init__(self, corp_id: int, name: str) -> None:
+    __slots__ = (
+        "brand_strategy",
+        "corp_type",
+        "dividend_auto",
+        "dividend_ratio",
+        "id",
+        "ledger",
+        "liabilities",
+        "manufacturing_skill",
+        "month_history",
+        "name",
+        "peak_revenue",
+        "technology",
+        "training_budget",
+        "year_history",
+    )
+
+    def __init__(self, corp_id: int, name: str, corp_type: int = CORP_PLAYER) -> None:
         self.id = corp_id
         self.name = name
+        self.corp_type = corp_type
         self.ledger = Ledger()
         self.technology: dict[int, int] = {}
         self.manufacturing_skill = 0
         self.training_budget = JOB_RULES.corp_training_budget_default
+        self.liabilities = 0.0
+        self.brand_strategy = BRAND_CORPORATE
+        self.dividend_ratio = 0
+        self.dividend_auto = True
+        self.peak_revenue = 0.0
+        self.month_history: dict[str, list[float]] = {
+            "revenue": [],
+            "operating_profit": [],
+            "other_profit": [],
+            "expenses": [],
+            "net_worth": [],
+        }
+        self.year_history: dict[str, list[float]] = {
+            "revenue": [],
+            "operating_profit": [],
+            "other_profit": [],
+            "expenses": [],
+            "net_worth": [],
+        }
 
-    __slots__ = ("id", "ledger", "manufacturing_skill", "name", "technology", "training_budget")
+    # --- technology ---------------------------------------------------------
 
     def technology_level(self, product: Product) -> int:
         return self.technology.get(product.id, 0)
@@ -48,6 +97,140 @@ class Corporation:
 
     def add_technology(self, product: Product, level: int | None = None) -> None:
         self.technology[product.id] = self.technology_level(product) + 1 if level is None else level
+
+    # --- income statement ---------------------------------------------------
+
+    @property
+    def revenue(self) -> float:
+        return self.ledger.month[CAT_SALES]
+
+    @property
+    def operating_expenses(self) -> float:
+        return sum(self.ledger.month[i] for i in range(1, OPERATING_CATEGORIES))
+
+    @property
+    def operating_profit(self) -> float:
+        return self.revenue - self.operating_expenses
+
+    @property
+    def other_profit(self) -> float:
+        return sum(self.ledger.month[i] for i in range(OPERATING_CATEGORIES, N_CATEGORIES))
+
+    @property
+    def net_profit(self) -> float:
+        return self.operating_profit + self.other_profit
+
+    @property
+    def cost_of_sales(self) -> float:
+        """Purchase Cost + Freight Cost + Raw Material Reserve (cats 4+5+8)."""
+        m = self.ledger.month
+        return m[4] + m[5] + m[8]
+
+    # --- balance sheet ------------------------------------------------------
+
+    def total_assets(self, firms: list[Firm | None]) -> float:
+        cash = self.ledger.cash
+        inventory = sum(
+            j.stock * j.unit_cost
+            for f in firms
+            if f is not None and f.owner is self
+            for j in f.jobs()
+            if j.stock > 0
+        )
+        business = sum(f.row.overhead_month * 12 for f in firms if f is not None and f.owner is self)
+        land = sum(f.land_value for f in firms if f is not None and f.owner is self)
+        return cash + inventory + business + land
+
+    def net_worth(self, firms: list[Firm | None]) -> float:
+        return self.total_assets(firms) - self.liabilities
+
+    # --- bank loans ---------------------------------------------------------
+
+    def credit_limit(self, firms: list[Firm | None]) -> float:
+        return max(0.0, self.total_assets(firms) - self.liabilities)
+
+    def borrow(self, amount: float) -> None:
+        if amount <= 0:
+            return
+        self.ledger.cash += amount
+        self.liabilities += amount
+
+    def repay(self, amount: float) -> None:
+        if amount <= 0:
+            return
+        actual = min(amount, self.liabilities, max(0.0, self.ledger.cash))
+        self.ledger.cash -= actual
+        self.liabilities -= actual
+
+    # --- daily finance ------------------------------------------------------
+
+    def daily_finance(self, interest_rate: float) -> None:
+        """Overdraft and debt interest (gamelogic.md Cash flow and daily finance)."""
+        cash = self.ledger.cash
+        if cash < 0:
+            daily_rate = (interest_rate + _CR.overdraft_spread) / 100.0 / 365.0
+            charge = abs(cash) * daily_rate
+            self.ledger.post(CAT_LOAN_INTEREST, charge)
+            self.liabilities += charge
+        if self.liabilities > 0:
+            daily_rate = interest_rate / 100.0 / 365.0
+            charge = self.liabilities * daily_rate
+            self.ledger.post(CAT_LOAN_INTEREST, charge)
+
+    # --- monthly/yearly processing ------------------------------------------
+
+    def monthly(self, firms: list[Firm | None]) -> None:
+        """Corporation monthly (gamelogic.md Monthly and yearly processing)."""
+        rev = self.ledger.month[CAT_SALES]
+        self.peak_revenue = max(self.peak_revenue, rev)
+        nw = self.net_worth(firms)
+        self._push_history(
+            self.month_history,
+            12,
+            rev,
+            self.operating_profit,
+            self.other_profit,
+            self.operating_expenses,
+            nw,
+        )
+        self.ledger.roll_month()
+
+    def yearly(self, firms: list[Firm | None]) -> None:
+        """Corporation yearly (gamelogic.md Monthly and yearly processing)."""
+        rev = self.ledger.year[CAT_SALES]
+        expenses = sum(self.ledger.year[i] for i in range(1, OPERATING_CATEGORIES))
+        op_profit = rev - expenses
+        other = sum(self.ledger.year[i] for i in range(OPERATING_CATEGORIES, N_CATEGORIES))
+        nw = self.net_worth(firms)
+        self._push_history(self.year_history, 30, rev, op_profit, other, expenses, nw)
+        self.ledger.roll_year()
+
+    @staticmethod
+    def _push_history(
+        store: dict[str, list[float]],
+        cap: int,
+        revenue: float,
+        op_profit: float,
+        other_profit: float,
+        expenses: float,
+        net_worth: float,
+    ) -> None:
+        vals = {
+            "revenue": revenue,
+            "operating_profit": op_profit,
+            "other_profit": other_profit,
+            "expenses": expenses,
+            "net_worth": net_worth,
+        }
+        for key, val in vals.items():
+            arr = store[key]
+            arr.append(val)
+            if len(arr) > cap:
+                arr.pop(0)
+
+    @property
+    def is_bankrupt(self) -> bool:
+        return self.ledger.cash < 0
 
 
 class Economy:
@@ -60,6 +243,8 @@ class Economy:
         self.corps: list[Corporation] = []
         self.firms: list[Firm | None] = []
         self.market = Market()
+        self.interest_rate = _CR.interest_rate_default
+        self.interest_rate_history: list[float] = [_CR.interest_rate_default]
         self.ensure_markets()
 
     # --- setup -------------------------------------------------------------
@@ -77,8 +262,8 @@ class Economy:
     def town_market(self, town: Town, product_name: str) -> TownMarket:
         return self.market.towns[(town.id, self.catalog[product_name].id)]
 
-    def add_corp(self, name: str) -> Corporation:
-        corp = Corporation(len(self.corps), name)
+    def add_corp(self, name: str, corp_type: int = CORP_PLAYER) -> Corporation:
+        corp = Corporation(len(self.corps), name, corp_type)
         self.corps.append(corp)
         return corp
 
@@ -152,6 +337,10 @@ class Economy:
     def links_daily(self) -> None:
         self.market.daily(self)
 
+    def corps_daily(self) -> None:
+        for corp in self.corps:
+            corp.daily_finance(self.interest_rate)
+
     def products_daily(self, slot: int) -> None:
         """1/30 of the catalog per day: publish the product score (design.md call 7)."""
         by_product: dict[int, list[TownMarket]] = {}
@@ -174,6 +363,12 @@ class Economy:
         for key in sorted(self.market.towns):
             self.market.towns[key].recompute()
 
+    def corps_monthly(self) -> None:
+        """Corporation monthly pass — runs before firms monthly."""
+        for corp in self.corps:
+            corp.monthly(self.firms)
+        self.adjust_interest_rate()
+
     def monthly(self) -> None:
         for firm in self.firms:
             if firm is not None:
@@ -186,11 +381,30 @@ class Economy:
         for p in self.catalog.products:
             p.state.max_score_in = best.get(p.id, 0.0)
 
+    def corps_yearly(self) -> None:
+        """Corporation yearly pass — runs before firms yearly."""
+        for corp in self.corps:
+            corp.yearly(self.firms)
+        self.interest_rate_history.append(self.interest_rate)
+        if len(self.interest_rate_history) > 10:
+            self.interest_rate_history.pop(0)
+
     def yearly(self) -> None:
         for firm in self.firms:
             if firm is not None:
                 firm.yearly(self)
         self.diffuse_tech()
+
+    def adjust_interest_rate(self) -> None:
+        """Monthly interest rate adjustment (gamelogic.md Interest rates)."""
+        towns = self.world.towns
+        if not towns:
+            return
+        avg_gnp = sum(t.per_capita_gnp for t in towns) / len(towns) / 1000.0
+        if avg_gnp <= _CR.weak_gnp_threshold or self.rng.chance(1.0 / _CR.interest_rise_chance):
+            self.interest_rate += _CR.interest_rate_step
+        if self.rng.chance(1.0 / _CR.interest_fall_chance):
+            self.interest_rate = max(_CR.interest_rate_floor, self.interest_rate - _CR.interest_rate_step)
 
     def diffuse_tech(self) -> None:
         """design.md slice 3 call 5: generally available and obsolete at the same test."""
