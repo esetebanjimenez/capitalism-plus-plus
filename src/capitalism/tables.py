@@ -681,6 +681,28 @@ class PersonRules(StaticModel):
     wealth_floor: float
 
 
+class AIRules(StaticModel):
+    strategy_interval: int
+    link_interval: int
+    finance_interval: int
+    survey_interval: int
+    vertical_interval: int
+    mode_transition_interval: int
+    build_cooldown: int
+    template_cost_estimate: float
+    ai_cash_reset: float
+    spawn_chance: float
+    spawn_first_day_gate: float
+    dormant_year_threshold: float
+    dormant_chance: float
+    competitor_cap: int
+    max_competitors: int
+    starting_capital_low: float
+    random_build_chance: float
+    bankruptcy_age_threshold: float
+    bankruptcy_value_threshold: float
+
+
 class CorporationRules(StaticModel):
     interest_rate_default: float
     interest_rate_floor: float
@@ -713,4 +735,5 @@ RESEARCH_RULES = _rules_model(ResearchRules, "research")
 ADVERTISING_RULES = _rules_model(AdvertisingRules, "advertising")
 SOFTWARE_RULES = _rules_model(SoftwareRules, "software")
 PERSON_RULES = _rules_model(PersonRules, "persons")
+AI_RULES = _rules_model(AIRules, "ai")
 CORPORATION_RULES = _rules_model(CorporationRules, "corporations")

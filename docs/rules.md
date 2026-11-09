@@ -243,6 +243,62 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `media_revenue_seasonal_neutral` | 100 **provisional** | percentage | Provisional neutral seasonal factor |
 | `media_revenue_town_divisor` | 20000 | divisor | gamelogic.md Media firm economics — organic revenue town divisor |
 
+## 7 — Corporation financials
+
+| Key | Value | Units | Reference |
+|---|---|---|---|
+| `interest_fall_chance` | 50 | 1-in-N per month | gamelogic.md Interest rates |
+| `interest_rate_default` | 10 | percent | gamelogic.md Interest rates |
+| `interest_rate_floor` | 1 | percent | gamelogic.md Interest rates |
+| `interest_rate_step` | 0.5 | percentage points | gamelogic.md Interest rates |
+| `interest_rise_chance` | 10 | 1-in-N per month | gamelogic.md Interest rates |
+| `overdraft_spread` | 2 | percentage points | gamelogic.md Cash flow and daily finance |
+| `weak_gnp_threshold` | 5 | gnp / 1000 | gamelogic.md Interest rates |
+
+## 8 — Persons
+
+| Key | Value | Units | Reference |
+|---|---|---|---|
+| `dormant_chance` | 0.5 | probability | gamelogic.md Competitor spawning |
+| `dormant_year_threshold` | 10 | years | gamelogic.md Competitor spawning |
+| `loyalty_base` | 25 | years | gamelogic.md Salary and retention |
+| `max_competitors` | 12 | count | gamelogic.md Competitor spawning |
+| `max_persons` | 15 | count | gamelogic.md Person system |
+| `raise_penalty_max` | 60 | points | gamelogic.md Salary raise penalties |
+| `raise_penalty_min` | 30 | points | gamelogic.md Salary raise penalties |
+| `raise_wealth_ratio` | 1.1 | ratio | gamelogic.md January wealth comparison |
+| `random_raise_base` | 150 | divisor | gamelogic.md Random salary trigger |
+| `service_salary_factor` | 0.1 | per year | gamelogic.md Salary negotiation |
+| `skill_level_step` | 20 | points per level | gamelogic.md Expertise skills |
+| `skill_range` | 40 | points | gamelogic.md Expertise skills |
+| `spawn_chance` | 0.333 | probability | gamelogic.md Competitor spawning |
+| `spawn_first_day_gate` | 0.01 | probability | gamelogic.md Competitor spawning |
+| `wealth_floor` | 1000000 | dollars | gamelogic.md Salary and retention |
+
+## 9 — AI corporations
+
+| Key | Value | Units | Reference |
+|---|---|---|---|
+| `ai_cash_reset` | 1000000000 | dollars | gamelogic.md Cash management |
+| `bankruptcy_age_threshold` | 10 | years | gamelogic.md Bankruptcy check |
+| `bankruptcy_value_threshold` | 100000 | dollars | gamelogic.md Bankruptcy check |
+| `build_cooldown` | 30 | days | gamelogic.md Firm creation |
+| `competitor_cap` | 10 | count | gamelogic.md NPC corporation spawning |
+| `dormant_chance` | 0.5 | probability | gamelogic.md NPC corporation spawning |
+| `dormant_year_threshold` | 10 | years | gamelogic.md NPC corporation spawning |
+| `finance_interval` | 30 | days | gamelogic.md Decision schedule |
+| `link_interval` | 15 | days | gamelogic.md Decision schedule |
+| `max_competitors` | 12 | count | gamelogic.md NPC corporation spawning |
+| `mode_transition_interval` | 200 | days | gamelogic.md Decision schedule |
+| `random_build_chance` | 0.001 | probability | gamelogic.md Strategy parameter change |
+| `spawn_chance` | 0.333 | probability | gamelogic.md NPC corporation spawning |
+| `spawn_first_day_gate` | 0.01 | probability | gamelogic.md NPC corporation spawning |
+| `starting_capital_low` | 3000000 | dollars | gamelogic.md NPC corporation spawning |
+| `strategy_interval` | 15 | days | gamelogic.md Decision schedule |
+| `survey_interval` | 30 | days | gamelogic.md Decision schedule |
+| `template_cost_estimate` | 500000 | dollars | gamelogic.md Firm creation |
+| `vertical_interval` | 60 | days | gamelogic.md Decision schedule |
+
 ## City name pool
 
 | Name | Tier | Reference |
