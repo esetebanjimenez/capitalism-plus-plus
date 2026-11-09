@@ -110,6 +110,7 @@ class Sim:
             self._year_pass()
 
         self._hook("corporations")
+        self.economy.corps_daily()
         self._hook("people")
         self._towns_daily()
         self._hook("goals")
@@ -174,6 +175,7 @@ class Sim:
 
         # 4. Corporations monthly (slice 7)
         self._hook("month_corporations")
+        self.economy.corps_monthly()
         # 5. Firms, jobs and links monthly
         self._hook("month_firms_jobs_links")
         self.economy.monthly()
@@ -183,6 +185,7 @@ class Sim:
         self.gnp_history.append(self.gnp_index)
         if len(self.gnp_history) > 10:
             self.gnp_history.pop(0)
+        self.economy.corps_yearly()
         self.economy.yearly()
 
     def state_hash(self) -> str:
