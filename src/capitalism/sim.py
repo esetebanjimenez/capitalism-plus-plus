@@ -112,6 +112,7 @@ class Sim:
         self._hook("corporations")
         self.economy.corps_daily()
         self._hook("people")
+        self.economy.persons_daily(self.calendar.day_serial)
         self._towns_daily()
         self._hook("goals")
         if self.calendar.weekday == 5:
@@ -173,10 +174,13 @@ class Sim:
         try_spawn_town(self.world, self.rng, self.calendar.day_serial)
         self.economy.recompute_demand()
 
-        # 4. Corporations monthly (slice 7)
+        # 4. Person monthly (slice 8)
+        self._hook("month_persons")
+        self.economy.persons_monthly()
+        # 5. Corporations monthly (slice 7)
         self._hook("month_corporations")
         self.economy.corps_monthly()
-        # 5. Firms, jobs and links monthly
+        # 6. Firms, jobs and links monthly
         self._hook("month_firms_jobs_links")
         self.economy.monthly()
 
@@ -185,6 +189,7 @@ class Sim:
         self.gnp_history.append(self.gnp_index)
         if len(self.gnp_history) > 10:
             self.gnp_history.pop(0)
+        self.economy.persons_yearly()
         self.economy.corps_yearly()
         self.economy.yearly()
 
