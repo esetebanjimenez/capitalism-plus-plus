@@ -626,17 +626,41 @@ class AdvertisingRules(StaticModel):
     ad_campaign_every_days: int
     ad_tech_min_exclusive: int
     media_min_revenue: float
+    media_min_audience: float
     media_audience_min: float
     media_government_max: int
     media_audience_population_div: float
     media_audience_cap: float
     media_audience_adjust_rate: float
+    # Binary FUN_000604d2: reputation-driven audience model
+    media_reputation_drift_range: int
+    media_reputation_drift_offset: int
+    media_low_audience_threshold: float
+    media_high_audience_threshold: float
+    media_reputation_boost_range: int
+    media_reputation_min: float
+    media_reputation_max: float
+    media_audience_delta_range: int
+    media_audience_delta_offset: float
+    media_audience_delta_divisor: float
+    media_competition_steal_factor: float
+    media_market_cap: float
+    # Binary FUN_0006073c: organic media revenue
+    media_revenue_town_divisor: float
+    media_revenue_audience_addend: float
+    media_revenue_base_divisor: float
+    media_revenue_floor: float
+    media_revenue_seasonal_neutral: float
 
 
 class SoftwareRules(StaticModel):
     software_project_months: int
     software_copy_quality: float
     software_copy_cost_per_day: float
+    # Binary FUN_0005c06f: production gate
+    software_gate_every_days: int
+    software_gate_max_age_days: int
+    software_gate_no_revenue_months: int
 
 
 @lru_cache(maxsize=1)

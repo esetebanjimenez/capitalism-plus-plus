@@ -206,6 +206,9 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 |---|---|---|---|
 | `software_copy_cost_per_day` | 0 **provisional** | usd per copy-unit day | M1 no additional daily copy cost; wages already posted once daily |
 | `software_copy_quality` | 50 **provisional** | quality | M1 provisional software initial quality |
+| `software_gate_every_days` | 15 | days | gamelogic.md Software Production — gate check interval |
+| `software_gate_max_age_days` | 151 | days | gamelogic.md Software Production — gate staleness threshold |
+| `software_gate_no_revenue_months` | 5 | months | gamelogic.md Software Production — gate no-revenue window |
 | `software_project_months` | 6 **provisional** | months | design.md slice 4b software one level project |
 
 ## 4b — Advertising and media
@@ -217,10 +220,28 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `ad_tech_min_exclusive` | 14 **provisional** | tech level | design.md slice 4b no ads at tech <= 14 |
 | `media_audience_adjust_rate` | 0.1 **provisional** | fraction / month | M1 provisional gradual audience adjustment |
 | `media_audience_cap` | 100 **provisional** | audience | design.md slice 4b provisional audience |
+| `media_audience_delta_divisor` | 200 | divisor | gamelogic.md Media firm economics — audience delta divisor |
+| `media_audience_delta_offset` | 50 | subtracted from draw | gamelogic.md Media firm economics — audience delta offset |
+| `media_audience_delta_range` | 101 | random draw range | gamelogic.md Media firm economics — audience delta range |
 | `media_audience_min` | 10 **provisional** | audience | design.md slice 4b provisional audience |
 | `media_audience_population_div` | 10000 **provisional** | people / audience point | design.md slice 4b provisional audience |
+| `media_competition_steal_factor` | 0.5 | fraction | gamelogic.md Media firm economics — audience zero-sum steal |
 | `media_government_max` | 39 **provisional** | audience | design.md slice 4b government audience |
+| `media_high_audience_threshold` | 40 | audience | gamelogic.md Media firm economics — audience high threshold |
+| `media_low_audience_threshold` | 15 | audience | gamelogic.md Media firm economics — audience low threshold |
+| `media_market_cap` | 90 | audience | gamelogic.md Media firm economics — audience market soft-cap |
+| `media_min_audience` | 5 | audience | gamelogic.md Advertising — media partner minimum audience |
 | `media_min_revenue` | 10000 **provisional** | usd / month | design.md slice 4b media partner threshold |
+| `media_reputation_boost_range` | 31 | random draw range | gamelogic.md Media firm economics — audience reputation boost range |
+| `media_reputation_drift_offset` | 30 | subtracted from draw | gamelogic.md Media firm economics — audience reputation drift offset |
+| `media_reputation_drift_range` | 61 | random draw range | gamelogic.md Media firm economics — audience reputation drift range |
+| `media_reputation_max` | 100 | reputation | gamelogic.md Media firm economics — audience reputation ceiling |
+| `media_reputation_min` | -100 | reputation | gamelogic.md Media firm economics — audience reputation floor |
+| `media_revenue_audience_addend` | 2 | addend | gamelogic.md Media firm economics — organic revenue audience addend |
+| `media_revenue_base_divisor` | 1000 | divisor | gamelogic.md Media firm economics — organic revenue base divisor |
+| `media_revenue_floor` | 100 | usd / month | gamelogic.md Media firm economics — organic revenue floor |
+| `media_revenue_seasonal_neutral` | 100 **provisional** | percentage | Provisional neutral seasonal factor |
+| `media_revenue_town_divisor` | 20000 | divisor | gamelogic.md Media firm economics — organic revenue town divisor |
 
 ## City name pool
 
