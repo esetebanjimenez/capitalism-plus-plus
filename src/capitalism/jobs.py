@@ -596,13 +596,17 @@ class SoftwareDevelopment(ProjectJob):
 
 
 class SoftwareProduction(Job):
+    """Binary FUN_0005bf73 (produce) + FUN_0005c06f (gate)."""
+
     type_id = 14
     rank = 1
-    __slots__ = ("has_master",)
+    __slots__ = ("has_master", "production_started_serial", "revenue_months")
 
     def __init__(self, firm: Firm, slot: int, product: Product | None, rating: int = 1) -> None:
         super().__init__(firm, slot, product, rating)
         self.has_master = False
+        self.production_started_serial = 0
+        self.revenue_months: list[float] = [0.0] * 12
 
     def add_master(self, development: SoftwareDevelopment) -> None:
         if development.product is not self.product:
@@ -613,9 +617,60 @@ class SoftwareProduction(Job):
             and self.firm.owner.has_technology(development.product)
         ):
             self.quality, self.unit_cost = development.quality, development.unit_cost
-            self.has_master = True
+            if not self.has_master:
+                self.has_master = True
+
+    def _gate_check(self, eco: Economy) -> None:
+        """Binary FUN_0005c06f: every 15 days, drop stale products."""
+        r = SOFTWARE_RULES
+        if (eco.calendar.day_serial + self.firm.id) % r.software_gate_every_days != 0:
+            return
+        if not self.has_master or self.product is None:
+            return
+        age = eco.calendar.day_serial - self.production_started_serial
+        if age <= r.software_gate_max_age_days:
+            return
+        window = r.software_gate_no_revenue_months
+        recent_revenue = sum(self.revenue_months[-window:]) if window <= len(self.revenue_months) else sum(self.revenue_months)
+        if recent_revenue > 0:
+            return
+        new_product = self._select_new_product(eco)
+        if new_product is not None:
+            self.product = new_product
+            self.has_master = False
+            self.stock = 0.0
+            self.production_started_serial = eco.calendar.day_serial
+            self.revenue_months = [0.0] * 12
+
+    def _select_new_product(self, eco: Economy) -> Product | None:
+        """Binary FUN_0005c121: pick a software-eligible product where demand > supply."""
+        best = None
+        best_gap = 0.0
+        for p in eco.catalog.products:
+            if not isinstance(p, Software):
+                continue
+            if p is self.product:
+                continue
+            demand = sum(
+                tm.demand_per_day
+                for tm in eco.market.towns.values()
+                if tm.product is p
+            )
+            supply = sum(
+                j.stock
+                for f in eco.firms
+                if f is not None
+                for j in f.jobs()
+                if j.product is p and isinstance(j, Sales)
+            )
+            gap = demand - supply
+            if gap > best_gap:
+                best_gap = gap
+                best = p
+        return best
 
     def work(self, eco: Economy) -> bool:
+        self._gate_check(eco)
         if (
             not self.has_master
             or self.product is None
@@ -623,7 +678,8 @@ class SoftwareProduction(Job):
             or not self.firm.owner.has_technology(self.product)
         ):
             return False
-        # No divisor appears in the supplied formula. Base copy capacity stays provisional.
+        if self.production_started_serial == 0:
+            self.production_started_serial = eco.calendar.day_serial
         added = min(self.room, self.efficiency * self.capacity)
         self.receive(added, self.quality, self.product.row.base_cost)
         return self.stock < self.capacity
@@ -638,10 +694,15 @@ class SoftwareProduction(Job):
                 self.add_master(job)
                 return
 
+    def monthly(self, eco: Economy) -> None:
+        super().monthly(eco)
+        month_revenue = self.firm.ledger.last_month[0] if self.firm else 0.0
+        self.revenue_months = self.revenue_months[1:] + [month_revenue]
+
 
 def qualifies_media(media: MediaFirm) -> bool:
-    """Only the station's own earned last-month revenue qualifies it."""
-    return media.ledger.last_month[CAT_SALES] > ADVERTISING_RULES.media_min_revenue
+    """Binary FUN_0005116d: audience > 5.0 (_DAT_000a7518)."""
+    return media.audience > ADVERTISING_RULES.media_min_audience
 
 
 class Advertising(Job):
@@ -662,7 +723,7 @@ class Advertising(Job):
     def specify_media(self, media: MediaFirm, budget: float) -> None:
         """Commit a financed campaign to a media firm already meeting the threshold."""
         if not qualifies_media(media):
-            raise ValueError("media partner has not passed the monthly revenue threshold")
+            raise ValueError("media partner has not passed the audience threshold")
         self.attach_media(media)
         self.budget = max(0.0, budget)
 

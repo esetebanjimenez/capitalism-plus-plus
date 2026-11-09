@@ -312,13 +312,24 @@ class SoftwarePublisher(Firm):
 
 
 class MediaFirm(Firm):
-    """No job slots: daily payroll, audience and twelve-month revenue history."""
+    """No job slots: daily payroll, reputation-driven audience and organic revenue.
 
-    __slots__ = ("audience", "audience_month", "audience_total", "revenue_month", "revenue_total")
+    Binary FUN_000604d2 (audience) and FUN_0006073c (revenue).
+    """
+
+    __slots__ = (
+        "audience",
+        "audience_month",
+        "audience_total",
+        "reputation",
+        "revenue_month",
+        "revenue_total",
+    )
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.audience = ADVERTISING_RULES.media_audience_min
+        self.reputation = 0.0
         self.audience_month = [0.0] * 12
         self.audience_total = self.audience
         self.revenue_month = [0.0] * 12
@@ -328,7 +339,7 @@ class MediaFirm(Firm):
         wage = job_wage_day(
             FIRM_RULES.media_staff, self.town.labor_cost, eco.calendar.real_month_days
         )
-        self.post(CAT_SALARIES, wage)  # media payroll: no training post (ref)
+        self.post(CAT_SALARIES, wage)
 
     def initialize_audience(self, eco: Economy) -> None:
         r = ADVERTISING_RULES
@@ -338,17 +349,79 @@ class MediaFirm(Firm):
             eco.rng.randint(int(r.media_audience_min), int(r.media_government_max))
         )
 
+    def _update_audience(self, eco: Economy) -> None:
+        """Binary FUN_000604d2: 7-step reputation-driven random walk."""
+        r = ADVERTISING_RULES
+        rng = eco.rng
+
+        # Step 1: reputation drift — random(61) - 30 → range [-30, +30]
+        self.reputation += rng.randint(0, r.media_reputation_drift_range - 1) - r.media_reputation_drift_offset
+
+        # Step 2: low-audience boost
+        if self.audience < r.media_low_audience_threshold:
+            self.reputation += rng.randint(0, r.media_reputation_boost_range - 1)
+
+        # Step 3: high-audience damping
+        if self.audience > r.media_high_audience_threshold:
+            self.reputation -= rng.randint(0, r.media_reputation_boost_range - 1)
+
+        # Step 4: clamp reputation
+        self.reputation = max(r.media_reputation_min, min(r.media_reputation_max, self.reputation))
+
+        # Step 5: audience delta
+        delta = (
+            rng.randint(0, r.media_audience_delta_range - 1) + self.reputation - r.media_audience_delta_offset
+        ) / r.media_audience_delta_divisor
+
+        # Step 6: zero-sum competition — steal from other media firms in same town
+        competitors = [
+            f for f in eco.firms
+            if f is not None and f is not self and isinstance(f, MediaFirm) and f.town.id == self.town.id
+        ]
+        if delta > 0 and competitors:
+            steal = delta * r.media_competition_steal_factor
+            per_competitor = steal / len(competitors) if competitors else 0
+            for comp in competitors:
+                comp.audience = max(r.media_audience_min, comp.audience - per_competitor)
+
+        self.audience += delta
+
+        # Step 7: market soft-cap at 90
+        if self.audience > r.media_market_cap:
+            excess = self.audience - r.media_market_cap
+            self.audience = r.media_market_cap
+            if competitors:
+                per_competitor = excess / len(competitors)
+                for comp in competitors:
+                    comp.audience += per_competitor
+
+        self.audience = max(r.media_audience_min, min(r.media_audience_cap, self.audience))
+
+    def organic_revenue(self) -> float:
+        """Binary FUN_0006073c: monthly revenue from audience and town economics.
+
+        Seasonal and ad-rate factors are provisional (neutral 100%).
+        """
+        r = ADVERTISING_RULES
+        staff = FIRM_RULES.media_staff
+        reach = staff * self.audience / 100.0
+        ad_base = (self.town.population * 100.0 / r.media_revenue_town_divisor) * reach / 100.0
+        spending = getattr(self.town, "consumer_spending", 100.0) or 100.0
+        revenue_base = spending * ad_base / 100.0
+        seasonal = r.media_revenue_seasonal_neutral
+        audience_factor = self.audience / 100.0 + r.media_revenue_audience_addend
+        revenue = revenue_base / r.media_revenue_base_divisor * (seasonal * audience_factor / 100.0)
+        return max(r.media_revenue_floor, revenue)
+
     def monthly(self, eco: Economy) -> None:
         super().monthly(eco)
-        r = ADVERTISING_RULES
-        target = max(
-            r.media_audience_min,
-            min(r.media_audience_cap, self.town.population / r.media_audience_population_div),
-        )
-        self.audience += (target - self.audience) * r.media_audience_adjust_rate
+        self._update_audience(eco)
+        organic = self.organic_revenue()
+        self.post(CAT_SALES, organic, direct=True)
         self.audience_month = self.audience_month[1:] + [self.audience]
         self.audience_total = sum(self.audience_month)
-        self.revenue_month = self.revenue_month[1:] + [self.ledger.last_month[CAT_SALES]]
+        campaign_revenue = self.ledger.last_month[CAT_SALES]
+        self.revenue_month = self.revenue_month[1:] + [campaign_revenue + organic]
         self.revenue_total = sum(self.revenue_month)
 
 
