@@ -29,6 +29,9 @@ SYSTEM_ORDER = [
     ("research", "4b — Research and projects"),
     ("software", "4b — Software"),
     ("advertising", "4b — Advertising and media"),
+    ("corporations", "7 — Corporation financials"),
+    ("persons", "8 — Persons"),
+    ("ai", "9 — AI corporations"),
 ]
 
 P = " **provisional**"

@@ -113,6 +113,8 @@ class Sim:
         self.economy.corps_daily()
         self._hook("people")
         self.economy.persons_daily(self.calendar.day_serial)
+        self._hook("ai")
+        self.economy.ai_daily(self.calendar.day_serial)
         self._towns_daily()
         self._hook("goals")
         if self.calendar.weekday == 5:

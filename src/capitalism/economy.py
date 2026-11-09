@@ -247,6 +247,7 @@ class Economy:
         self.catalog.jitter(rng)
         self.corps: list[Corporation] = []
         self.persons: list[Person | None] = [None] * int(_PR.max_persons)
+        self.ai_states: dict[int, object] = {}
         self.firms: list[Firm | None] = []
         self.market = Market()
         self.interest_rate = _CR.interest_rate_default
@@ -388,6 +389,14 @@ class Economy:
             person.years_of_service += 1 if day_serial % 365 == 0 else 0
         if person.cooldown > 0:
             person.cooldown -= 1
+
+    def ai_daily(self, day_serial: int) -> None:
+        """AI corporation decisions for all competitor corps."""
+        from .ai import ai_daily, try_spawn_competitor
+        try_spawn_competitor(self, day_serial)
+        for corp in self.corps:
+            if corp.corp_type == CORP_AI:
+                ai_daily(self, corp, day_serial)
 
     def products_daily(self, slot: int) -> None:
         """1/30 of the catalog per day: publish the product score (design.md call 7)."""
