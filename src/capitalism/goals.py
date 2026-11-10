@@ -189,14 +189,14 @@ def _get_player_values(economy: Economy, player_corp_id: int) -> dict[str, float
     for firm in economy.firms:
         if firm is None:
             continue
-        if getattr(firm, "corp_id", None) != player_corp_id:
+        if firm.owner is None or firm.owner.id != player_corp_id:
             continue
         for job in firm.jobs():
             employees += getattr(job, "staff", 0)
             p = getattr(job, "product", None)
             if p is not None:
                 product_types.add(p.id)
-                product_classes.add(p.class_id)
+                product_classes.add(p.cls.id)
     result["num_employees"] = float(employees)
     result["num_product_classes"] = float(len(product_classes))
     result["num_product_types"] = float(len(product_types))
