@@ -304,6 +304,20 @@ class SetupOptions(BaseModel):
     detailed_cities: bool = True
     target_cities: int = Field(default=5, ge=0, le=12)
     event_frequency: int = Field(default=0, ge=0, le=3)
+    year_limit: int = Field(default=0, ge=0)
+    goal_score_bonus: int = Field(default=0, ge=0, le=500)
+    competitors: int = Field(default=3, ge=0, le=10)
+    competitor_capital: int = Field(default=0, ge=0, le=5)
+    competence_level: int = Field(default=0, ge=0, le=5)
+    expertise_level: int = Field(default=0, ge=0, le=5)
+    show_trade_secrets: bool = True
+    competitor_character: int = Field(default=-1, ge=-1, le=6)
+    consumer_seaports: int = Field(default=2, ge=0)
+    industrial_seaports: int = Field(default=2, ge=0)
+    constant_supply: bool = True
+    import_quality: int = Field(default=3, ge=0, le=3)
+    is_scenario: bool = False
+    cheated: bool = False
 
 
 def db_path() -> Path:
@@ -745,6 +759,31 @@ class StockRules(StaticModel):
     invest_max_fraction: float
 
 
+class ScoringRules(StaticModel):
+    difficulty_capital_mult: int
+    difficulty_base_offset: int
+    difficulty_secrets_penalty: int
+    difficulty_char_mixed_penalty: int
+    difficulty_char_per_type: int
+    difficulty_expertise_vlow: int
+    difficulty_expertise_per_level: int
+    difficulty_no_seaports: int
+    difficulty_competence_per_level: int
+    difficulty_events_per_level: int
+    difficulty_scale_numerator: int
+    difficulty_scale_denominator: int
+    wealth_per_billion: int
+    corpworth_per_billion: int
+    sector_points: int
+    product_points: int
+    year_penalty_threshold: int
+    free_goal_multiplier: int
+    player_goal_check_interval: int
+    ai_goal_check_interval: int
+    warning_years_threshold: int
+    goal_bonus_max: int
+
+
 class CorporationRules(StaticModel):
     interest_rate_default: float
     interest_rate_floor: float
@@ -782,3 +821,4 @@ STOCK_RULES = _rules_model(StockRules, "stock")
 CORPORATION_RULES = _rules_model(CorporationRules, "corporations")
 NEWS_RULES = _rules_model(NewsRules, "news")
 EVENT_RULES = _rules_model(EventRules, "events")
+SCORING_RULES = _rules_model(ScoringRules, "scoring")

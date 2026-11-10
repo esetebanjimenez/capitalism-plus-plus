@@ -8,6 +8,7 @@ from datetime import date
 
 from .calendar import DEFAULT_START, Calendar
 from .economy import Economy
+from .goals import GoalChecker, GoalConfig
 from .rng import Rng
 from .tables import GNP_INDEX, MAP_RULES, STAGGER_MOD, SetupOptions
 from .town import Town
@@ -50,6 +51,8 @@ class Sim:
         self.hooks: list[str] = []
         self.town_slots_hit: set[int] = set()
         self.product_slots_hit: set[int] = set()
+        self.goal_config = GoalConfig()
+        self.goal_checker: GoalChecker
         self.reset(seed)
 
     def reset(self, seed: int | None = None) -> None:
@@ -73,6 +76,7 @@ class Sim:
         self.hooks = []
         self.town_slots_hit = set()
         self.product_slots_hit = set()
+        self.goal_checker = GoalChecker(self.goal_config)
 
     @property
     def day(self) -> int:
@@ -122,6 +126,9 @@ class Sim:
         self.economy.stocks_daily()
         self._towns_daily()
         self._hook("goals")
+        self.goal_checker.daily(
+            self.economy, self.calendar.day_serial, self.calendar.year, self.setup,
+        )
         if self.calendar.weekday == 5:
             self._hook("weekly_ratings")
         self._hook("random_events")
@@ -204,6 +211,9 @@ class Sim:
         self.economy.corps_yearly()
         self.economy.stocks_yearly()
         self.economy.yearly()
+        self.goal_checker.yearly(
+            self.calendar.year, self.start_year, self.setup.year_limit,
+        )
 
     def state_hash(self) -> str:
         """Stable hash of full sim state for determinism tests."""
