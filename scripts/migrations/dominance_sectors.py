@@ -39,6 +39,12 @@ def migrate(con: sqlite3.Connection) -> None:
                 "provisional=excluded.provisional",
                 (tid, sector, name, REF),
             )
+    con.execute(
+        "INSERT INTO rules VALUES('scoring','dominance_tie_is_lead',0,'flag (0 or 1)',?,1) "
+        "ON CONFLICT(system,key) DO UPDATE SET value=excluded.value,units=excluded.units,"
+        "ref=excluded.ref,provisional=1",
+        ("Sector dominance / Industry dominance: tie rule not in reference",),
+    )
     con.commit()
     assert con.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
     assert con.execute("PRAGMA foreign_key_check").fetchall() == []

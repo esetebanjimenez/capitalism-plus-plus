@@ -7,6 +7,7 @@ from capitalism.goals import (
     leads,
     product_shares,
     sector_shares,
+    share_row,
 )
 from capitalism.scenario import bread_town, build_bread_chain
 from capitalism.tables import FIRM_SECTORS, FIRM_TYPES, PRODUCT_CLASSES
@@ -49,7 +50,17 @@ def test_sector_without_player_revenue_is_not_met():
     goals.sector_goals[3] = True  # media: the player owns none
     all_met, results = check_goals(goals, sim.economy, corp)
     assert not all_met
-    assert results["sector_3"] == (1.0, 0.0, False)
+    assert results["sector_3"] == (0.0, 0.0, False)
+
+
+def test_sector_row_shows_player_and_leader_share():
+    sim = _chain()
+    corp = sim.economy.corps[0].id
+    goals = sim.goal_config
+    goals.sector_goals[0] = True
+    _, results = check_goals(goals, sim.economy, corp)
+    assert results["sector_0"] == (0.0, 100.0, True)
+    assert share_row({corp: 30.0, corp + 1: 70.0}, corp) == (70.0, 30.0, False)
 
 
 def test_industry_dominance_needs_every_product_in_class():

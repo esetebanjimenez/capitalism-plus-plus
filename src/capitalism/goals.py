@@ -258,9 +258,9 @@ def check_goals(
         for i, enabled in enumerate(goals.sector_goals):
             if not enabled:
                 continue
-            met = leads(shares.get(i, {}), player_corp_id)
-            results[f"sector_{i}"] = (1.0, 1.0 if met else 0.0, met)
-            all_met = all_met and met
+            row = share_row(shares.get(i, {}), player_corp_id)
+            results[f"sector_{i}"] = row
+            all_met = all_met and row[2]
 
     if any(goals.industry_goals):
         class_ids = sorted(PRODUCT_CLASSES)
@@ -268,9 +268,13 @@ def check_goals(
         for i, enabled in enumerate(goals.industry_goals):
             if not enabled:
                 continue
-            met = i < len(class_ids) and industry_led(economy, shares, class_ids[i], player_corp_id)
-            results[f"industry_{i}"] = (1.0, 1.0 if met else 0.0, met)
-            all_met = all_met and met
+            row = (
+                industry_row(economy, shares, class_ids[i], player_corp_id)
+                if i < len(class_ids)
+                else (0.0, 0.0, False)
+            )
+            results[f"industry_{i}"] = row
+            all_met = all_met and row[2]
 
     return all_met, results
 
@@ -280,13 +284,24 @@ def check_goals(
 # ---------------------------------------------------------------------------
 
 
-def leads(by_corp: dict[int, float], corp_id: int) -> bool:
-    """True when ``corp_id`` has a positive share strictly above every other corp.
+def share_row(by_corp: dict[int, float], corp_id: int) -> tuple[float, float, bool]:
+    """Goal row ``(target, current, met)`` for one dominance comparison.
 
-    A tie for first is not a lead (provisional: the reference does not say).
+    current is the corp's share in percent, target is the best rival's share.
+    The corp leads with a positive share above every rival; a tie counts as a
+    lead only when the provisional ``dominance_tie_is_lead`` rule is 1.
     """
-    mine = by_corp.get(corp_id, 0.0)
-    return mine > 0 and all(v < mine for c, v in by_corp.items() if c != corp_id)
+    total = sum(v for v in by_corp.values() if v > 0)
+    if total <= 0:
+        return (0.0, 0.0, False)
+    mine = max(by_corp.get(corp_id, 0.0), 0.0) * 100.0 / total
+    rival = max((v * 100.0 / total for c, v in by_corp.items() if c != corp_id), default=0.0)
+    met = mine > 0 and (mine >= rival if _SR.dominance_tie_is_lead else mine > rival)
+    return (rival, mine, met)
+
+
+def leads(by_corp: dict[int, float], corp_id: int) -> bool:
+    return share_row(by_corp, corp_id)[2]
 
 
 def sector_shares(economy: Economy) -> dict[int, dict[int, float]]:
@@ -322,12 +337,26 @@ def product_shares(economy: Economy) -> dict[int, dict[int, float]]:
     return out
 
 
+def industry_row(
+    economy: Economy, shares: dict[int, dict[int, float]], class_id: int, corp_id: int
+) -> tuple[float, float, bool]:
+    """Industry goal row: met only if the corp leads every product type in the class.
+
+    Shows the weakest product (smallest lead, or biggest deficit) so the
+    Goals screen can show what is holding the goal back.
+    """
+    products = [p for p in economy.catalog.products if p.cls.id == class_id]
+    if not products:
+        return (0.0, 0.0, False)
+    rows = [share_row(shares.get(p.id, {}), corp_id) for p in products]
+    target, current, _ = min(rows, key=lambda r: r[1] - r[0])
+    return (target, current, all(r[2] for r in rows))
+
+
 def industry_led(
     economy: Economy, shares: dict[int, dict[int, float]], class_id: int, corp_id: int
 ) -> bool:
-    """The corp leads every product type in the class (any product led by others fails)."""
-    products = [p for p in economy.catalog.products if p.cls.id == class_id]
-    return bool(products) and all(leads(shares.get(p.id, {}), corp_id) for p in products)
+    return industry_row(economy, shares, class_id, corp_id)[2]
 
 
 # ---------------------------------------------------------------------------

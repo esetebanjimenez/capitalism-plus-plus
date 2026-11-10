@@ -805,6 +805,7 @@ class ScoringRules(StaticModel):
     ai_goal_check_interval: int
     warning_years_threshold: int
     goal_bonus_max: int
+    dominance_tie_is_lead: int = Field(ge=0, le=1)
 
 
 class CorporationRules(StaticModel):

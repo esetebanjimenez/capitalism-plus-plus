@@ -364,6 +364,7 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `difficulty_scale_denominator` | 212 | ratio | gamelogic.md: multiplied by 200/212 |
 | `difficulty_scale_numerator` | 200 | ratio | gamelogic.md: multiplied by 200/212 |
 | `difficulty_secrets_penalty` | 15 | points | gamelogic.md: +15 if trade secrets hidden |
+| `dominance_tie_is_lead` | 0 **provisional** | flag (0 or 1) | Sector dominance / Industry dominance: tie rule not in reference |
 | `free_goal_multiplier` | 2 | factor | gamelogic.md: score is doubled |
 | `goal_bonus_max` | 500 | points | gamelogic.md: 0 to 500 |
 | `player_goal_check_interval` | 2 | days | gamelogic.md: every 2 game-days |
