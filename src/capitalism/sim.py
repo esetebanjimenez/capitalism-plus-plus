@@ -65,6 +65,7 @@ class Sim:
             target_cities=self.target_cities,
         )
         self.economy = Economy(self.calendar, self.world, self.rng)
+        self.economy.event_frequency = self.setup.event_frequency
         self.gnp_index = 1.0
         self.gnp_history = []
         self.avg_gnp_growth_12m = 0.0
@@ -124,6 +125,7 @@ class Sim:
         if self.calendar.weekday == 5:
             self._hook("weekly_ratings")
         self._hook("random_events")
+        self.economy.events_daily(self.calendar.day_serial)
         self._hook("products")
         product_slot = self.calendar.day_serial % STAGGER_MOD
         self.product_slots_hit.add(product_slot)

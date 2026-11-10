@@ -321,6 +321,31 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `volume_decay_rate` | 0.95 **provisional** | per-day | gamelogic.md Daily price movement |
 | `volume_trade_factor` | 0.1 **provisional** | multiplier | gamelogic.md Price impact |
 
+## 11 — News system
+
+| Key | Value | Units | Reference |
+|---|---|---|---|
+| `buffer_capacity` | 2000 | count | gamelogic.md: circular buffer holding up to 2000 items |
+
+## 11 — Random events
+
+| Key | Value | Units | Reference |
+|---|---|---|---|
+| `blackout_gate` | 0.5 | probability | gamelogic.md: 50pct chance of actually triggering |
+| `blackout_max_loss` | 29 | units | gamelogic.md: loses up to 29 units of inventory |
+| `breakthrough_progress_hi` | 60 | points | gamelogic.md: adds 20 to 60 progress points |
+| `breakthrough_progress_lo` | 20 | points | gamelogic.md: adds 20 to 60 progress points |
+| `destruction_gate` | 0.5 | probability | gamelogic.md: 50pct chance of actually triggering |
+| `disease_divisor_hi` | 5 | ratio | gamelogic.md: dividing capacity by 2 to 5 |
+| `disease_divisor_lo` | 2 | ratio | gamelogic.md: dividing capacity by 2 to 5 |
+| `downturn_gate` | 0.2 | probability | gamelogic.md: 1-in-5 chance of actually triggering |
+| `downturn_loss_hi` | 0.25 | ratio | gamelogic.md: 4 to 25 pct asset reduction |
+| `downturn_loss_lo` | 0.04 | ratio | gamelogic.md: 4 to 25 pct asset reduction |
+| `event_type_count` | 6 | count | gamelogic.md: six event types chosen with equal probability |
+| `freq_high_denominator` | 50 | 1/day | gamelogic.md: 1-in-50 chance each day |
+| `freq_low_denominator` | 200 | 1/day | gamelogic.md: 1-in-200 chance each day |
+| `freq_medium_denominator` | 100 | 1/day | gamelogic.md: 1-in-100 chance each day |
+
 ## City name pool
 
 | Name | Tier | Reference |

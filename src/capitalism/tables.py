@@ -303,6 +303,7 @@ class SetupOptions(BaseModel):
     start_year: int = 1990
     detailed_cities: bool = True
     target_cities: int = Field(default=5, ge=0, le=12)
+    event_frequency: int = Field(default=0, ge=0, le=3)
 
 
 def db_path() -> Path:
@@ -703,6 +704,27 @@ class AIRules(StaticModel):
     bankruptcy_value_threshold: float
 
 
+class NewsRules(StaticModel):
+    buffer_capacity: int
+
+
+class EventRules(StaticModel):
+    freq_low_denominator: int
+    freq_medium_denominator: int
+    freq_high_denominator: int
+    event_type_count: int
+    disease_divisor_lo: int
+    disease_divisor_hi: int
+    destruction_gate: float
+    breakthrough_progress_lo: int
+    breakthrough_progress_hi: int
+    blackout_gate: float
+    blackout_max_loss: int
+    downturn_gate: float
+    downturn_loss_lo: float
+    downturn_loss_hi: float
+
+
 class StockRules(StaticModel):
     initial_price_per_share: float
     momentum_up_step: float
@@ -758,3 +780,5 @@ PERSON_RULES = _rules_model(PersonRules, "persons")
 AI_RULES = _rules_model(AIRules, "ai")
 STOCK_RULES = _rules_model(StockRules, "stock")
 CORPORATION_RULES = _rules_model(CorporationRules, "corporations")
+NEWS_RULES = _rules_model(NewsRules, "news")
+EVENT_RULES = _rules_model(EventRules, "events")
