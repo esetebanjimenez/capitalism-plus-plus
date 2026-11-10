@@ -11,7 +11,7 @@ from enum import IntEnum
 from typing import TYPE_CHECKING
 
 from .jobs import CAT_SALES
-from .tables import FIRM_SECTORS, PRODUCT_CLASSES, SCORING_RULES, SetupOptions
+from .tables import FIRM_SECTORS, JOB_TYPES, PRODUCT_CLASSES, SCORING_RULES, SetupOptions
 
 if TYPE_CHECKING:
     from .economy import Economy
@@ -194,7 +194,7 @@ def _get_player_values(economy: Economy, player_corp_id: int) -> dict[str, float
         for job in firm.jobs():
             employees += getattr(job, "staff", 0)
             p = getattr(job, "product", None)
-            if p is not None:
+            if p is not None and JOB_TYPES[job.type_id].counts_as_produced:
                 product_types.add(p.id)
                 product_classes.add(p.cls.id)
     result["num_employees"] = float(employees)

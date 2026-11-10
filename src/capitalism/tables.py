@@ -246,6 +246,7 @@ class JobTypeRow(StaticModel):
     setup_cost: float
     training_factor: float
     cap_mult: float = Field(gt=0)
+    counts_as_produced: bool
     ref: str
     provisional: frozenset[str] = frozenset()
 
@@ -575,7 +576,8 @@ def load_firm_sectors() -> dict[int, FirmSectorRow]:
 def load_job_types() -> dict[int, JobTypeRow]:
     out: dict[int, JobTypeRow] = {}
     for r in _rows(
-        "SELECT id, name, staff, setup_cost, training_factor, cap_mult, ref, provisional "
+        "SELECT id, name, staff, setup_cost, training_factor, cap_mult, counts_as_produced, ref, "
+        "provisional "
         "FROM job_types ORDER BY id"
     ):
         d = dict(r)
@@ -807,6 +809,7 @@ class ScoringRules(StaticModel):
     goal_bonus_max: int
     dominance_tie_lowest_slot: int = Field(ge=0, le=1)
     sector_share_window_months: int = Field(ge=1, le=1)
+    product_goals_count_own_output: int = Field(ge=1, le=1)
 
 
 class CorporationRules(StaticModel):
