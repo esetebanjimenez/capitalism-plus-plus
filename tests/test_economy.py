@@ -546,7 +546,7 @@ def _run_chain(seed: int = 1, days: int = 120):
 def test_bread_chain_end_to_end_seed_1():  # updated 4b hash also includes the Software catalog row
     sim, chain = _run_chain()
     link = chain.store_link
-    assert sim.state_hash() == ("cc4bd8f097020cdc3b13ab47d9ed0e2168355df4e148c81e2493c80196805c9c")
+    assert sim.state_hash() == ("7bedff5a2ec7cd12e50638d60463e2a8a207954fbdf2c8c8275607a21bd51227")
     assert sum(link.money_month) == pytest.approx(1003123.1072974899, abs=1e-3)
     assert chain.store_sales.unit_cost == pytest.approx(1.5)
     assert link.brand == pytest.approx(11.0, abs=1e-6)

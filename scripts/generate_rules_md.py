@@ -32,6 +32,7 @@ SYSTEM_ORDER = [
     ("corporations", "7 — Corporation financials"),
     ("persons", "8 — Persons"),
     ("ai", "9 — AI corporations"),
+    ("stock", "10 — Stock market"),
 ]
 
 P = " **provisional**"

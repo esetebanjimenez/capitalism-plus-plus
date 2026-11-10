@@ -117,6 +117,8 @@ class Sim:
         self.economy.persons_daily(self.calendar.day_serial)
         self._hook("ai")
         self.economy.ai_daily(self.calendar.day_serial)
+        self._hook("stocks")
+        self.economy.stocks_daily()
         self._towns_daily()
         self._hook("goals")
         if self.calendar.weekday == 5:
@@ -184,7 +186,10 @@ class Sim:
         # 5. Corporations monthly (slice 7)
         self._hook("month_corporations")
         self.economy.corps_monthly()
-        # 6. Firms, jobs and links monthly
+        # 6. Stock monthly
+        self._hook("month_stocks")
+        self.economy.stocks_monthly()
+        # 7. Firms, jobs and links monthly
         self._hook("month_firms_jobs_links")
         self.economy.monthly()
 
@@ -195,6 +200,7 @@ class Sim:
             self.gnp_history.pop(0)
         self.economy.persons_yearly()
         self.economy.corps_yearly()
+        self.economy.stocks_yearly()
         self.economy.yearly()
 
     def state_hash(self) -> str:

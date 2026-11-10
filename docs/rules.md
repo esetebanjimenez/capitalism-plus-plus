@@ -299,6 +299,28 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `template_cost_estimate` | 500000 | dollars | gamelogic.md Firm creation |
 | `vertical_interval` | 60 | days | gamelogic.md Decision schedule |
 
+## 10 — Stock market
+
+| Key | Value | Units | Reference |
+|---|---|---|---|
+| `buyback_float_threshold` | 0.3 **provisional** | fraction | gamelogic.md AI stock trading |
+| `buyback_fraction` | 0.1 **provisional** | fraction | gamelogic.md AI stock trading |
+| `dilution_decay_rate` | 0.95 **provisional** | per-day | gamelogic.md Daily price movement |
+| `dilution_issue_factor` | 0.5 **provisional** | multiplier | gamelogic.md Share issuance |
+| `dividend_max_ratio` | 0.5 **provisional** | fraction | gamelogic.md Dividends |
+| `dividend_min_payout` | 1000 **provisional** | dollars | gamelogic.md Dividends |
+| `impact_factor` | 0.5 **provisional** | multiplier | gamelogic.md Price impact |
+| `initial_price_per_share` | 10 **provisional** | dollars | gamelogic.md Share creation and ownership |
+| `invest_max_fraction` | 0.05 **provisional** | fraction | gamelogic.md AI stock trading |
+| `issuance_momentum_factor` | 0.5 **provisional** | multiplier | gamelogic.md Share issuance |
+| `momentum_clamp` | 0.05 **provisional** | fraction | gamelogic.md Daily price movement |
+| `momentum_down_step` | 0.001 **provisional** | fraction | gamelogic.md Daily price movement |
+| `momentum_up_step` | 0.001 **provisional** | fraction | gamelogic.md Daily price movement |
+| `spike_chance` | 0.005 | probability | gamelogic.md Daily price movement (1/200) |
+| `spike_magnitude` | 0.15 **provisional** | fraction | gamelogic.md Daily price movement |
+| `volume_decay_rate` | 0.95 **provisional** | per-day | gamelogic.md Daily price movement |
+| `volume_trade_factor` | 0.1 **provisional** | multiplier | gamelogic.md Price impact |
+
 ## City name pool
 
 | Name | Tier | Reference |

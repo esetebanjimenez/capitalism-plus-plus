@@ -20,7 +20,8 @@ from .person import (
     Person,
 )
 from .rng import Rng
-from .tables import CORPORATION_RULES, JOB_RULES, PERSON_RULES, PRODUCT_RULES
+from .stock import MAX_CORPS, Stock, daily_price_update, stock_monthly, stock_yearly
+from .tables import CORPORATION_RULES, JOB_RULES, PERSON_RULES, PRODUCT_RULES, STOCK_RULES
 from .world import TileCategory
 
 if TYPE_CHECKING:
@@ -248,6 +249,8 @@ class Economy:
         self.corps: list[Corporation] = []
         self.persons: list[Person | None] = [None] * int(_PR.max_persons)
         self.ai_states: dict[int, object] = {}
+        self.stocks: list[Stock | None] = [None] * MAX_CORPS
+        self.stock_enabled = True
         self.firms: list[Firm | None] = []
         self.market = Market()
         self.interest_rate = _CR.interest_rate_default
@@ -302,6 +305,11 @@ class Economy:
     def add_corp(self, name: str, corp_type: int = CORP_PLAYER) -> Corporation:
         corp = Corporation(len(self.corps), name, corp_type)
         self.corps.append(corp)
+        if corp_type != CORP_GOVERNMENT and self.stock_enabled:
+            initial_value = max(1.0, corp.ledger.cash)
+            stock = Stock(corp.id, initial_value, STOCK_RULES.initial_price_per_share)
+            if corp.id < len(self.stocks):
+                self.stocks[corp.id] = stock
         return corp
 
     def build_firm(
@@ -393,6 +401,19 @@ class Economy:
             if corp.corp_type == CORP_AI:
                 ai_daily(self, corp, day_serial)
 
+    def stocks_daily(self) -> None:
+        """Daily stock price updates for all corporations."""
+        if not self.stock_enabled:
+            return
+        for i, stock in enumerate(self.stocks):
+            if stock is None:
+                continue
+            if i < len(self.corps):
+                earnings = self.corps[i].net_profit
+            else:
+                earnings = 0.0
+            daily_price_update(stock, self.rng, earnings)
+
     def products_daily(self, slot: int) -> None:
         """1/30 of the catalog per day: publish the product score (design.md call 7)."""
         by_product: dict[int, list[TownMarket]] = {}
@@ -445,6 +466,13 @@ class Economy:
         for p in self.catalog.products:
             p.state.max_score_in = best.get(p.id, 0.0)
 
+    def stocks_monthly(self) -> None:
+        if not self.stock_enabled:
+            return
+        for stock in self.stocks:
+            if stock is not None:
+                stock_monthly(stock)
+
     def corps_yearly(self) -> None:
         """Corporation yearly pass — runs before firms yearly."""
         for corp in self.corps:
@@ -452,6 +480,17 @@ class Economy:
         self.interest_rate_history.append(self.interest_rate)
         if len(self.interest_rate_history) > 10:
             self.interest_rate_history.pop(0)
+
+    def stocks_yearly(self) -> None:
+        if not self.stock_enabled:
+            return
+        for i, stock in enumerate(self.stocks):
+            if stock is None:
+                continue
+            earnings = 0.0
+            if i < len(self.corps):
+                earnings = self.corps[i].net_profit
+            stock_yearly(stock, earnings)
 
     def yearly(self) -> None:
         for firm in self.firms:
@@ -530,6 +569,11 @@ class Economy:
                 h.update(b"_")
                 continue
             h.update(struct.pack("<iii", person.id, person.state, person.satisfaction))
+        for stock in self.stocks:
+            if stock is None:
+                h.update(b"~")
+                continue
+            h.update(struct.pack("<id", stock.total_shares, stock.price))
         for link in self.market.links:
             if link is None:
                 h.update(b"-")

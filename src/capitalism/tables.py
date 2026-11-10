@@ -703,6 +703,26 @@ class AIRules(StaticModel):
     bankruptcy_value_threshold: float
 
 
+class StockRules(StaticModel):
+    initial_price_per_share: float
+    momentum_up_step: float
+    momentum_down_step: float
+    momentum_clamp: float
+    spike_chance: float
+    spike_magnitude: float
+    dilution_decay_rate: float
+    volume_decay_rate: float
+    impact_factor: float
+    volume_trade_factor: float
+    dilution_issue_factor: float
+    issuance_momentum_factor: float
+    dividend_min_payout: float
+    dividend_max_ratio: float
+    buyback_float_threshold: float
+    buyback_fraction: float
+    invest_max_fraction: float
+
+
 class CorporationRules(StaticModel):
     interest_rate_default: float
     interest_rate_floor: float
@@ -736,4 +756,5 @@ ADVERTISING_RULES = _rules_model(AdvertisingRules, "advertising")
 SOFTWARE_RULES = _rules_model(SoftwareRules, "software")
 PERSON_RULES = _rules_model(PersonRules, "persons")
 AI_RULES = _rules_model(AIRules, "ai")
+STOCK_RULES = _rules_model(StockRules, "stock")
 CORPORATION_RULES = _rules_model(CorporationRules, "corporations")
