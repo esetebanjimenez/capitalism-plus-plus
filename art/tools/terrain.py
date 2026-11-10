@@ -88,6 +88,19 @@ def shelf(side):  # deep ocean with shallow water on one side
             if t<p+1: a[x,y]=H(C['WATER'])+(255,)
             elif t==p+1: a[x,y]=H(C['DEEP2'])+(255,)
     return im
+BAYER=[[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]]
+def climate_edge(im,a,b):
+    """Dithered band edge: the tile is climate a at the top and fades to climate b at the bottom."""
+    m={H(ca):H(cb) for ca,cb in reversed(list(zip(CLIM[a],CLIM[b])))}
+    if a==0: m.update({H(C['SAND']):H(C['CREAM'])})
+    out=im.copy(); px_=out.load()
+    for y in range(32):
+        t=min(1,max(0,(y-3)/26))
+        for x in range(32):
+            if (BAYER[y%4][x%4]+.5)/16<t:
+                c=px_[x,y][:3]
+                if c in m: px_[x,y]=m[c]+(255,)
+    return out
 def build(out):
     os.makedirs(out,exist_ok=True); frames={}
     def save(name,im):
@@ -97,6 +110,13 @@ def build(out):
     for cl in range(5):
         for v in range(4): save(f'grass_c{cl}_{v}',grass(v,cl)); save(f'forest_c{cl}_{v}',forest(v,cl))
         for v in range(2): save(f'hill_c{cl}_{v}',hill(v,cl))
+    for a in range(5):
+        for b in (a-1,a+1):
+            if 0<=b<5:
+                for v in range(4):
+                    save(f'grass_c{a}c{b}_{v}',climate_edge(grass(v,a),a,b))
+                    save(f'forest_c{a}c{b}_{v}',climate_edge(forest(v,a),a,b))
+                for v in range(2): save(f'hill_c{a}c{b}_{v}',climate_edge(hill(v,a),a,b))
     for m in range(1,16): save(f'coast_{m:02d}',coast(m))
     for d,n in ((1,'ne'),(2,'se'),(4,'sw'),(8,'nw')): save(f'coast_corner_{n}',coast(0,d))
     for s in 'NESW': save(f'shelf_{s.lower()}',shelf(s))
