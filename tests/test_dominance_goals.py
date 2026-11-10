@@ -20,15 +20,26 @@ def _chain(days: int = 70):
     return sim
 
 
-def test_every_firm_type_but_seaport_has_a_sector():
-    names = {FIRM_TYPES[t].name for t in FIRM_TYPES if t not in FIRM_SECTORS}
-    assert names == {"Seaport"}
-    assert {r.sector for r in FIRM_SECTORS.values()} == {0, 1, 2, 3}
+def test_sectors_match_native_mapping():
+    by_sector: dict[int, set[str]] = {}
+    for t, r in FIRM_SECTORS.items():
+        by_sector.setdefault(r.sector, set()).add(FIRM_TYPES[t].name)
+    assert by_sector == {
+        0: {"Department Store"},
+        1: {"Factory"},
+        2: {"Farm"},
+        3: {"Logging Camp", "Mine", "Oil Well"},
+    }
+    assert sorted(FIRM_SECTORS) == [1, 2, 4, 5, 6, 7]  # native type codes
 
 
-def test_leads_needs_strict_positive_lead():
+def test_tie_goes_to_lowest_corp_slot():
     assert leads({0: 2.0, 1: 1.0}, 0)
-    assert not leads({0: 1.0, 1: 1.0}, 0)
+    assert leads({0: 1.0, 1: 1.0}, 0)
+    assert not leads({0: 1.0, 1: 1.0}, 1)
+    assert leads({1: 1.0, 2: 1.0}, 1)
+    assert not leads({0: 1.0, 1: 2.0}, 0)
+    assert not leads({0: 0.0, 1: 0.0}, 0)
     assert not leads({1: 1.0}, 0)
     assert not leads({}, 0)
 
@@ -36,7 +47,7 @@ def test_leads_needs_strict_positive_lead():
 def test_sector_dominance_scenario_is_won():
     sim = _chain(0)
     corp = sim.economy.corps[0].id
-    sim.goal_config.sector_goals[0] = True  # retail: the department store
+    sim.goal_config.sector_goals[0] = True  # sector 1: department stores
     sim.goal_checker.player_corp_id = corp
     sim.advance_days(70)
     assert leads(sector_shares(sim.economy)[0], corp)
@@ -47,7 +58,7 @@ def test_sector_without_player_revenue_is_not_met():
     sim = _chain()
     corp = sim.economy.corps[0].id
     goals = sim.goal_config
-    goals.sector_goals[3] = True  # media: the player owns none
+    goals.sector_goals[3] = True  # sector 4: the player owns no logging camp, mine or oil well
     all_met, results = check_goals(goals, sim.economy, corp)
     assert not all_met
     assert results["sector_3"] == (0.0, 0.0, False)

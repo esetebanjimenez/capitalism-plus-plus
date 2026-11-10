@@ -288,15 +288,24 @@ def share_row(by_corp: dict[int, float], corp_id: int) -> tuple[float, float, bo
     """Goal row ``(target, current, met)`` for one dominance comparison.
 
     current is the corp's share in percent, target is the best rival's share.
-    The corp leads with a positive share above every rival; a tie counts as a
-    lead only when the provisional ``dominance_tie_is_lead`` rule is 1.
+    Native rule (Researcher report, FUN_00026e8c / FUN_00027085): corp slots
+    are scanned in order and the leader is replaced only by a strictly higher
+    share, so with ``dominance_tie_lowest_slot`` a tie goes to the lowest
+    corp id. A share of 0 has no leader. With the flag at 0 a tie leads no one.
     """
     total = sum(v for v in by_corp.values() if v > 0)
     if total <= 0:
         return (0.0, 0.0, False)
     mine = max(by_corp.get(corp_id, 0.0), 0.0) * 100.0 / total
     rival = max((v * 100.0 / total for c, v in by_corp.items() if c != corp_id), default=0.0)
-    met = mine > 0 and (mine >= rival if _SR.dominance_tie_is_lead else mine > rival)
+    if _SR.dominance_tie_lowest_slot:
+        leader, best = None, 0.0
+        for c in sorted(by_corp):
+            if by_corp[c] > best:
+                leader, best = c, by_corp[c]
+        met = leader == corp_id
+    else:
+        met = mine > 0 and mine > rival
     return (rival, mine, met)
 
 
