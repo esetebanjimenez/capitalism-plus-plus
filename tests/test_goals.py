@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from capitalism.goals import (
     GameResult,
     GoalChecker,
@@ -279,7 +278,7 @@ class TestSetupOptions:
         assert opts.goal_score_bonus == 250
 
     def test_goal_score_bonus_range(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             SetupOptions(goal_score_bonus=501)
 
     def test_is_scenario(self):

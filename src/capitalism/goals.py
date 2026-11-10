@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from .tables import SCORING_RULES, SetupOptions
 
 if TYPE_CHECKING:
-    from .economy import Corporation, Economy
+    from .economy import Economy
 
 _SR = SCORING_RULES
 
@@ -136,7 +136,6 @@ def _get_player_values(economy: Economy, player_corp_id: int) -> dict[str, float
             "num_product_classes", "num_product_types",
         )}
 
-    ledger = player_corp.ledger
     nw = player_corp.net_worth(economy.firms)
     result["personal_wealth"] = nw
     result["corp_net_worth"] = nw / 1_000_000.0
