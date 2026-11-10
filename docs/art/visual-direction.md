@@ -190,3 +190,28 @@ phone mock at its real size is
 The sprites and icons were drafted with image generation, then reduced to the
 native grid and mapped onto the shared palette. Production redraws and cleans
 them by hand to the same rules.
+
+---
+
+# Concept B2: B at double detail, drawn to the Producer's spec
+
+Concept sheet: [`concept-sheet-b2.png`](concept-sheet-b2.png). The sample map
+at phone zoom (360 × 640, 1×) is [`concept-b2-phone.png`](concept-b2-phone.png).
+
+- **View.** Straight overhead, like B. Only roofs, yards and pads are visible,
+  with no walls or front faces. This is the difference from B+.
+- **Sizes.** Terrain, town tiles and the 14 firm sprites are drawn pixel by
+  pixel at a native 32 × 32. Job icons are a native 48 × 48 grid. The sheet
+  only enlarges them by whole numbers.
+- **Palette.** Exactly 32 colours: B's 16 plus 16 shade and highlight tones.
+  Every pixel on the sheet is one of them, and the hex values are on the sheet.
+- **Rendering.** Hard pixels and flat fills. The shadow falls to the
+  bottom-right.
+- **Phone zoom.** At 1× a phone shows about 11 tiles across. 2× enlarges the
+  same pixels. The overview stays the 1 px-per-tile view from #37.
+- **Icons.** They were drafted with image generation, then reduced to the
+  48 px grid and snapped to the palette. Production cleans them up pixel by
+  pixel.
+
+B+ stays on the PR for reference. It's the same idea, but with a thin front
+wall on buildings and 48 colours.
