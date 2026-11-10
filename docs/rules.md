@@ -734,6 +734,24 @@ Reference: docs/recipes.md — 1STD.SET METHOD. Speed is a throughput multiplier
 | 13 | Newspaper Publisher | 10000000 | 200000 | 0 | no | no **p** | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
 | 14 | Seaport | 0 | 0 | 0 **p** | no | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
 
+## Firm sectors (sector dominance goals)
+
+| Firm type | Name | Sector | Sector name | Reference |
+|---|---|---|---|---|
+| 1 | Department Store | 0 **p** | Retail | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
+| 2 | Factory | 1 **p** | Manufacturing and technology | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
+| 3 | R&D Center | 1 **p** | Manufacturing and technology | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
+| 4 | Farm | 2 **p** | Natural resources | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
+| 5 | Logging Camp | 2 **p** | Natural resources | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
+| 6 | Mine | 2 **p** | Natural resources | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
+| 7 | Oil Well | 2 **p** | Natural resources | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
+| 8 | Software Developer | 1 **p** | Manufacturing and technology | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
+| 9 | Software Publisher | 1 **p** | Manufacturing and technology | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
+| 10 | Restaurant | 0 **p** | Retail | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
+| 11 | Television Station | 3 **p** | Media | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
+| 12 | Radio Station | 3 **p** | Media | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
+| 13 | Newspaper Publisher | 3 **p** | Media | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
+
 ## Job types
 
 | Id | Name | Staff | Setup cost | Training factor | Capacity mult | Units | Reference |

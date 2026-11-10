@@ -10,7 +10,8 @@ from __future__ import annotations
 from enum import IntEnum
 from typing import TYPE_CHECKING
 
-from .tables import SCORING_RULES, SetupOptions
+from .jobs import CAT_SALES
+from .tables import FIRM_SECTORS, PRODUCT_CLASSES, SCORING_RULES, SetupOptions
 
 if TYPE_CHECKING:
     from .economy import Economy
@@ -24,6 +25,7 @@ N_SECTORS = 4
 # Goal result
 # ---------------------------------------------------------------------------
 
+
 class GameResult(IntEnum):
     IN_PROGRESS = 0
     VICTORY = 1
@@ -34,6 +36,7 @@ class GameResult(IntEnum):
 # ---------------------------------------------------------------------------
 # Goal configuration
 # ---------------------------------------------------------------------------
+
 
 class GoalConfig:
     """All 17 numeric targets + dominance toggles."""
@@ -113,6 +116,7 @@ class GoalConfig:
 # Goal evaluation
 # ---------------------------------------------------------------------------
 
+
 def _get_player_values(economy: Economy, player_corp_id: int) -> dict[str, float]:
     """Gather current values for all goal metrics."""
     corps = economy.corps
@@ -125,16 +129,28 @@ def _get_player_values(economy: Economy, player_corp_id: int) -> dict[str, float
     result: dict[str, float] = {}
 
     if player_corp is None:
-        return {k: 0.0 for k in (
-            "personal_wealth", "corp_net_worth", "corp_market_value",
-            "corp_annual_revenue", "corp_annual_op_profit",
-            "controlled_net_worth", "controlled_market_value",
-            "controlled_annual_revenue", "controlled_annual_op_profit",
-            "num_companies_controlled", "num_employees",
-            "op_profit_margin", "return_on_equity",
-            "stock_price", "ownership_pct",
-            "num_product_classes", "num_product_types",
-        )}
+        return {
+            k: 0.0
+            for k in (
+                "personal_wealth",
+                "corp_net_worth",
+                "corp_market_value",
+                "corp_annual_revenue",
+                "corp_annual_op_profit",
+                "controlled_net_worth",
+                "controlled_market_value",
+                "controlled_annual_revenue",
+                "controlled_annual_op_profit",
+                "num_companies_controlled",
+                "num_employees",
+                "op_profit_margin",
+                "return_on_equity",
+                "stock_price",
+                "ownership_pct",
+                "num_product_classes",
+                "num_product_types",
+            )
+        }
 
     nw = player_corp.net_worth(economy.firms)
     result["personal_wealth"] = nw
@@ -237,24 +253,87 @@ def check_goals(
         if not met:
             all_met = False
 
-    for i, enabled in enumerate(goals.sector_goals):
-        if not enabled:
-            continue
-        results[f"sector_{i}"] = (1.0, 0.0, False)
-        all_met = False
+    if any(goals.sector_goals):
+        shares = sector_shares(economy)
+        for i, enabled in enumerate(goals.sector_goals):
+            if not enabled:
+                continue
+            met = leads(shares.get(i, {}), player_corp_id)
+            results[f"sector_{i}"] = (1.0, 1.0 if met else 0.0, met)
+            all_met = all_met and met
 
-    for i, enabled in enumerate(goals.industry_goals):
-        if not enabled:
-            continue
-        results[f"industry_{i}"] = (1.0, 0.0, False)
-        all_met = False
+    if any(goals.industry_goals):
+        class_ids = sorted(PRODUCT_CLASSES)
+        shares = product_shares(economy)
+        for i, enabled in enumerate(goals.industry_goals):
+            if not enabled:
+                continue
+            met = i < len(class_ids) and industry_led(economy, shares, class_ids[i], player_corp_id)
+            results[f"industry_{i}"] = (1.0, 1.0 if met else 0.0, met)
+            all_met = all_met and met
 
     return all_met, results
 
 
 # ---------------------------------------------------------------------------
+# Dominance (gamelogic.md Sector dominance, Industry dominance)
+# ---------------------------------------------------------------------------
+
+
+def leads(by_corp: dict[int, float], corp_id: int) -> bool:
+    """True when ``corp_id`` has a positive share strictly above every other corp.
+
+    A tie for first is not a lead (provisional: the reference does not say).
+    """
+    mine = by_corp.get(corp_id, 0.0)
+    return mine > 0 and all(v < mine for c, v in by_corp.items() if c != corp_id)
+
+
+def sector_shares(economy: Economy) -> dict[int, dict[int, float]]:
+    """Last completed month's sales revenue per sector, per owning corp."""
+    out: dict[int, dict[int, float]] = {}
+    for firm in economy.firms:
+        if firm is None or firm.owner is None:
+            continue
+        row = FIRM_SECTORS.get(firm.type_id)
+        if row is None:
+            continue
+        rev = firm.ledger.last_month[CAT_SALES]
+        if rev:
+            d = out.setdefault(row.sector, {})
+            d[firm.owner.id] = d.get(firm.owner.id, 0.0) + rev
+    return out
+
+
+def product_shares(economy: Economy) -> dict[int, dict[int, float]]:
+    """Market share per product: link quantity summed by the seller's corp.
+
+    gamelogic.md recomputes market share by summing quantities across all
+    links for each product, grouped by corporation. Unowned sellers (seaport
+    imports) count for no corp.
+    """
+    out: dict[int, dict[int, float]] = {}
+    for link in economy.market.live_links():
+        owner = link.seller.firm.owner
+        if owner is None or link.quantity <= 0:
+            continue
+        d = out.setdefault(link.product.id, {})
+        d[owner.id] = d.get(owner.id, 0.0) + link.quantity
+    return out
+
+
+def industry_led(
+    economy: Economy, shares: dict[int, dict[int, float]], class_id: int, corp_id: int
+) -> bool:
+    """The corp leads every product type in the class (any product led by others fails)."""
+    products = [p for p in economy.catalog.products if p.cls.id == class_id]
+    return bool(products) and all(leads(shares.get(p.id, {}), corp_id) for p in products)
+
+
+# ---------------------------------------------------------------------------
 # Goal checker (called from sim)
 # ---------------------------------------------------------------------------
+
 
 class GoalChecker:
     """Periodic goal evaluation integrated into the sim day order."""
@@ -324,6 +403,7 @@ class GoalChecker:
 # Difficulty rating
 # ---------------------------------------------------------------------------
 
+
 def compute_difficulty_rating(setup: SetupOptions) -> int:
     """Compute the 1–200+ difficulty rating from setup options."""
     s = _SR
@@ -361,6 +441,7 @@ def compute_difficulty_rating(setup: SetupOptions) -> int:
 # ---------------------------------------------------------------------------
 # Final scoring
 # ---------------------------------------------------------------------------
+
 
 def compute_final_score(
     setup: SetupOptions,
