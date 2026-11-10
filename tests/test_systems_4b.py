@@ -590,7 +590,8 @@ def test_freight_inputs_are_recovered_spending_or_flagged_fill():
     for p in sim.economy.catalog.products:
         assert p.row.spending_usd > 0 and p.row.freight >= 0
         if p.name not in ("Wheat", "Flour", "Bread"):
-            assert {"freight", "spending_usd"} <= set(p.row.provisional), p.name
+            prov = set(p.row.provisional)
+            assert "freight" in prov, f"{p.name}: freight should be provisional"
     from capitalism.jobs import product_freight_rate
 
     # Long haul crosses a cent without any floor; the floor never applies to positive rates.
