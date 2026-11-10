@@ -15,6 +15,7 @@ from .catalog import Catalog, Product, TownMarket
 from .firms import FIRM_CLASSES, N_CATEGORIES, OPERATING_CATEGORIES, Firm, Ledger, MediaFirm
 from .jobs import CAT_LOAN_INTEREST, CAT_SALES
 from .links import Market
+from .news import NewsLog, random_events_daily
 from .person import (
     STATE_ACTIVE,
     Person,
@@ -251,6 +252,8 @@ class Economy:
         self.ai_states: dict[int, object] = {}
         self.stocks: list[Stock | None] = [None] * MAX_CORPS
         self.stock_enabled = True
+        self.news_log = NewsLog()
+        self.event_frequency = 0
         self.firms: list[Firm | None] = []
         self.market = Market()
         self.interest_rate = _CR.interest_rate_default
@@ -414,6 +417,17 @@ class Economy:
                 earnings = 0.0
             daily_price_update(stock, self.rng, earnings)
 
+    def events_daily(self, day_serial: int) -> None:
+        """Roll for a random event (system 11)."""
+        random_events_daily(
+            self.rng,
+            self.event_frequency,
+            day_serial,
+            self.news_log,
+            self.corps,
+            self.firms,
+        )
+
     def products_daily(self, slot: int) -> None:
         """1/30 of the catalog per day: publish the product score (design.md call 7)."""
         by_product: dict[int, list[TownMarket]] = {}
@@ -574,6 +588,8 @@ class Economy:
                 h.update(b"~")
                 continue
             h.update(struct.pack("<id", stock.total_shares, stock.price))
+        h.update(struct.pack("<i", len(self.news_log)))
+        h.update(struct.pack("<i", self.event_frequency))
         for link in self.market.links:
             if link is None:
                 h.update(b"-")

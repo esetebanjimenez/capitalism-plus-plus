@@ -33,6 +33,8 @@ SYSTEM_ORDER = [
     ("persons", "8 — Persons"),
     ("ai", "9 — AI corporations"),
     ("stock", "10 — Stock market"),
+    ("news", "11 — News system"),
+    ("events", "11 — Random events"),
 ]
 
 P = " **provisional**"
