@@ -299,13 +299,7 @@ class Manufacturing(Job):
         if p is None or self.room <= 0 or (recipe := eco.catalog.recipe(p)) is None:
             return False
         cycles = min(self.cycles_per_day(recipe), int(self.room // recipe.output_qty))
-        done = 0
-        for _ in range(cycles):
-            if any(self.inputs.get(i.input_id, (0.0,))[0] < i.qty for i in recipe.inputs):
-                break
-            done += 1
-            for i in recipe.inputs:
-                self.inputs[i.input_id][0] -= i.qty
+        done = _consume_cycles(self.inputs, recipe.inputs, cycles)
         if done:
             quals = {i.input_id: self.inputs[i.input_id][1] for i in recipe.inputs}
             material = sum(i.qty * self.inputs[i.input_id][2] for i in recipe.inputs) * done
@@ -632,7 +626,11 @@ class SoftwareProduction(Job):
         if age <= r.software_gate_max_age_days:
             return
         window = r.software_gate_no_revenue_months
-        recent_revenue = sum(self.revenue_months[-window:]) if window <= len(self.revenue_months) else sum(self.revenue_months)
+        recent_revenue = (
+            sum(self.revenue_months[-window:])
+            if window <= len(self.revenue_months)
+            else sum(self.revenue_months)
+        )
         if recent_revenue > 0:
             return
         new_product = self._select_new_product(eco)
@@ -652,11 +650,7 @@ class SoftwareProduction(Job):
                 continue
             if p is self.product:
                 continue
-            demand = sum(
-                tm.demand_per_day
-                for tm in eco.market.towns.values()
-                if tm.product is p
-            )
+            demand = sum(tm.demand_per_day for tm in eco.market.towns.values() if tm.product is p)
             supply = sum(
                 j.stock
                 for f in eco.firms
@@ -833,3 +827,45 @@ __all__ = [
     "efficiency",
     "job_wage_day",
 ]
+
+
+def _consume_cycles(stock: dict, inputs, cycles: int) -> int:
+    """Run up to ``cycles`` production cycles, taking each input's ``qty`` per cycle.
+
+    Same result as checking and subtracting one cycle at a time. When every
+    stock and qty is a whole number (exact in float), the count and the
+    remaining stock are computed in one step; otherwise it falls back to the
+    per-cycle loop so float results match bit for bit.
+    """
+    if cycles <= 0:
+        return 0
+    exact = True
+    done = cycles
+    for i in inputs:
+        entry = stock.get(i.input_id)
+        have = entry[0] if entry is not None else 0.0
+        q = i.qty
+        if not (
+            q > 0
+            and float(have).is_integer()
+            and float(q).is_integer()
+            and abs(have) < 2**52
+            and q < 2**52
+        ):
+            exact = False
+            break
+        n = int(have // q) if have >= q else 0
+        done = min(done, n)
+    if exact:
+        if done:
+            for i in inputs:
+                stock[i.input_id][0] -= i.qty * done
+        return done
+    done = 0
+    for _ in range(cycles):
+        if any(stock.get(i.input_id, (0.0,))[0] < i.qty for i in inputs):
+            break
+        done += 1
+        for i in inputs:
+            stock[i.input_id][0] -= i.qty
+    return done
