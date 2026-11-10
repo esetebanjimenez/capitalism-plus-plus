@@ -162,3 +162,31 @@ How B differs from A:
   Import's container ship is drawn in B.
 
 Esteban picks A or B, or a mix, before any production starts.
+
+---
+
+# Concept B+: B at higher resolution (Esteban asked for this)
+
+Concept sheet: [`concept-sheet-b-plus.png`](concept-sheet-b-plus.png). The
+phone mock at its real size is
+[`concept-b-plus-phone.png`](concept-b-plus-phone.png).
+
+- **Same look as B.** The map is seen from overhead with hard pixels and flat
+  fills, plus one shade and one highlight tone. Nothing is blurred or
+  gradient-shaded.
+- **Twice the pixels.** Terrain tiles and firm sprites are a native 32 × 32,
+  and UI icons are a native 48 × 48. The icons are shown at 1× on a phone,
+  which keeps 48 px tap targets without scaling.
+- **Buildings** show their roof plus a thin front edge, which makes them easier
+  to read at 32 px. B stays roofs-only if Esteban prefers that.
+- **Palette.** 48 colours, made of B's 16 plus shade and highlight tones.
+  Production keeps it as one shared palette.
+- **Map zoom.** At 1× a phone shows about 11 tiles across. 2× enlarges the same
+  pixels. A zoomed-out overview, if we want one, would be a separate minimap
+  layer rather than downscaled sprites.
+- **Cost.** About 4× the pixels per asset compared with B, with the same asset
+  list.
+
+The sprites and icons were drafted with image generation, then reduced to the
+native grid and mapped onto the shared palette. Production redraws and cleans
+them by hand to the same rules.
