@@ -32,7 +32,9 @@ TIE_REF = (
     "Researcher report: CAPPLUS.EXE FUN_00026e8c (sector) and FUN_00027085 (product type) "
     "scan corp slots in order, replace the leader only on a strictly higher share; "
     "share 0 has no leader. FUN_0002713c: industry needs the lead in every product type. "
-    "The player is corp 0, so the player wins every tie"
+    "Native player slot is a variable (DAT_000b1aab, set by FUN_000214eb, the hot-seat "
+    "picker); the single-player slot is unconfirmed. Here the player is corp 0, created "
+    "before any AI corp, so in this build the player wins ties"
 )
 
 

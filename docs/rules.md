@@ -364,7 +364,7 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `difficulty_scale_denominator` | 212 | ratio | gamelogic.md: multiplied by 200/212 |
 | `difficulty_scale_numerator` | 200 | ratio | gamelogic.md: multiplied by 200/212 |
 | `difficulty_secrets_penalty` | 15 | points | gamelogic.md: +15 if trade secrets hidden |
-| `dominance_tie_lowest_slot` | 1 | flag (0 or 1) | Researcher report: CAPPLUS.EXE FUN_00026e8c (sector) and FUN_00027085 (product type) scan corp slots in order, replace the leader only on a strictly higher share; share 0 has no leader. FUN_0002713c: industry needs the lead in every product type. The player is corp 0, so the player wins every tie |
+| `dominance_tie_lowest_slot` | 1 | flag (0 or 1) | Researcher report: CAPPLUS.EXE FUN_00026e8c (sector) and FUN_00027085 (product type) scan corp slots in order, replace the leader only on a strictly higher share; share 0 has no leader. FUN_0002713c: industry needs the lead in every product type. Native player slot is a variable (DAT_000b1aab, set by FUN_000214eb, the hot-seat picker); the single-player slot is unconfirmed. Here the player is corp 0, created before any AI corp, so in this build the player wins ties |
 | `free_goal_multiplier` | 2 | factor | gamelogic.md: score is doubled |
 | `goal_bonus_max` | 500 | points | gamelogic.md: 0 to 500 |
 | `player_goal_check_interval` | 2 | days | gamelogic.md: every 2 game-days |
