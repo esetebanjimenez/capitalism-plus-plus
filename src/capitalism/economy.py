@@ -15,12 +15,12 @@ from .catalog import Catalog, Product, TownMarket
 from .firms import FIRM_CLASSES, N_CATEGORIES, OPERATING_CATEGORIES, Firm, Ledger, MediaFirm
 from .jobs import CAT_LOAN_INTEREST, CAT_SALES
 from .links import Market
+from .news import NewsLog, random_events_daily
 from .person import (
     STATE_ACTIVE,
     Person,
 )
 from .rng import Rng
-from .news import NewsLog, random_events_daily
 from .stock import MAX_CORPS, Stock, daily_price_update, stock_monthly, stock_yearly
 from .tables import CORPORATION_RULES, JOB_RULES, PERSON_RULES, PRODUCT_RULES, STOCK_RULES
 from .world import TileCategory
