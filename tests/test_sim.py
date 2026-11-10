@@ -8,7 +8,7 @@ from capitalism.calendar import Calendar, day_serial_of, real_days_in_month
 from capitalism.rng import Rng
 from capitalism.tables import CITY_NAME_POOL, LAND_VALUE, MAP_RULES, TIER_GNP
 from capitalism.town import level_for_population, level_up_population, population_for_level
-from capitalism.world import MIN_LAND_TILES, TileCategory, generate_world
+from capitalism.world import MIN_LAND_TILES, Tile, TileCategory, World
 
 
 def test_tables_load_from_sqlite():
@@ -155,7 +155,7 @@ def test_level_thresholds_match_design():
 
 def test_map_shape_and_cities_seed_range():
     for seed in range(1, 51):
-        world = generate_world(Rng(seed), target_cities=5)
+        world = World.generate(Rng(seed), target_cities=5)
         assert world.width == 240 and world.height == 198
         land = sum(
             1
@@ -181,8 +181,8 @@ def test_map_shape_and_cities_seed_range():
 
 
 def test_map_determinism():
-    a = generate_world(Rng(42), target_cities=5)
-    b = generate_world(Rng(42), target_cities=5)
+    a = World.generate(Rng(42), target_cities=5)
+    b = World.generate(Rng(42), target_cities=5)
     assert [t.height for t in a.tiles[::100]] == [t.height for t in b.tiles[::100]]
     assert [(t.name, t.x, t.y) for t in a.towns] == [(t.name, t.x, t.y) for t in b.towns]
 
@@ -295,3 +295,26 @@ def test_rules_md_matches_database():
         text=True,
     )
     assert r.returncode == 0, r.stderr
+
+
+def test_world_subclass_replaces_terrain_and_build_rule():
+    class Scorched(World):
+        def _build_terrain(self, rng: Rng) -> None:
+            self.equator_row = 99
+            self.tiles = [
+                Tile(kind=TileCategory.FOREST_HILL, height=220.0)
+                for _ in range(self.width * self.height)
+            ]
+
+        def can_build(self, x: int, y: int) -> bool:
+            return False
+
+    world = Scorched.generate(Rng(1), target_cities=0)
+    assert isinstance(world, Scorched)
+    assert world.towns == []
+    assert all(t.kind == TileCategory.FOREST_HILL for t in world.tiles)
+    assert world.can_build(10, 10) is False
+
+    sim = Sim(seed=1, target_cities=1, world_cls=Scorched)
+    assert isinstance(sim.world, Scorched)
+    assert sim.world.can_build(0, 0) is False

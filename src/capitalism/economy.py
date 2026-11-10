@@ -309,14 +309,9 @@ class Economy:
     ) -> Firm:
         if firm_type not in FIRM_CLASSES:
             raise NotImplementedError(f"firm type {firm_type} lands in systems 4b")
-        tile = self.world.tile_at(x, y)
-        if tile.kind in (
-            TileCategory.TOWN,
-            TileCategory.FIRM,
-            TileCategory.WATER,
-            TileCategory.DEEP_OCEAN,
-        ):
+        if not self.world.can_build(x, y):
             raise ValueError(f"tile ({x},{y}) is not free land")
+        tile = self.world.tile_at(x, y)
         slot = next((i for i, f in enumerate(self.firms) if f is None), len(self.firms))
         firm = FIRM_CLASSES[firm_type](
             slot, owner, x, y, tile, town, self.world.land_value(x, y), self.calendar.day_serial

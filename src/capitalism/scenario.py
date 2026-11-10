@@ -9,17 +9,14 @@ from .jobs import CAT_FREIGHT, CAT_OVERHEAD, CAT_SALARIES, CAT_TRAINING, Job
 from .links import Link
 from .sim import Sim
 from .town import Town
-from .world import TileCategory
 
 # Firm and job type ids (firm_types / job_types tables).
 DEPARTMENT_STORE, FACTORY, FARM, SEAPORT = 1, 2, 4, 14
 CROP, INVENTORY, MANUFACTURING, PURCHASING, SALES, IMPORT = 1, 5, 7, 10, 12, 16
 
-FREE_LAND = (TileCategory.GRASSLAND, TileCategory.FOREST_HILL)
-
 
 def find_site(sim: Sim, town: Town, min_dist: int | None = None) -> tuple[int, int]:
-    """First free land tile outside the town footprint, scanning rings outward."""
+    """First buildable tile outside the town footprint, scanning rings outward."""
     world = sim.world
     start = town.level + 5 if min_dist is None else min_dist
     for d in range(start, max(world.width, world.height)):
@@ -27,10 +24,8 @@ def find_site(sim: Sim, town: Town, min_dist: int | None = None) -> tuple[int, i
             for dx in range(-d, d + 1):
                 if max(abs(dx), abs(dy)) != d:
                     continue
-                x, y = town.x + dx, town.y + dy
-                inside = 0 <= x < world.width and 0 <= y < world.height
-                if inside and world.tile_at(x, y).kind in FREE_LAND:
-                    return x, y
+                if world.can_build(town.x + dx, town.y + dy):
+                    return town.x + dx, town.y + dy
     raise RuntimeError("no free land")
 
 
