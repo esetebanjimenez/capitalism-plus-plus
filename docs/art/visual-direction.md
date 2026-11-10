@@ -4,6 +4,35 @@
 buildings.** Production follows the B+ section below. A, B and B2 stay in this
 doc for reference only.
 
+## Production asset list (B+)
+
+Every asset is original, drawn on the native grid with hard pixels from the
+shared B+ palette (48 colours), and enlarged only by whole numbers. Nothing
+comes from the original game. Generated drafts are allowed only as a starting
+point, and every asset gets a pixel-by-pixel cleanup.
+
+| Group | Size | Assets |
+|---|---|---|
+| Deep ocean | 32 px | 3 variants |
+| Water | 32 px | 3 variants |
+| Coast | 32 px | 16-piece autotile (edges plus inner and outer corners) for water against land, and 4 pieces for deep against shallow water |
+| Grassland | 32 px | 4 variants × 5 climate tints (palette swap from the poles to the equator) |
+| Forest/hill | 32 px | 4 variants, plus 4 edge pieces where forest meets grass |
+| Town roads | 32 px | straight horizontal and vertical, crossing, T-junctions (4), corners (4), dead ends (4) |
+| Town blocks | 32 px | 4 roof styles × 3 heights by town level, plus a park and a plaza |
+| Firms | 32 px | 14 sprites with a thin front edge and roof symbol, plus construction-site and for-sale overlays |
+| Owner flags | 6 × 5 px | 12 corporation colours (orange is the player) |
+| Selection | 32 px | tile highlight, link path dot, and range ring piece |
+| Job icons | 48 px | 16 |
+| Firm icons | 48 px | 14, for lists and the panel header |
+| Dock icons | 24 px | Map, Company, Stocks, News, Goals (normal and active) |
+| Status icons | 24 px | about 12, such as profit up or down, low stock, no staff, quality, brand, news, alert and goal met |
+| UI | — | cream panel nine-slice, bottom-sheet handle, primary and secondary buttons, slot cell (empty, filled, selected), link connector, close button |
+
+The delivery is one 2048 × 2048 atlas PNG plus a JSON frame list, which fits
+#37's atlas build. Order of work: terrain and town tiles, the 14 firm sprites,
+then the icons and UI.
+
 Concept sheet: [`concept-sheet-a.png`](concept-sheet-a.png). The art is all
 original. Nothing in it is extracted or traced from the original game. No asset
 production starts until this is approved.
