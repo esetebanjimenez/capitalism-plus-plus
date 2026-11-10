@@ -111,3 +111,54 @@ Link arrows between slots use ink at 2 px, and signal orange when selected.
 - Firms: 14 sprites and 14 icons
 - Jobs: 16 icons
 - UI: panel nine-slice, buttons, dock icons, about 10 status icons
+
+---
+
+# Concept B: straight top-down with hard pixels (to compare with A)
+
+Concept sheet: [`concept-sheet-b.png`](concept-sheet-b.png). The phone mock at
+its real size (360 × 640) is [`concept-b-phone.png`](concept-b-phone.png).
+B is drawn as real pixel art, not painted. Every tile and sprite is a native
+16 × 16, every icon is a native 24 × 24, and the sheet only enlarges them by
+whole numbers.
+
+How B differs from A:
+
+- **View.** Everything is seen from straight above, both terrain and
+  buildings. You see roofs, yards and pads, with no walls and no 3/4 angle. A
+  firm is told apart by its roof colour plus a roof symbol, such as the
+  store's awning stripes, the factory's sawtooth roof and chimneys, the mine
+  pit, the radio mast's guy wires or the port's containers.
+- **Rendering.** Hard pixels and flat fills only, with no gradients,
+  anti-aliasing or painted shading. Icons get a 1 px ink outline.
+- **Palette.** 16 colours. That's A's 12 plus a foam, a dark grass, a light
+  grey and a wood brown, and nothing off-palette.
+
+| Name | Hex | Name | Hex |
+|---|---|---|---|
+| Ink | `#22262e` | Grass dark | `#4a8030` |
+| Navy (deep ocean) | `#14234a` | Forest | `#2f5e2a` |
+| Water | `#2a7f9e` | Asphalt | `#7a8088` |
+| Foam | `#9fd3d8` | Light grey | `#b8bcc0` |
+| Sand | `#e8d6a0` | Glass | `#3b6db3` |
+| Grass | `#5f9e3a` | Cream (panels) | `#f6ecd4` |
+| Orange (player, accent) | `#e8742a` | Green (profit) | `#3aa05a` |
+| Red (loss) | `#c8402e` | Brown (wood, soil) | `#8a5a32` |
+
+- **Map at zoom 1×** fits about 22 tiles across a phone screen. Zoom 2× and
+  3× are the same pixels enlarged.
+- **Owner flag.** A 3 × 3 px flag sits in the top-right corner of the firm
+  tile. In the mock, orange is the player and red and blue are rivals.
+  Production adds the rest of the 12 corp colours.
+- **Coast.** Water tiles that touch land get a sand edge and a foam edge.
+  Production adds the inner and outer corner pieces to make the full 16-piece
+  set.
+- **Panels.** Same cream cards as A. The dock is Map, Company, Stocks, News
+  and Goals, following the Game Designer's UX spec. Firm detail opens as a
+  bottom sheet with the 3 × 3 slot grid. Links are orange connectors between
+  slots.
+- **Coverage.** The same as A: terrain and coast, the town road grid, owner
+  flags, all 14 firm types, all 16 job icons, the palette and a panel mock.
+  Import's container ship is drawn in B.
+
+Esteban picks A or B, or a mix, before any production starts.
