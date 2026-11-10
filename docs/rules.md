@@ -364,12 +364,13 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `difficulty_scale_denominator` | 212 | ratio | gamelogic.md: multiplied by 200/212 |
 | `difficulty_scale_numerator` | 200 | ratio | gamelogic.md: multiplied by 200/212 |
 | `difficulty_secrets_penalty` | 15 | points | gamelogic.md: +15 if trade secrets hidden |
-| `dominance_tie_is_lead` | 0 **provisional** | flag (0 or 1) | Sector dominance / Industry dominance: tie rule not in reference |
+| `dominance_tie_lowest_slot` | 1 | flag (0 or 1) | Researcher report: CAPPLUS.EXE FUN_00026e8c (sector) and FUN_00027085 (product type) scan corp slots in order, replace the leader only on a strictly higher share; share 0 has no leader. FUN_0002713c: industry needs the lead in every product type. Native player slot is a variable (DAT_000b1aab, set by FUN_000214eb, the hot-seat picker); the single-player slot is unconfirmed. Here the player is corp 0, created before any AI corp, so in this build the player wins ties |
 | `free_goal_multiplier` | 2 | factor | gamelogic.md: score is doubled |
 | `goal_bonus_max` | 500 | points | gamelogic.md: 0 to 500 |
 | `player_goal_check_interval` | 2 | days | gamelogic.md: every 2 game-days |
 | `product_points` | 5 | points/product | gamelogic.md: 5 each |
 | `sector_points` | 20 | points/sector | gamelogic.md: 20 each |
+| `sector_share_window_months` | 1 **provisional** | months | Researcher report: native sums 12 floats per firm from firm+0x8c (read as a 12-month history, unconfirmed) and rounds the share to a whole percent capped at 100 with an unknown formula; we use last month's sales revenue, unrounded |
 | `warning_years_threshold` | 5 | years | gamelogic.md: 1 to 5 years warning |
 | `wealth_per_billion` | 100 | points/billion | gamelogic.md: 100 per billion |
 | `year_penalty_threshold` | 50 | years | gamelogic.md: after 50 years |
@@ -735,23 +736,16 @@ Reference: docs/recipes.md — 1STD.SET METHOD. Speed is a throughput multiplier
 | 13 | Newspaper Publisher | 10000000 | 200000 | 0 | no | no **p** | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
 | 14 | Seaport | 0 | 0 | 0 **p** | no | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
 
-## Firm sectors (sector dominance goals)
+## Firm sectors (sector dominance goals; types not listed have no sector)
 
 | Firm type | Name | Sector | Sector name | Reference |
 |---|---|---|---|---|
-| 1 | Department Store | 0 **p** | Retail | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
-| 2 | Factory | 1 **p** | Manufacturing and technology | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
-| 3 | R&D Center | 1 **p** | Manufacturing and technology | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
-| 4 | Farm | 2 **p** | Natural resources | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
-| 5 | Logging Camp | 2 **p** | Natural resources | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
-| 6 | Mine | 2 **p** | Natural resources | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
-| 7 | Oil Well | 2 **p** | Natural resources | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
-| 8 | Software Developer | 1 **p** | Manufacturing and technology | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
-| 9 | Software Publisher | 1 **p** | Manufacturing and technology | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
-| 10 | Restaurant | 0 **p** | Retail | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
-| 11 | Television Station | 3 **p** | Media | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
-| 12 | Radio Station | 3 **p** | Media | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
-| 13 | Newspaper Publisher | 3 **p** | Media | Goals, victory conditions, and scoring; Sector dominance (mapping not in reference) |
+| 1 | Department Store | 0 | Department stores **p** | Researcher report: CAPPLUS.EXE FUN_00026f10 (type code at firm+0); native sector N stored as N-1; names provisional |
+| 2 | Factory | 1 | Factories **p** | Researcher report: CAPPLUS.EXE FUN_00026f10 (type code at firm+0); native sector N stored as N-1; names provisional |
+| 4 | Farm | 2 | Farms **p** | Researcher report: CAPPLUS.EXE FUN_00026f10 (type code at firm+0); native sector N stored as N-1; names provisional |
+| 5 | Logging Camp | 3 | Natural resources **p** | Researcher report: CAPPLUS.EXE FUN_00026f10 (type code at firm+0); native sector N stored as N-1; names provisional |
+| 6 | Mine | 3 | Natural resources **p** | Researcher report: CAPPLUS.EXE FUN_00026f10 (type code at firm+0); native sector N stored as N-1; names provisional |
+| 7 | Oil Well | 3 | Natural resources **p** | Researcher report: CAPPLUS.EXE FUN_00026f10 (type code at firm+0); native sector N stored as N-1; names provisional |
 
 ## Job types
 

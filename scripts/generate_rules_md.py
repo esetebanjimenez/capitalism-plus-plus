@@ -413,14 +413,15 @@ def render(con: sqlite3.Connection) -> str:
     )
     _table(
         lines,
-        "Firm sectors (sector dominance goals)",
+        "Firm sectors (sector dominance goals; types not listed have no sector)",
         ["Firm type", "Name", "Sector", "Sector name", "Reference"],
         [
             [
                 str(r["firm_type"]),
                 r["name"],
                 _num(r["sector"]) + (P_SHORT if "sector" in _prov_set(r["provisional"]) else ""),
-                r["sector_name"],
+                r["sector_name"]
+                + (P_SHORT if "sector_name" in _prov_set(r["provisional"]) else ""),
                 r["ref"],
             ]
             for r in con.execute(

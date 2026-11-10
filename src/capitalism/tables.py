@@ -216,7 +216,7 @@ class FirmTypeRow(StaticModel):
 
 
 class FirmSectorRow(StaticModel):
-    """Sector of a firm type for sector dominance goals (mapping provisional)."""
+    """Sector of a firm type for sector dominance goals (native mapping; names provisional)."""
 
     firm_type: int
     sector: int = Field(ge=0, le=3)
@@ -805,7 +805,8 @@ class ScoringRules(StaticModel):
     ai_goal_check_interval: int
     warning_years_threshold: int
     goal_bonus_max: int
-    dominance_tie_is_lead: int = Field(ge=0, le=1)
+    dominance_tie_lowest_slot: int = Field(ge=0, le=1)
+    sector_share_window_months: int = Field(ge=1, le=1)
 
 
 class CorporationRules(StaticModel):
