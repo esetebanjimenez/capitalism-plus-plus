@@ -346,6 +346,33 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `freq_low_denominator` | 200 | 1/day | gamelogic.md: 1-in-200 chance each day |
 | `freq_medium_denominator` | 100 | 1/day | gamelogic.md: 1-in-100 chance each day |
 
+## 12 — Scoring and difficulty
+
+| Key | Value | Units | Reference |
+|---|---|---|---|
+| `ai_goal_check_interval` | 7 | days | gamelogic.md: every 7 game-days |
+| `corpworth_per_billion` | 10 | points/billion | gamelogic.md: 10 per billion |
+| `difficulty_base_offset` | 15 | points | gamelogic.md: plus 15 |
+| `difficulty_capital_mult` | 11 | factor | gamelogic.md: capital level x 11 |
+| `difficulty_char_mixed_penalty` | 7 | points | gamelogic.md: +7 for mixed character |
+| `difficulty_char_per_type` | 5 | points/level | gamelogic.md: type x 5 |
+| `difficulty_competence_per_level` | 10 | points/level | gamelogic.md: +10 per level |
+| `difficulty_events_per_level` | 4 | points/level | gamelogic.md: +4 per frequency level |
+| `difficulty_expertise_per_level` | 20 | points/level | gamelogic.md: (level-1) x 20 |
+| `difficulty_expertise_vlow` | 40 | points | gamelogic.md: very low adds 40 |
+| `difficulty_no_seaports` | 30 | points | gamelogic.md: +30 if no seaports |
+| `difficulty_scale_denominator` | 212 | ratio | gamelogic.md: multiplied by 200/212 |
+| `difficulty_scale_numerator` | 200 | ratio | gamelogic.md: multiplied by 200/212 |
+| `difficulty_secrets_penalty` | 15 | points | gamelogic.md: +15 if trade secrets hidden |
+| `free_goal_multiplier` | 2 | factor | gamelogic.md: score is doubled |
+| `goal_bonus_max` | 500 | points | gamelogic.md: 0 to 500 |
+| `player_goal_check_interval` | 2 | days | gamelogic.md: every 2 game-days |
+| `product_points` | 5 | points/product | gamelogic.md: 5 each |
+| `sector_points` | 20 | points/sector | gamelogic.md: 20 each |
+| `warning_years_threshold` | 5 | years | gamelogic.md: 1 to 5 years warning |
+| `wealth_per_billion` | 100 | points/billion | gamelogic.md: 100 per billion |
+| `year_penalty_threshold` | 50 | years | gamelogic.md: after 50 years |
+
 ## City name pool
 
 | Name | Tier | Reference |

@@ -35,6 +35,7 @@ SYSTEM_ORDER = [
     ("stock", "10 — Stock market"),
     ("news", "11 — News system"),
     ("events", "11 — Random events"),
+    ("scoring", "12 — Scoring and difficulty"),
 ]
 
 P = " **provisional**"
