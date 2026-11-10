@@ -215,6 +215,16 @@ class FirmTypeRow(StaticModel):
     provisional: frozenset[str] = frozenset()
 
 
+class FirmSectorRow(StaticModel):
+    """Sector of a firm type for sector dominance goals (mapping provisional)."""
+
+    firm_type: int
+    sector: int = Field(ge=0, le=3)
+    sector_name: str
+    ref: str
+    provisional: frozenset[str] = frozenset()
+
+
 class RatingThroughputRow(StaticModel):
     rating: int = Field(ge=1, le=9)
     efficiency_pct: float = Field(gt=0)
@@ -550,6 +560,18 @@ def load_firm_types() -> dict[int, FirmTypeRow]:
 
 
 @lru_cache(maxsize=1)
+def load_firm_sectors() -> dict[int, FirmSectorRow]:
+    out: dict[int, FirmSectorRow] = {}
+    for r in _rows(
+        "SELECT firm_type, sector, sector_name, ref, provisional FROM firm_sectors ORDER BY firm_type"
+    ):
+        d = dict(r)
+        d["provisional"] = _prov_cols(d["provisional"])
+        out[d["firm_type"]] = FirmSectorRow(**d)
+    return out
+
+
+@lru_cache(maxsize=1)
 def load_job_types() -> dict[int, JobTypeRow]:
     out: dict[int, JobTypeRow] = {}
     for r in _rows(
@@ -615,6 +637,7 @@ JOB_RULES: JobRules = _rules_model(JobRules, "jobs")
 LINK_RULES: LinkRules = _rules_model(LinkRules, "links")
 PRODUCT_CLASSES: dict[int, ProductClassRow] = load_product_classes()
 FIRM_TYPES: dict[int, FirmTypeRow] = load_firm_types()
+FIRM_SECTORS: dict[int, FirmSectorRow] = load_firm_sectors()
 JOB_TYPES: dict[int, JobTypeRow] = load_job_types()
 FIRM_JOB_ALLOWED: dict[int, frozenset[int]] = load_firm_job_allowed()
 RATING_THROUGHPUT: dict[int, RatingThroughputRow] = load_rating_throughput()
@@ -782,6 +805,7 @@ class ScoringRules(StaticModel):
     ai_goal_check_interval: int
     warning_years_threshold: int
     goal_bonus_max: int
+    dominance_tie_is_lead: int = Field(ge=0, le=1)
 
 
 class CorporationRules(StaticModel):

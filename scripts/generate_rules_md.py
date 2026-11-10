@@ -413,6 +413,24 @@ def render(con: sqlite3.Connection) -> str:
     )
     _table(
         lines,
+        "Firm sectors (sector dominance goals)",
+        ["Firm type", "Name", "Sector", "Sector name", "Reference"],
+        [
+            [
+                str(r["firm_type"]),
+                r["name"],
+                _num(r["sector"]) + (P_SHORT if "sector" in _prov_set(r["provisional"]) else ""),
+                r["sector_name"],
+                r["ref"],
+            ]
+            for r in con.execute(
+                "SELECT s.*, f.name FROM firm_sectors s JOIN firm_types f ON f.id = s.firm_type "
+                "ORDER BY s.firm_type"
+            )
+        ],
+    )
+    _table(
+        lines,
         "Job types",
         [
             "Id",
