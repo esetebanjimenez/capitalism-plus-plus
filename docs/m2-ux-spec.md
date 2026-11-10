@@ -29,7 +29,7 @@ tile and icon sizes, the cream card panels) follow the Artist's
   Speed is a target days per second owned by the worker. Tapping the date
   pauses and resumes.
 - **Targets.** Every tappable thing is at least 44 × 44 CSS px. On the map
-  at low zoom a tap snaps to the nearest firm or town within 24 px.
+  at any zoom a tap snaps to the nearest firm or town within 24 px, since a 32 px firm tile is below the 44 px minimum.
 - **Mouse equivalents.** Tap is left click, long-press is right click, the
   sheet's drag handle is a resizable panel edge. Hover shows the same
   tooltip a long-press shows on touch. Keyboard: Space pauses, 1 to 4 set
@@ -53,12 +53,14 @@ water, grassland, forest/hill, town, firm), towns with name labels, firms as
 one tile each with an owner-colour flag (`Firm.owner`), and the player's
 selection outline.
 
-**Zoom.** Three levels, matching the reference and the frontend plan:
-far (1 px per tile overview), standard (sprites), close (2 × 2 with an
-attribute overlay). Pinch or mouse wheel steps between them with integer
-scale only. Pan by one-finger drag or mouse drag.
+**Zoom.** Art is B+ (32 px tiles and firm sprites, 48 px icons, chosen by
+Esteban on 2026-11-10), so the standard view shows about 11 tiles across a
+phone. Two levels: far (1 px per tile overview, no sprites) and standard
+(sprites at 1x on phone, whole-number scale on desktop where room allows).
+There is no closer zoom; a 2x step would show about 5 tiles. Pinch or mouse
+wheel switches between them. Pan by one-finger drag or mouse drag.
 
-**Overlays** (a toggle in the map's corner, one at a time): none, land value
+**Overlays** (a toggle in the map's corner, one at a time, drawn on the standard zoom): none, land value
 (`World.land_value(x, y)`), soil, rainfall, climate (`Tile.soil`,
 `Tile.rainfall`, `Tile.climate`), and ownership (tints firms by owner).
 Overlays show a legend with the value range.
