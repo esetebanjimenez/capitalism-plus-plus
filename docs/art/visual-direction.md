@@ -1,4 +1,8 @@
-# M2 visual direction (proposal, waiting on Esteban's okay)
+# M2 visual direction
+
+**Decision (Esteban, 2026-11-10): concept B+, with a thin front edge on
+buildings.** Production follows the B+ section below. A, B and B2 stay in this
+doc for reference only.
 
 Concept sheet: [`concept-sheet-a.png`](concept-sheet-a.png). The art is all
 original. Nothing in it is extracted or traced from the original game. No asset
