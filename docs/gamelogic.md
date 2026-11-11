@@ -401,6 +401,8 @@ Runs on the day the year changes, after the month pass:
 14 building types the player or AI can place on the map.
 
 Setup cost is a one-time cash payment when the building is placed.
+The full price of a placement is the setup cost **plus the land value
+of the tile** (see "Building, rebuilding and demolishing" below).
 Overhead is a monthly operating expense (prorated by remaining days
 when the firm is built mid-month). Both are in dollars.
 
@@ -420,6 +422,36 @@ when the firm is built mid-month). Both are in dollars.
 | 12 | Radio Station | 10,000,000 | 200,000 |
 | 13 | Newspaper Publisher | 10,000,000 | 200,000 |
 | 14 | Seaport | 0 | 0 |
+
+### Building, rebuilding and demolishing
+
+**What a placement books.** When a firm is created, the game stores the
+tile's current land value on the firm and pays two amounts out of cash:
+the setup cost goes into the Business Assets account and the land value
+goes into the Land & Resource account. The placement step itself does
+not check cash.
+
+**Player build panel.** The panel shows Construction Cost, Land Cost and
+Total Cost. The Build button is enabled only when the site can be built
+on **and** the corporation's cash is at least setup cost + land value.
+The check is re-run, and the button redrawn, whenever cash changes. Only
+cash counts: the bank credit limit is not considered. (The check sets
+the button's enabled state; how a disabled button is drawn was not
+traced.) For an existing firm the panel shows the Firm Rebuild Cost
+instead, with Rebuild and Close Down buttons. Rebuild is disabled when
+cash is below the rebuild cost or the cost is zero. When the site can't
+be used, the panel says "Cannot be built here".
+
+**AI builds** use the same price (land value + the firm type's setup
+cost). If cash is short, the AI runs the asset-sale sequence and checks
+again, and it cancels the build only if it is still short (see "Firm
+creation" and "Asset sale" under AI corporation strategy).
+
+**Demolish** ("Destruct the firm and sell the land"). The setup cost is
+moved from Business Assets back to cash and then posted as a Write-off
+expense (category 7), so it is lost. The land is sold back to cash at
+the land value currently stored on the firm (which is revalued monthly,
+see Firm monthly). Both asset accounts are floored at zero.
 
 ## Firm daily cycle
 
@@ -555,6 +587,35 @@ walk.
 | 14 | Software Production | 100 | 4 |
 | 15 | Advertising | 5 | 1 |
 
+### Rating and throughput
+
+Each job has a **rating** (1–9) representing its skill level. Rating
+determines both production efficiency and storage capacity through two
+lookup tables:
+
+| Rating | Efficiency | Capacity multiplier |
+|--------|-----------|-------------------|
+| 1 | 100% | 8 |
+| 2 | 130% | 10 |
+| 3 | 160% | 14 |
+| 4 | 200% | 16 |
+| 5 | 250% | 20 |
+| 6 | 300% | 24 |
+| 7 | 360% | 30 |
+| 8 | 430% | 35 |
+| 9 | 500% | 40 |
+
+**Efficiency** scales production throughput. For manufacturing:
+`(recipe-output × recipe-speed × efficiency) / 100`. At rating 1,
+a factory produces at base rate; at rating 9, it produces at 5× base.
+
+**Capacity multiplier** scales how much stock the job can hold:
+`base-capacity × type-factor × capacity-multiplier`. At rating 1 a job
+can hold 8× its base; at rating 9 it can hold 40×.
+
+When capacity shrinks (after a rating change that shouldn't happen
+normally), excess stock is written off as an expense.
+
 ### Firm-to-job mapping
 
 Each firm type carries a fixed template of job slots:
@@ -579,27 +640,109 @@ multiplier of 2). Seaport daily methods handle their own import work.
 
 **Media firm economics:** Media firms (TV Station, Radio Station,
 Newspaper Publisher) operate differently from production firms. They
-have no job slots and no direct production cycle. Instead:
+have no job slots and no direct production cycle. Instead they generate
+audience through a reputation-driven model, and earn revenue from
+advertisers.
 
-- **Daily:** the firm redraws its icon, then posts a payroll expense.
-  The payroll formula is `(salary × 2,000 / days-in-month × labor) / 100`,
-  using the firm's salary field and the town's labor factor.
-- **Monthly:** the base firm monthly method runs (clearing buckets,
-  posting overhead and land value changes). Then the media firm rolls a
-  12-month audience/revenue series — current month data shifts to the
-  previous-month archive, current month resets, and the archive sums
-  into a lifetime total. This series powers the media firm's financial
-  charts.
-- **Audience model:** media firms generate audience through their town
-  presence. Government-owned media in a town get a random audience
-  rating of 10–39. Other media firms use the standard audience formula.
-  This audience rating determines the firm's attractiveness to
-  Advertising jobs, which need a media partner with revenue above a
-  minimum threshold.
+#### Daily cycle
 
-Media firms earn revenue from advertising: when Advertising jobs in the
-same town link to a media firm, the ad budget flows as revenue to the
-media firm and as marketing expense to the advertiser.
+The firm redraws its icon, then posts a payroll expense:
+`(salary × 2,000 / days-in-month × labor) / 100`, using the firm's
+salary field and the town's labor factor. There is no training post.
+
+#### Monthly cycle
+
+The base firm monthly method runs (clearing buckets, posting overhead
+and land value changes). Then two media-specific calculations execute
+in order:
+
+1. **Audience update** — adjusts the firm's audience rating.
+2. **Revenue calculation** — computes monthly revenue from audience and
+   town economics.
+
+After both calculations, the firm rolls its 12-month revenue series:
+current-month data shifts to the previous-year archive, current month
+resets, and the archive sums into an annual total for financial charts.
+
+#### Audience initialization
+
+Government-owned media (corporation type 4) in a town where the
+product slot is established receive an initial audience of 10–39
+(random). All other media firms start with audience 0 and a reputation
+of 100 (the maximum). The 12-month audience history is backfilled with
+the initial audience ± up to 10% random variation per month.
+
+#### Audience model
+
+Each media firm has two key values: an **audience rating** (how many
+people watch/read/listen) and a **reputation** (a momentum value that
+drives audience growth or decline over time). Reputation ranges from
+-100 to +100.
+
+**Monthly reputation drift:** Each month, reputation shifts randomly by
+up to ±30. Low-audience firms (below 15) get an additional random
+reputation boost, helping struggling media recover. High-audience firms
+(above 40) get a random reputation penalty, dampening monopolistic
+dominance. Reputation is then clamped to [-100, +100].
+
+**Monthly audience change:**
+```
+audience_delta = (random(0..100) + reputation − 50) / 200
+audience += audience_delta
+```
+With positive reputation, audience tends to grow (the random baseline
+is centered at 50, so positive reputation tips the average above zero).
+With negative reputation, audience shrinks. The divisor of 200 makes
+the change gradual — at the extreme (reputation ±100), the maximum
+monthly audience shift is about ±0.75 points.
+
+If audience drops below zero it is floored at zero.
+
+**Competition (zero-sum redistribution):** When a media firm gains
+audience, each competitor of the same type in the same town loses a
+share of the gain, proportional to the number of competitors and scaled
+by 50%. This makes audience partially zero-sum: growth of one station
+directly hurts its rivals.
+
+**Market saturation:** If the total audience of all media firms of the
+same type in a town exceeds 90, the current firm's audience is reduced
+by the excess. This soft-caps the total audience market per media type
+per town at approximately 90.
+
+#### Revenue formula
+
+Revenue depends on four factors: the firm's staff, its audience, the
+town's economic characteristics, and a seasonal component.
+
+1. **Reach** = staff × audience / 100
+2. **Ad base** = (town economic stat / 200) × reach / 100
+3. **Revenue base** = town purchasing power × ad base / 100
+4. **Revenue** = ad rate × (revenue base / 1,000) × ((seasonal component
+   + town stat / 200) × (audience / 100 + 2) / 100) / 100
+
+Revenue is floored at 100 — a media firm always earns at least 100 per
+month even with zero audience.
+
+The town's monthly economic time series provides a seasonal component
+that makes revenue fluctuate with the local economy. Larger, wealthier
+towns generate substantially more media revenue.
+
+The **CPM** (cost per mille — revenue per 1,000 units of reach) is
+displayed as: `revenue × 1,000 / revenue_base`.
+
+#### Advertising interaction
+
+Media firms earn revenue from Advertising jobs in the same town. An
+Advertising job selects a media partner by scanning for TV stations or
+newspapers with audience above a minimum threshold of 5. Once linked,
+the ad budget (clamped between 50,000 and 500,000) flows as revenue to
+the media firm and as marketing expense to the advertiser's corporation.
+
+The campaign cycle runs every 60 days (partner selection) and every
+30 days (product targeting). The monthly cycle checks which of the
+advertiser's products need more market visibility and directs ad spend
+toward them, based on technology level and current brand rating versus
+target. If no products need advertising, the budget drops to zero.
 
 ## Job daily cycle
 
@@ -618,15 +761,68 @@ a valid town range, a global default is used.
 
 ### Step 2: Train (weekday 2 only)
 
-Rating ranges from 1 to 9. An accumulator tracks progress. Production
-and sales feed the accumulator through training credits.
+Rating ranges from 1 to 9. Every working day, each job earns training
+credits toward a weekly skill check.
 
-- When `accumulator > rating × 900` and progress < target: progress
-  increases by 1, accumulator resets to 0. If progress now equals target
-  and rating < 9: rating increases by 1, progress resets.
-- When `accumulator < −(rating × 900)`: progress decreases by 1 (if
-  positive), accumulator resets. If progress reaches 0 and rating > 1:
-  rating decreases by 1, progress is set to the target.
+#### Daily credit accumulation
+
+Credits are added each day in one of two modes:
+
+**Fixed-credit mode** (farming, livestock, R&D): the job earns a
+constant number of base credits per day, scaled upward by a rating
+multiplier. Higher ratings earn proportionally more credits:
+
+| Rating | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
+|--------|---|---|---|---|---|---|---|---|---|
+| Multiplier | 100% | 130% | 160% | 200% | 250% | 300% | 360% | 430% | 500% |
+
+Daily base credits: Crop Growing = 20, Livestock = 10, R&D = 14.
+
+**Work-based mode** (manufacturing, sales, purchasing, extraction,
+labelling): credits are proportional to work output as a percentage
+of maximum capacity. If a factory produced 60 of a possible 100 units,
+it earns 60 credits. No rating multiplier applies.
+
+All credits are then scaled by two factors:
+- **Training budget** (player-adjustable, default 10%): the same
+  setting that controls Training & Equipment expense. Higher budget
+  means faster skill gain but higher costs.
+- **City education level**: location-dependent modifier. Retail-type
+  firms use the town's education stat; other firms use a global default.
+
+#### Weekly upgrade check
+
+Once per week, the accumulated credits are checked against a threshold:
+
+- **Upgrade threshold**: `current_rating × 900` credits per step
+- **Steps per rating level**: equals the job's staff count from the
+  game data. Jobs with larger crews need more steps:
+
+| Job type | Steps per level |
+|----------|----------------|
+| Inventory, Advertising | 1 |
+| Purchasing, Software Production | 4 |
+| Private Labelling | 6 |
+| Sales, Software Development | 8 |
+| R&D | 12 |
+| Crop Growing, Livestock | 16 |
+| Manufacturing, Logging, Mining, Oil | 24 |
+
+When accumulated credits exceed the threshold, one step is completed
+and the accumulator resets. After all steps are completed, the rating
+increases by 1 and the step counter resets.
+
+Total credits needed for one full rating upgrade from level N to N+1
+= steps × N × 900. Going from rating 1 to 2 in Manufacturing requires
+24 × 1 × 900 = 21,600 credits; from rating 8 to 9 requires
+24 × 8 × 900 = 172,800 credits.
+
+#### Downgrade (theoretical)
+
+A symmetric downgrade path exists if the accumulator ever reaches
+−(rating × 900). Under normal gameplay conditions (positive training
+budget, working jobs), credits only accumulate positively, so
+downgrades do not occur in practice.
 
 ### Step 3: Gate (AI firms and operational player firms)
 
@@ -705,7 +901,8 @@ capped by the remaining reserve. The reserve decreases. A portion of
 land value is extracted as category 8 (Consumption of Raw Material
 Reserve), with a balance transfer that replaces the cash effect. When
 the reserve reaches zero, a news item is posted. Returns true when
-stock reaches capacity.
+stock reaches capacity. Each visit adds a training credit of
+`units × 100 / maximum units`.
 
 ### Inventory
 
@@ -767,6 +964,13 @@ A positive receipt:
 - Blends unit price and quality with the link
 - Adds receipt to stock
 - Posts Freight Cost (category 5) as `unit-price-at-source × receipt`
+
+The game's freight-rate routine measures the distance between two
+points as straight-line (Euclidean) distance rounded to the nearest
+whole number. It is not Manhattan distance. The rate is
+`product factor × distance × product value / 100 / 100 × 0.5`, with a
+minimum of 0.01. Which product fields the two factors are hasn't been
+confirmed.
 - Training credits are `(receipt × 80) / order-size`
 
 When the supplier firm type is nonzero, the receipt also flows through
@@ -942,12 +1146,16 @@ value.
 
 When the product is placed: the score combines a base value with two
 weighted town-product factors:
-`score = base + (factor1 × town-weight-A) / 60 + (score-in × town-weight-B) / 60`
+`score = base + (brand × town-brand-weight) / 60 + (score-in × town-score-in-weight) / 60`
+The base value is a rounded figure whose formula was lost in the
+decompile. The two weights are described under Market competition.
 
 If the new score is lower than the old score and the firm has live
-inventory: a slice of quantity is removed. The slice is proportional to
-the score drop times the quantity, divided by a global scalar. This
-penalizes links whose score worsens.
+inventory, a slice of quantity is removed:
+`slice = (old score − new score) × quantity / 100`. Each point of score
+lost removes 1% of the quantity, and the quantity can't go below zero.
+The same slice comes off the town's supply total. This penalizes links
+whose score worsens.
 
 **Gate 2:** if the firm doesn't have live inventory, return.
 
@@ -960,15 +1168,18 @@ penalizes links whose score worsens.
   50 for non-farmland tiles, clamped to 100.
 
 - **2c. Reduce quantity:** compares this link's score, unit-price,
-  score-in, and a fourth factor against the town-product reference
-  averages. When this link is *worse* than the averages, removes
+  score-in, and brand against the town-product **reference levels**.
+  These are values the town keeps and lets drift at random; they are
+  not averages of the competing sellers. When this link is *worse*
+  than the reference, removes
   quantity. The removed amount is quadratic in the gap and proportional
   to `(100 − weight)`. Worse links lose more, and farmland locations
   (lower weight) lose more.
 
 - **2d. Conditional increase:** when the link's projected quantity-sum
-  is below its projected flow × a global scalar:
-  - **Increase quantity:** when this link is *better* than town averages,
+  is below 2 × its projected flow. Both are projected to month end as
+  `previous-month value × (30 − day-of-month) / 30 + this month's value`:
+  - **Increase quantity:** when this link is *better* than the town reference levels,
     adds quantity. Same four-factor comparison, reversed direction. The
     added amount is quadratic in the gap.
   - **Take quantity:** walks the product's circular list. Steals
@@ -983,29 +1194,41 @@ penalizes links whose score worsens.
 
 **4. Town sum (every other day, even days only).** Zeros the
 town-product supply total, then walks the circular list summing
-quantity for all links in the same town. Also applies a price-swap
-rule between pairs of links whose field-12/field-0a values match in
-a specific cross pattern.
+quantity for the links in the same town. The walk stops when it gets
+back to the visiting link, so that link's own quantity isn't added in
+this walk. The walk also applies a price swap: if another link has the
+same field-12 as this link, that link's field-0a equals this link's
+field-12, and that link's field-12 differs from this link's field-0a,
+this link copies the other link's unit price. (Field-12 is used as the
+owning corporation's index elsewhere.)
 
 ### Score calculation (quality + brand)
 
-A link's score is the core measure of competitiveness. It combines two
-components weighted by the product's consumer decision weights (the
-quality% and brand% from the product catalog):
+A link's score is the core measure of competitiveness. It is a base
+value plus two terms weighted by the town-product weights:
 
-`score = base_quality_score + (brand_rating × brand_weight / 60) + (quality × quality_weight / 60)`
+`score = base_score + (brand_rating × brand_weight / 60) + (score_in × score_in_weight / 60)`
 
 Where:
-- **base_quality_score** is derived from the job's manufacturing quality
-  or purchasing quality
-- **brand_rating** is the firm's brand perception in this town for this
-  product (influenced by the brand strategy: corporate, range, or unique)
-- **quality_weight** and **brand_weight** come from the product's
-  consumer decision percentages
+- **base_score** is a rounded value whose formula was lost in the
+  decompile. It is believed to come from the job's manufacturing or
+  purchasing quality, but that hasn't been confirmed.
+- **brand_rating** is the corporation's brand value in this town for
+  this product. It is looked up in a record chosen by the brand
+  strategy: corporate, range (product class) or unique (product). How
+  the stored brand value is turned into this rating was lost in the
+  decompile.
+- **score_in** is the link's score-in field. The decompile doesn't show
+  whether it holds the product's quality.
+- **score_in_weight** and **brand_weight** are the town-product weights
+  (see Market competition). They start from the product's
+  consumer-decision percentages plus a per-town adjustment.
 
-When the score drops between visits, the link's quantity is reduced
-proportionally (quantity × new_score / old_score), immediately
-penalizing firms whose quality or brand deteriorates.
+When the score drops between visits on a live-inventory link, the
+quantity loses `(old − new) × quantity / 100`, floored at zero. Each
+point of score lost costs 1% of the quantity. This is not the ratio
+new_score / old_score: a drop from 60 to 30 keeps 70% of the quantity,
+not 50%.
 
 ### Price determination
 
@@ -1021,59 +1244,102 @@ Prices are not set by any explicit pricing algorithm — they emerge from
 the supply chain. A firm's purchase price becomes its cost of goods,
 and its sales price is the link's stored unit_price. The price
 comparison in market competition measures each link's price against the
-town average, rewarding lower prices.
+town's reference price and against each rival's price, rewarding lower
+prices.
 
 ### Market competition
 
 The market simulation is driven by **four-factor comparative scoring**.
-Each link competing in a town is measured against the town average for:
+There is no score-power split of demand. Each town-product keeps
+**reference levels** that the links are measured against:
 
-1. **Quality score** — the link's computed score vs town average
-2. **Unit price** — lower is better (price advantage)
-3. **Score-in** — previous period's performance
-4. **Brand score** — brand perception factor
+1. **Reference score**. It is rebuilt from the other references with the
+   same formula as a link's score.
+2. **Reference price**. It starts at the product's base price.
+3. **Reference score-in**. It starts at 5–15.
+4. **Reference brand**. It starts at 0.
 
-Links that are better than average gain quantity; links that are worse
-lose it.
+These are not averages of the competing sellers. They drift at random
+in a periodic town-product update, which also clears the month buckets
+and is believed to run monthly. Price moves in 1% steps, and score-in
+and brand move by ±1. The roll odds depend on a game setting and on how
+supply compares with demand.
 
-**Competition transfer (stealing from rivals):**
-For each competing link of the same product in the same town:
-- Quality advantage: `(my_quality − their_quality + 1) / 100`
-- Price advantage: `price_weight × (their_price − my_price) / (my_price + constant) / divisor`
-- Brand score advantage
-- Transfer amount: `(100 − decay) × their_quantity × quality_factor² × price_ratio² × multiplier / 100`
+**Weights.** Each town-product has three weights that sum to 100:
+- **Price weight** = one of the product's consumer-decision
+  percentages + a town adjustment, clamped to 20–90.
+- **Score-in weight** = another of the product's percentages + a town
+  adjustment. It is at least 10 and at most 100 − price weight.
+- **Brand weight** = 100 − price weight − score-in weight.
 
-The transfer amounts are **quadratic in the gap**: a link that is
-slightly worse than average loses a small amount, but one that is much
-worse loses proportionally much more. This creates a winner-takes-most
-dynamic where strong links rapidly gain share and weak links are
-squeezed out.
+**Gap.** For a link compared with a reference (or with a rival), each
+factor where the link is better (or worse) adds to a gap:
+- score: `difference / 100` (against a rival: `(my_score − their_score + 1) / 100`)
+- price: `price_weight × (price difference / (lower-side price + 0.1)) / 300`
+- score-in: `score_in_weight × difference / 30,000`
+- brand: `brand_weight × difference / 30,000`
 
-**Demand growth (from unfulfilled demand):**
-When projected supply is below projected demand, links gain quantity
-from the unfulfilled pool, using the same four factors compared to town
-averages: `(100 − decay) × unfulfilled × factor² × ratio² / 100`.
+The **link weight** w (0..100) is the firm's weight short × 5, plus 50
+for non-farmland tiles, clamped to 100. It is recomputed on every visit.
+A higher w moves less quantity. D is the town's demand figure and S its
+supply total (reading these two fields as demand and supply is inferred
+from how they are used).
 
-The **weight system** (0..100) modulates the transfer rate. Higher-weight
-links are more resistant to quantity loss, and farmland locations
-(lower weight) have higher turnover. The weight is firm.weight × 5,
-plus 50 for non-farmland tiles, clamped to 100.
+**Three moves**, run in this order on each visit:
+
+1. **Lose to the reference.** This only runs when a reference price,
+   score-in or brand is non-zero. It uses the factors where the link is
+   worse than the reference:
+   `cut = (100 − w) × q × gap² × (q / D)² / 100`
+   The cut is capped at q and comes off both q and S.
+2. **Beat the reference.** This only runs when free demand
+   `f = D − S ≥ 0`, using the factors where the link is better:
+   `add = (100 − w) × f × gap² × (f / D)² / 100`
+   The add is capped at f and goes onto both q and S.
+3. **Take from weaker rivals.** For each other link of the product whose
+   firm is in the same town, it uses the factors where this link beats
+   that rival:
+   `take = (100 − w) × (their_q × gap² × (their_q / D)² × 120 / 100) / 100`
+   The take is capped at their_q and moves from the rival to this link.
+   w is the taker's weight, not the rival's.
+
+Moves 2 and 3 only run when the projected quantity-sum is below 2 ×
+the projected flow (see Link daily cycle, step 2d). Before any move, an
+oversupplied town (D < S) trims each link by `q / 50`.
+
+The transfer amounts are **quadratic in the gap** and in the share term,
+so links that are far from the reference or a rival move much more
+quantity than links that are close. This creates a winner-takes-most
+dynamic.
 
 ### Brand perception
 
-After each sale, the game adjusts the firm's brand perception in the
-town for that product:
+After each sale, the game adjusts the corporation's brand value in the
+town. The brand record is chosen by the brand strategy: corporate,
+range (product class) or unique (product). Each corporation has two
+numbers there: a brand value and an **awareness** A (0–100, built by
+the monthly cycle below). There is no update while A is below 1.
 
-1. Computes an expected score from the product's quality weights:
-   `quality_weight × quality / base + (100 − quality_weight) × score / divisor`
-2. Adjusts by brand rating penalties (per-town)
-3. Nudges brand perception toward the expected value at a rate of ±0.1,
-   or scaled by brand rating for non-unique brands
+1. Expected level:
+   `raw = 2·P × score_in / max(50, top_score_in) + (100 − 2·P) × score / max(50, top_score)`
+   P is one of the product's consumer-decision percentages. The top
+   score-in and top score are the product's highest values, published
+   each month.
+2. Per-town penalties: raw loses 3 × (count − 1) for one per-town count
+   under corporate branding, and for a second per-town count under
+   corporate and range branding. What the two counts measure wasn't
+   identified. raw is floored at 0.
+3. Target: `A × raw / 50 − A`, so the target runs from −A to +A.
+4. Step: if the target is at or below the current value, the step is
+   −0.1. Otherwise it is +0.1 under unique branding, or 0.1 divided by
+   the second per-town count under the other strategies.
+   `step × units_sold / max(units_sold, D)` is added, and the brand
+   value is clamped to ±A.
 
-This means that consistently high-quality products gradually improve
-the firm's brand reputation, which feeds back into the score
-calculation, creating a virtuous cycle. Poor quality erodes brand
-perception over time.
+The value always moves in the direction of the target; it doesn't stop
+at the target. Consistently high scores therefore raise brand, and low
+scores lower it. How the brand value feeds back into the link score was
+lost in the decompile.
 
 ### AI firm type preferences by strategy mode
 
@@ -1123,9 +1389,15 @@ At each month boundary, for every occupied link:
 - Snapshots: quantity-prev ← quantity-sum, flow-prev ← flow
 - Resets: quantity-sum ← 0, flow ← 0
 - For live-inventory firms: looks up a rating row for the (town,
-  field-12, product) triple. Stores 30.0 at row offset +6. Adds a
-  term from last month's units into the row and a town-product cell.
-  Sets the cell to 100.0 when the sum passes a threshold.
+  corporation, brand record) triple and stores 30.0 at row offset +6.
+  It then computes
+  `δ = ((30 − row value) × u / max(u, D)) / 100`,
+  where u is last month's units + 1 and D is the town's demand figure.
+  δ is ×0.25 under corporate branding, ×0.5 under range branding and
+  ×1 under unique branding. It is added to the row value and to the
+  corporation's brand awareness A in the town. A is set to 100.0 when
+  it passes 100. So the row value converges on 30, and awareness grows
+  with sales relative to town demand.
 
 After all links, the catalog publishes the maximum score-in and score
 across all links onto each product's high-score fields.
@@ -1261,7 +1533,8 @@ The shared AI build path:
 1. Check map tile availability
 2. Look up the firm template
 3. Read land value for the tile
-4. Compare `land-value + template-cost` against corporation cash
+4. Compare `land-value + setup cost` (the firm type's real setup cost)
+   against corporation cash. Competitors use their real cash here
 5. If too expensive: attempt to sell assets / adjust debt
 6. Re-check affordability — if still too expensive, fail
 7. Create and initialize the firm
@@ -1363,7 +1636,10 @@ an escalating sequence of asset sales:
 5. Fire sale — sell remaining holdings at any price
 
 The process stops as soon as the corporation has enough cash for the
-planned build. If all steps fail, the build is cancelled.
+planned build. If all steps fail, the build is cancelled. This path is
+live in normal play, because competitors build with their real cash.
+Only the Government corporation skips it: its cash is reset to $1
+billion just before each of its own placements (see Cash management).
 
 ### Bankruptcy check (every 200 days)
 
@@ -1449,7 +1725,8 @@ operations continue normally under their common processing path.
 ### Strategy parameter change (1/1,000 daily)
 
 On any given day, there is a 1 in 1,000 chance that the AI randomly
-adds a new business in a random town. The business type is drawn from
+adds a new business in a random town. This roll is part of the
+**Government corporation's** daily routine, not the competitors'. The business type is drawn from
 a small set (department stores or similar). The maximum number of
 businesses per type is capped based on the town's level — smaller towns
 support fewer businesses (2 per type for the smallest, up to 4 for the
@@ -1457,13 +1734,22 @@ largest).
 
 ### Cash management
 
-After the shared AI daily (financial posts, stock/investment, portfolio,
-per-city product census), the competitor's cash is reset to approximately
-approximately $1 billion. This means competitor cash is
-effectively unlimited — the AI never runs out of money for builds.
+The $1 billion cash reset applies to the **Government corporation
+(type 4) only**. Its daily routine runs the shared AI daily (financial
+posts, stock/investment, portfolio, per-city product census) and then
+sets its cash to $1 billion. Its seaport and media placements also set
+cash to $1 billion just before building. The Government corporation
+therefore never runs short.
 
-- 1/1,000 chance per day: strategy parameter change
-- 1/10,000 chance after day 3,650: spawn a new competitor corporation
+Competitor corporations (type 3) are **never** reset. They pay for
+builds from real cash, use the asset-sale sequence when short, and can
+go bankrupt.
+
+The Government daily also rolls:
+- 1/1,000 chance per day: the placement roll above
+- 1/10,000 chance per day, only when a configuration flag is set and
+  more than 3,650 days have passed since its initial placements: a new
+  **seaport** (not a new competitor corporation)
 
 ## Plan system
 
@@ -1971,7 +2257,11 @@ middle tier with fixed indicators:
 | Unemployment rate     | 2.0 %       |
 
 When detailed mode is on, all seven indicators update monthly and
-cities can grow, level up, and spawn new ones.
+cities can grow, level up, and spawn new ones. Population growth (with
+its level-up check) and the yearly GNP-change record run for every town
+in **both** modes; only the seven indicator updates are skipped when
+detailed mode is off. Level-up is also blocked by a per-town frozen
+flag, and whether simple mode sets that flag was not traced.
 
 ### City indicators
 
@@ -1997,29 +2287,44 @@ spreads the load so all 12 cities do not update on the same day.
 
 The monthly tick runs these steps in order:
 
-1. **Population growth** — a random component plus an economic-driven
-   component (positive GNP growth attracts people, high unemployment
-   repels them).  The growth is dampened when population is very small
-   or very large relative to equilibrium thresholds: a tiny city does
-   not shrink as fast, and a huge city does not grow as fast.  If the
-   new population exceeds the level-up threshold, the city gains a
-   level.
+1. **Population growth**:
+   `growth = random(0–299) + 100 × GNP-term + 100 × (4 − unemployment) − 150`
+   The **GNP term** is 50 × the yearly relative change in the city's
+   total GNP: (this year's 12-month sum of population × per-capita GNP
+   − last year's sum) / last year's sum. So it follows population as
+   well as per-capita GNP, and a 1% yearly rise gives 0.5.
+   Dampening: when growth ≤ 0 and population < 750,000, growth is scaled
+   by population / 750,000. When growth > 0 and population > 1,500,000,
+   it is scaled by 1,500,000 / population. Population is floored at 0.
+   **Level-up**: when population ≥ 160,000 × level² and the town isn't
+   frozen, the level rises by 1 per monthly tick. There is no cap, and
+   the level never goes down.
 
-2. **Per-capita GNP update** — each month, GNP is multiplied by a
-   random factor between 0.983 and 1.013 (roughly ±1.7%). It is
-   clamped to the minimum for the city's current tier. If GNP exceeds
-   the tier ceiling, the tier upgrades.
+2. **Per-capita GNP update**: each month, GNP is multiplied by
+   `(295 + random(0–9)) / 300`. That is one of ten discrete steps from
+   0.983 to 1.013 (roughly ±1.7%). It is clamped to the minimum for the
+   city's current tier. If GNP exceeds the tier ceiling, the tier
+   upgrades (at most one tier per month). The units of the tier floor
+   and ceiling comparison are not settled: read literally, the
+   decompiled comparison would never fire, which may be a decompiler
+   misreading.
 
-3. **Economic climate** — the current month's GNP growth rate is
-   compared against the climate threshold table:
+3. **Economic climate**: this month's **GNP term** (the same 50 × the
+   yearly relative change in total GNP that drives population growth)
+   is compared against the climate threshold table. The first threshold
+   the term reaches wins. If none matches, the climate stays as it was
+   (the last threshold is −100,000, so in practice one always matches):
 
-   | Climate | GNP growth | Label |
+   | Climate | GNP term | Label |
    |---------|-----------|-------|
-   | Boom | >= 8% | Best economy |
-   | Prosperous | >= 4% | Good |
-   | Normal | >= -1% | Baseline |
-   | Recession | >= -6% | Declining |
-   | Panic | < -6% | Worst economy |
+   | Boom | >= 8 | Best economy |
+   | Prosperous | >= 4 | Good |
+   | Normal | >= -1 | Baseline |
+   | Recession | >= -6 | Declining |
+   | Panic | < -6 | Worst economy |
+
+   The thresholds are in GNP-term units, not percent. Read through the
+   GNP term, Boom needs roughly a 16% yearly rise in total GNP.
 
    In the UI, the bar is inverted so Boom shows the tallest bar.
 
@@ -2066,8 +2371,11 @@ level-up formula is:
 | 5     | 2,560,000         |
 | 6     | 4,000,000         |
 
-When a city levels up, the map is repainted with a larger footprint
-(radius = level + 4 tiles).
+When a city levels up, every map tile within a distance of the new
+level from the centre has a 1-in-10 chance of becoming a town tile, so
+the footprint grows irregularly. The `level + 4` radius is the
+**land-value** decay radius (see Land value). It is not the footprint,
+and it is not a demand radius: no separate town demand radius was found.
 
 ### City tiers and starting GNP
 
@@ -2124,7 +2432,12 @@ Each city maintains demand-tracking records for the products available
 there.  When a firm type becomes active in or near a city, the city
 creates a demand entry for it.  These entries are updated daily and
 accumulate monthly revenue and quantity figures, feeding the consumer
-side of the product link system.
+side of the product link system. Each day, when an entry's demand
+figure exceeds its supply total, the gap (and the gap × the reference
+price) is booked into the entry's monthly quantity and revenue and into
+the product's totals. Unmet demand therefore counts in the product's
+market total, which is the denominator of market share. (Reading the
+two fields as demand and supply is inferred from how they are used.)
 
 ## Stock market
 
@@ -2222,6 +2535,16 @@ When a large trade is entered, the game shows a dialog: "Your large
 quantity stock sale/purchase puts pressure on the stock price,"
 displaying the average purchase price and total cost.
 
+**Where the money goes.** The trade price is the average of the old and
+new prices. When a person trades, their personal wealth falls by the
+cost on a buy and rises by the proceeds on a sell. When a corporation
+trades another corporation's stock, money moves between its Cash and
+Stock Assets accounts. The corporation whose stock is traded receives
+nothing, and the public float moves opposite to the trade. When a
+corporation buys back its own stock, cash falls by the cost, equity
+falls, and total shares fall: bought-back shares are retired. The exact
+amount posted to equity was lost in the decompile.
+
 ### Securities regulation (SEC rules)
 
 The game enforces insider trading restrictions. Three situations are
@@ -2246,6 +2569,8 @@ Corporations can issue new shares to raise capital. Issuing shares:
   worth less).
 - Reduces price momentum (dampens recent upward pressure).
 - Generates a news announcement: "New Shares at $X Per Share."
+- Raises both cash and equity by new shares × issue price. Total shares
+  and the public float both rise by the new shares.
 
 ### Dividends
 
@@ -2513,8 +2838,8 @@ Every game day, each corporation processes its financial obligations:
 
 3. **President salary**: If the corporation has a president, their
    annual salary is divided by 365 and paid daily. The salary comes
-   from the corporation's cash and goes to the president's personal
-   wealth.
+   from the corporation's cash (posted as a Salaries expense) and goes
+   to the president's personal wealth: `salary / 365` per day.
 
 4. **Net income update**: After daily charges, the net income figure
    is recalculated.
@@ -3176,13 +3501,14 @@ market momentum.
 
 For each link visited on a given day:
 
-1. **Score adjustment** — the product's score is recalculated:
+1. **Score adjustment**: the product's score is recalculated:
    `score = base_score + (brand_rating × brand_weight / 60) +
-   (quality × quality_weight / 60)`. If the new score is lower than the
-   old score, the quantity is reduced proportionally:
-   `new_quantity = quantity × new_score / old_score`. Score increases
-   do not immediately boost quantity (that happens through the growth
-   mechanism below).
+   (score_in × score_in_weight / 60)`, using the town-product weights.
+   If the new score is lower than the old score, the quantity loses
+   `(old_score − new_score) × quantity / 100`, floored at zero. This is
+   1% per point lost, not new_score / old_score. Score increases don't
+   immediately boost quantity (that happens through the growth mechanism
+   below).
 
 2. **Demand movement** — only for products with consumer demand, and
    only for retail firms. The system determines whether demand should
@@ -3193,36 +3519,33 @@ For each link visited on a given day:
       removed (quantity divided by a constant). This prevents unlimited
       accumulation.
 
-   b. **Decay factor** — a per-link factor is computed from the firm's
-      properties: the firm's adjustment rate × 5, plus a base of 50 for
-      non-department-store retailers, capped at 100. Department stores
-      (and similar large retail types) have a lower decay floor,
-      reflecting their market power.
+   b. **Decay factor**: a per-link factor is computed from the firm's
+      properties: the firm's adjustment rate × 5, plus 50 unless the
+      firm stands on the farmland (rural) tile range, capped at 100. It
+      depends on the tile the firm stands on, not on the firm type.
 
-   c. **Demand reduction** — if the link's quantity is positive, it may
-      be reduced based on how the link's quality and price compare to
-      the town average. Products that are worse than average lose
-      quantity.
+   c. **Demand reduction**: if the link's quantity is positive, it may
+      be reduced based on how the link's score, price, score-in and
+      brand compare to the town's reference levels (not an average of
+      sellers). Links that are worse than the reference lose quantity
+      (see Market competition for the formula).
 
    d. **Supply-demand check** — the system projects whether supply will
-      meet demand by the end of the month. If projected supply falls
-      below projected demand times a threshold multiplier, two growth
-      mechanisms activate:
+      meet demand by the end of the month. If the projected quantity-sum
+      is below 2 × the projected flow, two growth mechanisms activate:
 
-      - **Demand growth** — the link gains quantity from unfulfilled
-        town demand. Growth is proportional to:
-        `(100 − decay) × unfulfilled_demand × quality_factor² ×
-        price_factor² / 100`. Better quality and lower prices
-        (relative to town averages) accelerate growth quadratically.
+      - **Demand growth**: the link gains quantity from free town
+        demand f = demand − supply:
+        `(100 − decay) × f × gap² × (f / demand)² / 100`, where gap sums
+        the factors in which the link beats the town reference levels.
 
-      - **Competition** — the link takes quantity from competitors in
-        the same town. For each competitor link, transfer is:
-        `(100 − decay) × competitor_qty × advantage² ×
-        price_ratio² × multiplier / 100`
-        where advantage factors in quality difference, price difference
-        (weighted by the product's price weight), and brand score
-        difference. The quadratic terms mean that even small advantages
-        compound into significant market share shifts over time.
+      - **Competition**: the link takes quantity from each weaker
+        competitor in the same town:
+        `(100 − decay) × (competitor_qty × gap² × (competitor_qty / demand)² × 120 / 100) / 100`,
+        where gap sums the score, price (weighted by the price weight),
+        score-in and brand advantages over that competitor. The
+        quadratic terms mean that even small advantages compound into
+        significant market share shifts over time.
 
 3. **Supply tracking** — after demand movement, the link's supply data
    is updated. If quantity is at least 1 (or was at least 1 previously),
@@ -3239,7 +3562,12 @@ At the start of each month:
   for each link
 - Running totals are shifted to make room for the new month
 - Market share percentages are recomputed by summing quantities across
-  all links for each product, grouped by corporation
+  all links for each product, grouped by corporation. Each corporation's
+  sum (this month plus the unexpired part of last month, prorated over
+  31 days) is divided by the product's market total, which includes
+  unmet demand. The result is rounded and capped at 100. This table is
+  used for display and goals; it doesn't drive the split between
+  sellers
 
 ### Sales
 
@@ -3252,15 +3580,14 @@ When a retail firm sells units of a product:
   monthly margin bucket
 - For consumer products:
   - The town-product record's revenue and quantity counters are updated
-  - **Brand perception adjustment** — the system computes an "expected
-    score" based on the product's quality weights and the actual quality
-    and score of the item sold. It then adjusts the brand perception for
-    this product in this town, nudging it toward the expected value at a
-    rate of approximately ±0.1 per sale event. For corporations using
-    non-unique brand strategies, the adjustment rate scales with the
-    brand rating in that town. This means that selling high-quality
-    products gradually improves brand perception, while selling low-
-    quality products degrades it.
+  - **Brand perception adjustment**: the system computes an expected
+    level from the link's score-in and score, compared with the
+    product's top values, and turns it into a target between −A and
+    +A, where A is the corporation's brand awareness in that town. The
+    brand value then steps toward the target by 0.1 (or 0.1 / a
+    per-town count for corporate and range brands) × units sold /
+    max(units sold, town demand), clamped to ±A. See Brand perception
+    for the formula.
 - Product-level monthly revenue and demand quantity accumulators are
   updated
 
@@ -3947,14 +4274,17 @@ Land value is computed per tile as the sum of two components.
 1. Find the relevant town — either the town on the tile, the town
    assigned to the building on the tile, or the nearest town by
    Euclidean distance
-2. Compute a base value from the town's level and population-related
-   indicators
+2. Compute a base value from the town's per-capita GNP and
+   population: `(per-capita GNP × 100 / 20,000) × population × 2.5 / 100`,
+   which is per-capita GNP × population / 8,000. The town's level is not
+   part of the base.
 3. Apply linear distance decay: value drops to zero at a distance
    equal to the town's level plus 4. Higher-level towns project value
    over a larger radius.
-4. Small towns receive a fractional discount (multiplied by a constant
-   less than 1)
-5. Minimum floor: $500,000. No tile is worth less than this.
+4. Small towns (the small-town tile range) are multiplied by 0.5.
+5. A $1 billion check on the value aborts the game rather than
+   clamping.
+6. Minimum floor: $500,000. No tile is worth less than this.
 
 **Building bonus:**
 If the tile's overlay has a building reference, a bonus is added:

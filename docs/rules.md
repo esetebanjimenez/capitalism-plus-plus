@@ -29,15 +29,15 @@ the wide catalog tables) are ours, not the original game's.
 
 | Rating | Efficiency % | Storage multiplier | Reference |
 |---|---|---|---|
-| 1 | 100 | 8 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
-| 2 | 130 | 10 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
-| 3 | 160 | 14 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
-| 4 | 200 | 16 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
-| 5 | 250 | 20 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
-| 6 | 300 | 24 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
-| 7 | 360 | 30 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
-| 8 | 430 | 35 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
-| 9 | 500 | 40 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
+| 1 | 100 | 8 | docs/gamelogic.md 558–585 — rating efficiency and storage |
+| 2 | 130 | 10 | docs/gamelogic.md 558–585 — rating efficiency and storage |
+| 3 | 160 | 14 | docs/gamelogic.md 558–585 — rating efficiency and storage |
+| 4 | 200 | 16 | docs/gamelogic.md 558–585 — rating efficiency and storage |
+| 5 | 250 | 20 | docs/gamelogic.md 558–585 — rating efficiency and storage |
+| 6 | 300 | 24 | docs/gamelogic.md 558–585 — rating efficiency and storage |
+| 7 | 360 | 30 | docs/gamelogic.md 558–585 — rating efficiency and storage |
+| 8 | 430 | 35 | docs/gamelogic.md 558–585 — rating efficiency and storage |
+| 9 | 500 | 40 | docs/gamelogic.md 558–585 — rating efficiency and storage |
 
 The storage multiplier is registered but inactive: the native base capacity and
 type factor are missing, so M1 preserves the normalized product×size×3-day capacity.
@@ -283,7 +283,6 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | Key | Value | Units | Reference |
 |---|---|---|---|
 | `ai_cash_reset` | 1000000000 | dollars | Government corp only: FUN_00030ffc decomp:27691-27693, vtable 0x3553c (audit A1). Competitors keep real cash; the sim has no Government corp, so this is unused |
-| `asset_sale_rounds` | 10 | rounds | FUN_00030ae2 decomp:27421: other corps' stock sold in up to 10 rounds (techspec Asset sale) |
 | `bankruptcy_age_threshold` | 10 | years | gamelogic.md Bankruptcy check |
 | `bankruptcy_value_threshold` | 100000 | dollars | gamelogic.md Bankruptcy check |
 | `build_cooldown` | 30 | days | gamelogic.md Firm creation |

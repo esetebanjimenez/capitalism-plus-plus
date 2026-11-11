@@ -153,31 +153,31 @@ def ai_build_firm(
 
 
 def ai_raise_cash(eco: Economy, corp: Corporation, target: float) -> bool:
-    """Sell assets until cash reaches target (FUN_00030ae2, audit B2/A3).
+    """Raise cash toward target before a build is cancelled (FUN_00030ae2, audit B2/A3).
 
-    Native order (techspec:1548-1560, step bodies not re-traced): own-stock
-    issuance check, own holdings (FUN_00030c6e), subsidiaries (FUN_00037a7e),
-    other corps' stock in up to 10 rounds (FUN_00030d97), fire sale (FUN_00030e55). The sim has no
-    subsidiaries or firm sales yet, so only the share-sale rounds run: each
-    round sells just enough of each holding, at the market's sell price, to
-    cover what's left. Returns True once cash >= target.
+    Researcher trace (decomp:27435-27473): sell holdings in other corps
+    (FUN_00030c6e, decomp:27484-27530, only with Allow Stock, stops at target),
+    then a bank loan (FUN_00037a7e), then new share issues (FUN_00030d97), a
+    second holdings sale and up to 10 more issues, and firm closures only while
+    cash < 0 (FUN_00030e55). Only the holdings sale is modelled here; the loan,
+    share issues, chairman-flag check and closures are open (A3).
+    Returns True once cash >= target.
     """
-    for _ in range(int(_AR.asset_sale_rounds)):
-        if corp.ledger.cash >= target:
-            return True
-        sold = False
-        for stock in eco.stocks:
-            if stock is None or stock.corp_id == corp.id:
-                continue
-            held = stock.holdings_corps[corp.id]
-            short = target - corp.ledger.cash
-            if held <= 0 or short <= 0:
-                continue
-            want = min(held, int(short // max(stock.price, 0.10)) + 1)
-            corp.ledger.cash += sell_shares(stock, "corp", corp.id, want)
-            sold = True
-        if not sold:
+    if corp.ledger.cash >= target:
+        return True
+    if not eco.stock_enabled:
+        return False
+    for stock in eco.stocks:
+        short = target - corp.ledger.cash
+        if short <= 0:
             break
+        if stock is None or stock.corp_id == corp.id:
+            continue
+        held = stock.holdings_corps[corp.id]
+        while held > 0 and corp.ledger.cash < target:
+            want = min(held, int((target - corp.ledger.cash) // max(stock.price, 0.10)) + 1)
+            corp.ledger.cash += sell_shares(stock, "corp", corp.id, want)
+            held = stock.holdings_corps[corp.id]
     return corp.ledger.cash >= target
 
 

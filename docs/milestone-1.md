@@ -71,15 +71,16 @@ with the call we made.
 
 ## Canonical reference
 
-Tracked reference copy: [`docs/reference/gamelogic.md`](reference/gamelogic.md)
+Tracked reference copy: [`docs/gamelogic.md`](gamelogic.md)
 (Esteban's expanded source dump, 4,192 lines). Prefer it over older working
 notes when they disagree. It is a canonical **reference** for coefficients and
 section text — not labeled as a verified original binary dump unless that
-provenance is separately proven. Keep existing team docs (`docs/gamelogic.md`,
-`docs/design.md`, `docs/recipes.md`, generated `docs/rules.md`) in place; do not
-delete or replace them with this file.
+provenance is separately proven. It replaced the older `docs/gamelogic.md` at
+the same path. Keep the other team docs (`docs/design.md`, `docs/recipes.md`,
+generated `docs/rules.md`) in place; do not delete or replace them with this
+file.
 
-**Known inconsistency (freight).** In `docs/reference/gamelogic.md` Purchasing /
+**Known inconsistency (freight).** In `docs/gamelogic.md` Purchasing /
 Freight wording at line 933 still says Freight Cost posts as
 `unit-price-at-source × receipt`. That stale line is **overridden** by the
 validated, Esteban-corrected formula used in code and slice docs:
