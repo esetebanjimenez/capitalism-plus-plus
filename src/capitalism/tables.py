@@ -40,6 +40,7 @@ class ClimateThresholds(StaticModel):
     prosperous: float
     normal: float
     recession: float
+    panic: float
 
 
 class TownGrowth(StaticModel):
@@ -436,6 +437,7 @@ def load_climate_thresholds() -> ClimateThresholds:
         prosperous=_rule("towns", "climate_prosperous"),
         normal=_rule("towns", "climate_normal"),
         recession=_rule("towns", "climate_recession"),
+        panic=_rule("towns", "climate_panic"),
     )
 
 
