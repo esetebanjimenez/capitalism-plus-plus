@@ -252,7 +252,7 @@ def migrate(con: sqlite3.Connection) -> None:
         "ref TEXT NOT NULL, provisional INTEGER NOT NULL CHECK(provisional IN(0,1)))"
     )
     con.executemany(
-        "INSERT INTO rating_throughput VALUES(?,?,?,'docs/gamelogic.md 558–585 — rating efficiency and storage',0) "
+        "INSERT INTO rating_throughput VALUES(?,?,?,'docs/gamelogic.md 590–617 — rating efficiency and storage',0) "
         "ON CONFLICT(rating) DO UPDATE SET efficiency_pct=excluded.efficiency_pct,"
         "storage_mult=excluded.storage_mult,ref=excluded.ref,provisional=0",
         [
@@ -278,18 +278,18 @@ def migrate(con: sqlite3.Connection) -> None:
         "ON CONFLICT(job_type) DO UPDATE SET base_daily=excluded.base_daily,"
         "ref=excluded.ref, provisional=excluded.provisional",
         [
-            (1, 20, "docs/gamelogic.md 739–747 — Crop Growing fixed credits", 0),
+            (1, 20, "docs/gamelogic.md 771–779 — Crop Growing fixed credits", 0),
             (
                 2,
                 10,
-                "docs/gamelogic.md 849 plus 739–747 — Raising visit reading, not Processing",
+                "docs/gamelogic.md 881 plus 771–779 — Raising visit reading, not Processing",
                 1,
             ),
-            (11, 14, "docs/gamelogic.md 739–747, 963–970 — shared R&D visit credits", 0),
+            (11, 14, "docs/gamelogic.md 771–779, 1003–1010 — shared R&D visit credits", 0),
             (
                 13,
                 14,
-                "docs/gamelogic.md 963–970 — shared Software Development visit credits",
+                "docs/gamelogic.md 1003–1010 — shared Software Development visit credits",
                 0,
             ),
         ],
