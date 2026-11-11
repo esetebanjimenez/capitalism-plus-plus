@@ -23,3 +23,10 @@ npm run --prefix client screenshot   # after build: docs/art/m2-map-desktop.png,
 - **Sample map.** `public/sample-map.bin` comes from `python scripts/export_sample_map.py` (seed 1,
   240 x 198): `CPPM`, u16 width, u16 height, then kind and climate bytes per tile.
 - URL parameters: `x`, `y` (top-left tile), `zoom` (1-3), `margin` (tiles kept around the screen).
+
+## Terrain renderer options
+
+URL parameters pick the terrain renderer, for comparison: `mode=baked|direct`, `art=32|64`,
+`chunk=<tiles per chunk side>`. Default is `mode=baked&art=32&chunk=32`. `npm run bench` (after
+`npm run build`) prints memory and frame time for each variant at phone and desktop sizes.
+Chrome there renders WebGL on the CPU (SwiftShader), so frame times are only relative.

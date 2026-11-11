@@ -19,9 +19,13 @@ export interface View {
 
 export const chunkKey = (cx: number, cy: number) => `${cx},${cy}`;
 
-export function chunkGrid(mapW: number, mapH: number) {
-  return { cols: Math.ceil(mapW / CHUNK_TILES), rows: Math.ceil(mapH / CHUNK_TILES) };
+export function chunkGrid(mapW: number, mapH: number, chunkTiles = CHUNK_TILES) {
+  return { cols: Math.ceil(mapW / chunkTiles), rows: Math.ceil(mapH / chunkTiles) };
 }
+
+/** GPU bytes of one baked chunk: RGBA8 at `artScale` texels per art pixel. */
+export const chunkBytes = (chunkTiles: number, artScale: number) =>
+  (chunkTiles * TILE_PX * artScale) ** 2 * 4;
 
 /** Default keep-alive margin around the screen, in art pixels (8 tiles). */
 export const MARGIN_PX = 8 * TILE_PX;
@@ -35,9 +39,11 @@ export function neededChunks(
   mapW: number,
   mapH: number,
   marginPx = MARGIN_PX,
+  chunkTiles = CHUNK_TILES,
 ): [number, number][] {
   if (!Number.isInteger(v.zoom) || v.zoom < 1) throw new Error("zoom must be a whole number >= 1");
-  const { cols, rows } = chunkGrid(mapW, mapH);
+  const { cols, rows } = chunkGrid(mapW, mapH, chunkTiles);
+  const CHUNK_PX = chunkTiles * TILE_PX;
   const wx = v.w / v.zoom;
   const wy = v.h / v.zoom;
   const x0 = Math.max(0, Math.floor((v.x - marginPx) / CHUNK_PX));

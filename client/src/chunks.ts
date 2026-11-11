@@ -1,79 +1,123 @@
 import { Container, Renderer, RenderTexture, Sprite, Texture } from "pixi.js";
-import {
-  CHUNK_BYTES,
-  CHUNK_PX,
-  CHUNK_TILES,
-  MARGIN_PX,
-  TILE_PX,
-  View,
-  chunkKey,
-  neededChunks,
-} from "./chunkmath";
+import { CHUNK_TILES, MARGIN_PX, TILE_PX, View, chunkBytes, chunkKey, neededChunks } from "./chunkmath";
 import { MapData } from "./mapdata";
 import { frameFor } from "./tiles";
 
+/** Terrain renderer options: baked chunk textures or tiles drawn straight from the atlas. */
+export interface TerrainOptions {
+  mode: "baked" | "direct";
+  chunkTiles: number;
+  /** Atlas texels per art pixel: 1 for the 32 px set, 2 for the 64 px set. */
+  artScale: number;
+  marginPx: number;
+}
+
+export const DEFAULT_TERRAIN: TerrainOptions = {
+  mode: "baked",
+  chunkTiles: CHUNK_TILES,
+  artScale: 1,
+  marginPx: MARGIN_PX,
+};
+
+interface Live {
+  node: Container;
+  tex?: RenderTexture;
+  sprites: number;
+}
+
 /**
- * Terrain chunk cache. Each chunk is 32 x 32 tiles baked once into a 1024 px
- * render texture. Only chunks within 8 tiles of the screen are kept; the rest are
- * destroyed so GPU memory stays bounded at any map size.
+ * Terrain chunk cache. Chunks within the margin of the screen are kept; the rest are
+ * destroyed so memory stays bounded at any map size.
+ *
+ * - baked: each chunk is painted once into a render texture (chunkTiles x 32 art px,
+ *   times artScale texels), then drawn as one sprite. GPU memory grows with chunk area.
+ * - direct: each chunk is a container of tile sprites drawn from the atlas every frame.
+ *   GPU memory is the atlas only; Pixi batches the sprites because they share one texture.
  */
 export class ChunkCache {
   readonly layer = new Container();
-  private readonly live = new Map<string, { sprite: Sprite; tex: RenderTexture }>();
+  private readonly live = new Map<string, Live>();
   baked = 0;
 
   constructor(
     private readonly renderer: Renderer,
     private readonly map: MapData,
     private readonly frames: Record<string, Texture>,
-    private readonly marginPx = MARGIN_PX,
+    readonly opts: TerrainOptions = DEFAULT_TERRAIN,
   ) {}
 
   get count(): number {
     return this.live.size;
   }
 
+  /** GPU bytes held by baked chunk textures (0 in direct mode). */
   get bytes(): number {
-    return this.live.size * CHUNK_BYTES;
+    return this.opts.mode === "baked" ? this.live.size * chunkBytes(this.opts.chunkTiles, this.opts.artScale) : 0;
+  }
+
+  get sprites(): number {
+    let n = 0;
+    for (const c of this.live.values()) n += c.sprites;
+    return n;
   }
 
   update(v: View): void {
     const want = new Set<string>();
-    for (const [cx, cy] of neededChunks(v, this.map.width, this.map.height, this.marginPx)) {
+    const { chunkTiles, marginPx } = this.opts;
+    for (const [cx, cy] of neededChunks(v, this.map.width, this.map.height, marginPx, chunkTiles)) {
       const key = chunkKey(cx, cy);
       want.add(key);
-      if (!this.live.has(key)) this.live.set(key, this.bake(cx, cy));
+      if (!this.live.has(key)) this.live.set(key, this.build(cx, cy));
     }
     for (const [key, c] of this.live) {
       if (want.has(key)) continue;
-      c.sprite.destroy();
-      c.tex.destroy(true);
+      c.node.destroy({ children: true });
+      c.tex?.destroy(true);
       this.live.delete(key);
     }
   }
 
-  private bake(cx: number, cy: number) {
+  private tiles(cx: number, cy: number): Container {
+    const n = this.opts.chunkTiles;
     const tiles = new Container();
-    const tx0 = cx * CHUNK_TILES;
-    const ty0 = cy * CHUNK_TILES;
-    for (let ty = 0; ty < CHUNK_TILES; ty++) {
+    const tx0 = cx * n;
+    const ty0 = cy * n;
+    for (let ty = 0; ty < n; ty++) {
       const y = ty0 + ty;
       if (y >= this.map.height) break;
-      for (let tx = 0; tx < CHUNK_TILES; tx++) {
+      for (let tx = 0; tx < n; tx++) {
         const x = tx0 + tx;
         if (x >= this.map.width) break;
         const s = new Sprite(this.frames[frameFor(this.map, x, y)] ?? Texture.EMPTY);
         s.position.set(tx * TILE_PX, ty * TILE_PX);
+        s.width = TILE_PX;
+        s.height = TILE_PX;
         tiles.addChild(s);
       }
     }
-    const tex = RenderTexture.create({ width: CHUNK_PX, height: CHUNK_PX, scaleMode: "nearest" });
+    return tiles;
+  }
+
+  private build(cx: number, cy: number): Live {
+    const px = this.opts.chunkTiles * TILE_PX;
+    const tiles = this.tiles(cx, cy);
+    if (this.opts.mode === "direct") {
+      tiles.position.set(cx * px, cy * px);
+      this.layer.addChild(tiles);
+      return { node: tiles, sprites: tiles.children.length };
+    }
+    const tex = RenderTexture.create({
+      width: px,
+      height: px,
+      resolution: this.opts.artScale,
+      scaleMode: "nearest",
+    });
     this.renderer.render({ container: tiles, target: tex, clear: true });
     tiles.destroy({ children: true });
     const sprite = new Sprite(tex);
-    sprite.position.set(cx * CHUNK_PX, cy * CHUNK_PX);
+    sprite.position.set(cx * px, cy * px);
     this.layer.addChild(sprite);
     this.baked++;
-    return { sprite, tex };
+    return { node: sprite, tex, sprites: 1 };
   }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHUNK_PX, TILE_PX, clampView, neededChunks, stepZoom } from "../src/chunkmath";
+import { CHUNK_PX, TILE_PX, chunkBytes, clampView, neededChunks, stepZoom } from "../src/chunkmath";
 
 const MAP_W = 240;
 const MAP_H = 198;
@@ -60,5 +60,19 @@ describe("zoom and camera", () => {
     expect(c.x).toBe(0);
     expect(c.y).toBeCloseTo(MAP_H * TILE_PX - 2532 / 3);
     expect(Number.isInteger(c.y * 3)).toBe(true);
+  });
+});
+
+describe("chunk size options", () => {
+  it("baked chunk memory grows with art scale squared", () => {
+    expect(chunkBytes(32, 1)).toBe(4 * 2 ** 20);
+    expect(chunkBytes(32, 2)).toBe(16 * 2 ** 20);
+    expect(chunkBytes(16, 2)).toBe(4 * 2 ** 20);
+  });
+
+  it("16-tile chunks cover the same view with finer pieces", () => {
+    const v = { x: 0, y: 0, w: 1024, h: 1024, zoom: 1 };
+    expect(neededChunks(v, 240, 198, 0, 32)).toHaveLength(1);
+    expect(neededChunks(v, 240, 198, 0, 16)).toHaveLength(4);
   });
 });
