@@ -174,9 +174,12 @@ Overlays show a legend with the value range.
 
 **Build menu.** Lists the firm types the player can build on that tile
 (the 14 rows of `firm_types` minus Seaport and the government-only media
-rows the sim rejects), each with setup cost and monthly overhead
-(`firm_types.setup_cost`, `overhead_month`). Types the player cannot afford
-are shown greyed with the shortfall. Choosing one queues `build_firm`.
+rows the sim rejects), each with its build cost (setup cost plus the tile's
+land value) and monthly overhead (`firm_types.setup_cost`, `overhead_month`).
+A build the player can't afford is still allowed, as in the original
+(audit #83: nothing on the native build path checks cash). The row shows the
+shortfall in warning red instead of being greyed, and choosing it asks once:
+"Cash will go to −$X. Build anyway?" Choosing a type queues `build_firm`.
 After a successful build, firm detail opens on the new firm.
 
 **Town card.** The eight city indicators from the reference "City

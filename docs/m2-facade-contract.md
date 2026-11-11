@@ -32,7 +32,7 @@ and any rule it turns out to need goes to its own sim PR.
 | `map` | none | `width`, `height`, per tile `kind`, `ref`; towns `id`, `name`, `x`, `y`, `level`; firms `id`, `x`, `y`, `type_id`, `owner` | Map view, footprint |
 | `overlay` | `layer`: `land_value`, `soil`, `rainfall`, `climate` or `ownership` | One value per tile (firm owner per firm for `ownership`), plus `min` and `max` for the legend | Map overlays |
 | `tile` | `x`, `y` | `kind`, `soil`, `rainfall`, `moisture`, `climate`, `land_value` (`World.land_value`), `can_build` (`World.can_build`), nearest `town` id | Tile card |
-| `build_options` | `x`, `y` | Per buildable firm type: `type_id`, `name`, `setup_cost`, `overhead_month`, `affordable`, `shortfall` | Build panel |
+| `build_options` | `x`, `y` | Per buildable firm type: `type_id`, `name`, `setup_cost`, `land_value`, `build_cost` (setup + land), `overhead_month`, `affordable`, `shortfall` (0 when affordable; a warning, not a block) | Build panel |
 | `town` | `id` | `name`, `level`, `population`, `gnp`, `per_capita_gnp`, `unemployment`, `labor_cost`, `labor_quality`, `consumer_spending`, `climate`, `pop_ring[12]`, `gnp_level_ring[12]` | Town card |
 | `town_market` | `id` | Per consumer link: `link`, `product`, seller `firm` and `corp`, `price`, quality, `brand`, share of demand | Town card, Market tab |
 | `firm` | `id` | `type_id`, `name`, `town`, `owner`, `x`, `y`, `land_value`, `created_serial`, `max_slots`, `allowed_jobs`, `slots[9]` (each null or `job_type`, `product`, `rating`, `stock`, `capacity`), `edges` (decoded `Firm.links` as slot pairs), `ledger` (`cash`, `month[12]`, `last_month[12]`, `year[12]`); media firms add `audience`, `reputation`, `revenue_month[12]` | Firm detail, Layout and Firm tabs |
@@ -76,8 +76,9 @@ and any rule it turns out to need goes to its own sim PR.
 
 All commands act as the player (corp 0). A command that fails a check the
 sim already makes (for example `can_build`, `allowed_jobs`, an occupied
-slot, a SEC refusal or not enough cash) returns `ok: false` with that
-reason instead of throwing.
+slot or a SEC refusal) returns `ok: false` with that
+reason instead of throwing. Not enough cash is not a refusal for
+`build_firm`: the player's cash goes negative, as in the original.
 
 ## Not in this contract
 
