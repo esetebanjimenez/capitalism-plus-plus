@@ -288,9 +288,11 @@ class TestAITrading:
         s = Stock(0, 100_000.0, 10.0)
         # All shares are public float — should trigger buyback
         rng = Rng(42)
+        total = s.total_shares
         cost = ai_buyback(s, 0, rng)
         assert cost > 0
-        assert s.holdings_corps[0] > 0
+        assert s.holdings_corps[0] == 0  # S3: bought-back shares are retired
+        assert s.total_shares < total
 
     def test_buyback_skipped_when_float_low(self):
         s = Stock(0, 100_000.0, 10.0)

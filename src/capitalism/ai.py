@@ -10,7 +10,6 @@ from .person import (
     ROLE_INDEPENDENT,
     STATE_ACTIVE,
 )
-from .stock import sell_shares
 from .tables import AI_RULES, COMPETITOR_CAPITAL, FIRM_TYPES
 
 if TYPE_CHECKING:
@@ -176,7 +175,7 @@ def ai_raise_cash(eco: Economy, corp: Corporation, target: float) -> bool:
         held = stock.holdings_corps[corp.id]
         while held > 0 and corp.ledger.cash < target:
             want = min(held, int((target - corp.ledger.cash) // max(stock.price, 0.10)) + 1)
-            corp.ledger.cash += sell_shares(stock, "corp", corp.id, want)
+            eco.sell_stock(corp, stock.corp_id, want)
             held = stock.holdings_corps[corp.id]
     return corp.ledger.cash >= target
 
