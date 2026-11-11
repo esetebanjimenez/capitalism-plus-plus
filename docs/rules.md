@@ -86,9 +86,10 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `env_hi` | 3 | index | Towns and cities — environmental factors |
 | `env_lo` | -3 | index | Towns and cities — environmental factors |
 | `gnp_divisor` | 200 **provisional** | $/capita per index point | Towns and cities — labor cost (design.md provisional) |
-| `gnp_factor_hi` | 1.013 | multiplier / month | Towns and cities — per-capita GNP factor |
-| `gnp_factor_lo` | 0.983 | multiplier / month | Towns and cities — per-capita GNP factor |
 | `gnp_growth_scale` | 50 | scalar | Binary FUN_0004b377: town gnp_growth_pct = scale × 12-month total-GNP change (capplus_decompiled.c:46466) |
+| `gnp_walk_base` | 295 | integer | T6: 0x127 = 295 (decomp:46562) |
+| `gnp_walk_divisor` | 300 | integer | T6: 0xa6eca = 300 (decomp:46564) |
+| `gnp_walk_steps` | 10 | count | T6: FUN_0004b609 (decomp:46562) random(10) |
 | `labor_quality_hi` | 100 | index | Towns and cities — labor quality clamp |
 | `labor_quality_lo` | 1 | index | Towns and cities — labor quality clamp |
 | `labor_step` | 0.2 **provisional** | fraction toward target / month | Towns and cities — labor/spend/quality (design.md provisional) |

@@ -64,7 +64,7 @@ def test_restaurant_buys_bread_and_sells_it_with_multiplier_two():
     restaurant.link_slots(0, 1)
     restaurant.slots[0].supply = eco.link_b2b(source, buy)
     link = eco.link_consumer(sale, town)
-    sim.advance_days(3)
+    sim.advance_days(6)
     assert sale.daily_cap() == pytest.approx(
         sale.efficiency * sale.capacity * JOB_RULES.sales_mult_store / 100
     )
@@ -431,7 +431,7 @@ def test_software_completion_mastering_copying_and_sales():
     sim.economy.link_b2b(sales, buy)
     retail_link = sim.economy.link_consumer(retail, town)
     # The buyer's first scheduled 5-day purchase, then the same-day consumer link pass.
-    sim.advance_days((-(sim.calendar.day_serial + buyer.id)) % JOB_RULES.purchase_every_days + 1)
+    sim.advance_days((buy.slot - sim.calendar.day_serial) % JOB_RULES.purchase_every_days + 1)
     assert sim.calendar.month == 7 and buy.firm.ledger.total[CAT_SALES] > 0
     assert dev.stock == 1 and retail_link.units_month[6] > 0  # actual sale from buyer's store
     assert link.live and retail_link.live
@@ -561,15 +561,17 @@ def test_freight_db_defaults_and_per_product_rates():
     assert cat["Wheat"].row.base_price == 0.1
 
 
-def test_freight_scales_with_manhattan_distance_and_zero_only_floor():
+def test_freight_scales_with_euclidean_distance_and_zero_only_floor():
+    import math
+
     from capitalism.jobs import product_freight_rate
 
     sim, town = bread_town(1)
     cat = sim.economy.catalog
     wheat = cat["Wheat"]
     one = product_freight_rate(wheat, _at(5, 5), _at(6, 5))
-    assert product_freight_rate(wheat, _at(5, 5), _at(8, 9)) == pytest.approx(7 * one)
-    assert product_freight_rate(wheat, _at(8, 9), _at(5, 5)) == pytest.approx(7 * one)
+    assert product_freight_rate(wheat, _at(5, 5), _at(8, 9)) == pytest.approx(5 * one)
+    assert product_freight_rate(wheat, _at(8, 9), _at(5, 5)) == pytest.approx(5 * one)
     assert product_freight_rate(wheat, _at(0, 0), _at(10, 0)) == pytest.approx(0.0105)
     # Zero raw rate (same tile, or a product with no freight coefficient) uses the floor.
     assert product_freight_rate(wheat, _at(5, 5), _at(5, 5)) == 0.01
@@ -578,7 +580,8 @@ def test_freight_scales_with_manhattan_distance_and_zero_only_floor():
     # Firms in different towns use their own stored coordinates.
     other = next(t for t in sim.towns if t.id != town.id)
     a, b = find_site(sim, town), find_site(sim, other)
-    d = abs(a[0] - b[0]) + abs(a[1] - b[1])
+    dx, dy = a[0] - b[0], a[1] - b[1]
+    d = math.isqrt(dx * dx + dy * dy)
     assert d > 1
     assert product_freight_rate(wheat, _at(*a), _at(*b)) == pytest.approx(d * 70 * 0.30 / 20_000)
     for p in cat.products:

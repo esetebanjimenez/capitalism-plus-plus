@@ -214,7 +214,7 @@ class Town:
 
         # --- GNP update (detailed only) ---
         prev_gnp = self.per_capita_gnp
-        self.per_capita_gnp *= rng.uniform(g.gnp_factor_lo, g.gnp_factor_hi)
+        self.per_capita_gnp *= (rng.randint(0, g.gnp_walk_steps - 1) + g.gnp_walk_base) / g.gnp_walk_divisor
         floor = TIER_GNP[self.tier].lo
         if self.per_capita_gnp < floor:
             self.per_capita_gnp = float(floor)

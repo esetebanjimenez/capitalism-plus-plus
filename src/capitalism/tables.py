@@ -52,8 +52,9 @@ class TownGrowth(StaticModel):
     pop_unemp_scale: float
     small_pop: float
     large_pop: float
-    gnp_factor_lo: float
-    gnp_factor_hi: float
+    gnp_walk_steps: int
+    gnp_walk_base: int
+    gnp_walk_divisor: int
     unemp_lo: float
     unemp_hi: float
     labor_step: float
@@ -452,8 +453,9 @@ def load_town_growth() -> TownGrowth:
         "pop_unemp_scale",
         "small_pop",
         "large_pop",
-        "gnp_factor_lo",
-        "gnp_factor_hi",
+        "gnp_walk_steps",
+        "gnp_walk_base",
+        "gnp_walk_divisor",
         "unemp_lo",
         "unemp_hi",
         "labor_step",
