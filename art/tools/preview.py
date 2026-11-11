@@ -8,14 +8,21 @@ fr={}
 def saver(sub):
     os.makedirs(f'../tiles/{sub}',exist_ok=True)
     def save(n,im):
-        assert all(('#%02x%02x%02x'%c[1][:3]) in T.PAL for c in im.getcolors(4096)), n
+        assert all(('#%02x%02x%02x'%c[1][:3]) in T.PAL for c in im.getcolors(4096) if c[1][3]), n
         im.save(f'../tiles/{sub}/{n}.png'); fr[n]=im
     return save
 T.build('../tiles/terrain'); [fr.__setitem__(f[:-4],Image.open(f'../tiles/terrain/{f}').convert('RGBA')) for f in os.listdir('../tiles/terrain')]
 town.build(saver('town'))
-names=sorted(fr); cols=16; at=Image.new('RGBA',(cols*32,math.ceil(len(names)/cols)*32),(0,0,0,0)); meta={}
+import firms
+firms.build(saver('firms'),saver('flags'))
+flags=sorted(n for n in fr if n.startswith('flag_'))
+names=sorted(n for n in fr if n not in flags); cols=16; ncell=len(names)+math.ceil(len(flags)/8)
+at=Image.new('RGBA',(cols*32,math.ceil(ncell/cols)*32),(0,0,0,0)); meta={}
 for i,n in enumerate(names):
     x,y=(i%cols)*32,(i//cols)*32; at.paste(fr[n],(x,y)); meta[n]=dict(x=x,y=y,w=32,h=32)
+for j,n in enumerate(flags):  # 8 x 12 flags, eight to a 32 px cell (4 x 2 grid)
+    c=len(names)+j//8; k=j%8; x=(c%cols)*32+(k%4)*8; y=(c//cols)*32+(k//4)*12
+    at.paste(fr[n],(x,y)); meta[n]=dict(x=x,y=y,w=8,h=12)
 os.makedirs('../atlas',exist_ok=True)
 at.save('../atlas/terrain_atlas.png'); json.dump(dict(tile=32,frames=meta),open('../atlas/terrain_atlas.json','w'),indent=1)
 # ---- sample map ----
@@ -53,11 +60,28 @@ for y in range(Hh):
             elif dg: t=fr['coast_corner_'+dg[0]]
             else: t=fr[f'water_{v%3}']
         mp.paste(t,(x*32,y*32))
+FIRMS=[(5,6,'department_store',0),(7,8,'factory',1),(17,6,'rnd_center',2),(4,10,'farm',0),(18,4,'logging_camp',3),
+       (19,9,'mine',1),(21,12,'oil_well',0),(17,11,'software_developer',2),(16,13,'software_publisher',0),
+       (11,15,'restaurant',3),(8,8,'television_station',0),(14,6,'radio_station',1),(6,12,'newspaper_publisher',2)]
+for x,y,n,o in FIRMS:
+    f=fr['firm_'+n]; mp.paste(f,(x*32,y*32),f); g=fr[f'flag_{o:02d}']; mp.paste(g,(x*32+24,y*32-4),g)
+for x in range(W):
+    if G[16][x]=='w' and G[15][x]=='L': mp.paste(fr['firm_seaport'],(x*32,16*32),fr['firm_seaport']); g=fr['flag_00']; mp.paste(g,(x*32+24,16*32-4),g); break
 FB='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'; F=lambda n:ImageFont.truetype(FB,n)
 cream=T.H('#f6ecd4')+(255,); ink=T.H('#22262e')
 S=Image.new('RGBA',(W*64+60,Hh*64+at.height*2+180),cream); d=ImageDraw.Draw(S)
-d.text((30,16),'Capitalism++ M2 production: terrain, coast, climate edges and town (B+, 32 px, 48 colours), shown at 2x',font=F(24),fill=ink)
+d.text((30,16),'Capitalism++ M2 production: terrain, coast, town, 14 firms and owner flags (B+, 32 px, 48 colours), shown at 2x',font=F(24),fill=ink)
 S.paste(mp.resize((W*64,Hh*64),Image.NEAREST),(30,60))
 d.text((30,Hh*64+80),f'Atlas: {len(names)} tiles, transparent where empty',font=F(20),fill=ink)
 big=at.resize((at.width*2,at.height*2),Image.NEAREST); S.paste(big,(30,Hh*64+115),big)
-S.convert('RGB').save('../../docs/art/m2-tiles-preview.png'); print(len(names),'tiles',at.size)
+S.convert('RGB').save('../../docs/art/m2-tiles-preview-2.png'); print(len(names),'tiles',at.size)
+# ---- firm review sheet: each firm on grass at 4x, with its flag ----
+FN='/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+sh=Image.new('RGBA',(7*170+20,2*190+70),cream); d=ImageDraw.Draw(sh)
+d.text((20,14),'Capitalism++ M2: 14 firm sprites, 32 px, shown at 4x on climate-2 grass with an owner flag',font=F(20),fill=ink)
+for i,n in enumerate(firms.NAMES):
+    g=fr['grass_c2_%d'%(i%4)].copy(); f=fr['firm_'+n]; g.paste(f,(0,0),f)
+    c=Image.new('RGBA',(40,40),(0,0,0,0)); c.paste(g,(0,4)); fl=fr['flag_%02d'%(i%12)]; c.paste(fl,(24,0),fl)
+    x,y=20+(i%7)*170,55+(i//7)*190; sh.paste(c.resize((160,160),Image.NEAREST),(x,y),c.resize((160,160),Image.NEAREST))
+    d.text((x,y+162),n.replace('_',' ').replace('rnd','R&D').title().replace('R&D','R&D'),font=ImageFont.truetype(FN,15),fill=ink)
+sh.convert('RGB').save('../../docs/art/m2-firms-sheet.png')
