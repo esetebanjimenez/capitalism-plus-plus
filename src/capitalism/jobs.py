@@ -191,7 +191,7 @@ class Job:
             self.quality *= self.product.cls.quality_decay_base
         # J2: write-off when ceiling shrinks below stock (decomp:61857-61861)
         ceil = self.ceiling
-        if self.stock > ceil and ceil >= 0:
+        if self.stock > ceil >= 0:
             excess = self.stock - ceil
             self.firm.post(CAT_WRITEOFFS, excess * self.unit_cost)
             self.stock = ceil
