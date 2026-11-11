@@ -90,26 +90,26 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `labor_quality_hi` | 100 | index | Towns and cities — labor quality clamp |
 | `labor_quality_lo` | 1 | index | Towns and cities — labor quality clamp |
 | `labor_step` | 0.2 **provisional** | fraction toward target / month | Towns and cities — labor/spend/quality (design.md provisional) |
-| `large_pop` | 4000000 **provisional** | people | Towns and cities — population (design.md provisional) |
+| `large_pop` | 1500000 | people | Binary FUN_0004b4de: additive pop growth (capplus_decompiled.c:46505) |
 | `level_max` | 6 | level | Towns and cities — level table |
 | `level_pop_per_sq` | 160000 | people | Towns and cities — level = (L−1)² × this |
-| `pop_growth_hi` | 0.004 **provisional** | fraction / month | Towns and cities — population (design.md provisional) |
-| `pop_growth_lo` | -0.002 **provisional** | fraction / month | Towns and cities — population (design.md provisional) |
+| `pop_base_offset` | -150 | people | Binary FUN_0004b4de: additive pop growth (capplus_decompiled.c:46505) |
+| `pop_gnp_scale` | 100 | scalar | Binary FUN_0004b4de: additive pop growth (capplus_decompiled.c:46505) |
 | `pop_per_tier` | 300000 | people | Towns and cities — initial population |
+| `pop_random_range` | 300 | people | Binary FUN_0004b4de: additive pop growth (capplus_decompiled.c:46505) |
 | `pop_tier_noise` | 30000 | people | Towns and cities — initial population noise |
-| `rolling_gnp_weight` | 0.05 **provisional** | weight | Towns and cities — population (design.md provisional) |
+| `pop_unemp_scale` | 100 | scalar | Binary FUN_0004b4de: additive pop growth (capplus_decompiled.c:46505) |
+| `pop_unemp_target` | 4 | pct | Binary FUN_0004b4de: additive pop growth (capplus_decompiled.c:46505) |
 | `simple_labor_cost` | 100 | index | Towns and cities — simplified mode |
 | `simple_labor_quality` | 100 | index | Towns and cities — simplified mode |
 | `simple_level` | 3 | level | Towns and cities — simplified mode |
 | `simple_per_capita_gnp` | 20000 | $/capita | Towns and cities — simplified mode |
 | `simple_spending` | 100 | index | Towns and cities — simplified mode |
 | `simple_unemployment` | 2 | percentage points | Towns and cities — simplified mode |
-| `small_pop` | 50000 **provisional** | people | Towns and cities — population (design.md provisional) |
+| `small_pop` | 750000 | people | Binary FUN_0004b4de: additive pop growth (capplus_decompiled.c:46505) |
 | `spend_floor` | 1 **provisional** | index | Towns and cities — consumer spending floor (design.md provisional) |
-| `unemp_baseline` | 5 **provisional** | percentage points | Towns and cities — population (design.md provisional) |
 | `unemp_hi` | 10 | percentage points | Towns and cities — unemployment clamp |
 | `unemp_lo` | 2 | percentage points | Towns and cities — unemployment clamp |
-| `unemp_weight` | 0.05 **provisional** | weight | Towns and cities — population (design.md provisional) |
 
 ## 3 — Product catalog and demand
 

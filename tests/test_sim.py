@@ -206,15 +206,16 @@ def test_stagger_uses_day_serial_mod_30():
     assert before != after
 
 
-def test_simple_cities_frozen():
+def test_simple_cities_pop_grows_gnp_frozen():
+    """Simple-mode cities grow population (additive) but freeze GNP/labor/spending."""
     sim = Sim(seed=5, target_cities=3, detailed_cities=False)
     pops = [t.population for t in sim.towns]
     gnps = [t.per_capita_gnp for t in sim.towns]
     sim.advance_days(365 * 2)
-    assert [t.population for t in sim.towns] == pops
+    assert [t.population for t in sim.towns] != pops
     assert [t.per_capita_gnp for t in sim.towns] == gnps
-    assert all(t.level == 3 for t in sim.towns)
     assert all(t.per_capita_gnp == 20_000 for t in sim.towns)
+    assert all(t.consumer_spending == 100 for t in sim.towns)
 
 
 def test_detailed_clamps_after_ten_years():

@@ -171,26 +171,37 @@ class Town:
         )
 
     def monthly_tick(self, rng: Rng, *, detailed: bool) -> None:
-        """City monthly tick (design.md). Order: pop, GNP, climate, unemp, labor, spend, quality, env."""
-        if not detailed:
-            return
+        """City monthly tick — pop always, rest only when detailed."""
         g = TOWN_GROWTH
         prev_pop = self.population
-        prev_gnp = self.per_capita_gnp
-        rolling = self.rolling_gnp_growth
 
+        # --- Population growth (always runs, even simple-mode) ---
         growth = (
-            rng.uniform(g.pop_growth_lo, g.pop_growth_hi)
-            + g.rolling_gnp_weight * rolling
-            - g.unemp_weight * ((self.unemployment - g.unemp_baseline) / 100.0)
+            float(rng.randint(0, g.pop_random_range - 1))
+            + self.rolling_gnp_growth * g.pop_gnp_scale
+            + (g.pop_unemp_target - self.unemployment) * g.pop_unemp_scale
+            + g.pop_base_offset
         )
-        if growth < 0 and self.population < g.small_pop:
-            growth *= 0.5
-        if growth > 0 and self.population > g.large_pop:
-            growth *= 0.5
-        self.population = max(1.0, self.population * (1.0 + growth))
+        if growth <= 0.0 and self.population < g.small_pop:
+            growth = growth * self.population / g.small_pop
+        elif growth > 0.0 and self.population > g.large_pop:
+            growth = growth * g.large_pop / self.population
+
+        new_pop = self.population + growth
+        if new_pop > 0.0:
+            unemp_people = self.population * self.unemployment / g.pop_unemp_scale + growth
+            self.unemployment = unemp_people * g.pop_unemp_scale / new_pop
+        self.population = max(0.0, new_pop)
         self.level = level_for_population(self.population)
 
+        if not detailed:
+            self.pop_ring[self.ring_index] = self.population
+            self.ring_index = (self.ring_index + 1) % 12
+            self.last_month_population = prev_pop
+            return
+
+        # --- GNP update (detailed only) ---
+        prev_gnp = self.per_capita_gnp
         self.per_capita_gnp *= rng.uniform(g.gnp_factor_lo, g.gnp_factor_hi)
         floor = TIER_GNP[self.tier].lo
         if self.per_capita_gnp < floor:
