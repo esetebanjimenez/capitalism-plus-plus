@@ -43,11 +43,11 @@ class ClimateThresholds(StaticModel):
 
 
 class TownGrowth(StaticModel):
-    pop_growth_lo: float
-    pop_growth_hi: float
-    rolling_gnp_weight: float
-    unemp_weight: float
-    unemp_baseline: float
+    pop_random_range: int
+    pop_base_offset: float
+    pop_gnp_scale: float
+    pop_unemp_target: float
+    pop_unemp_scale: float
     small_pop: float
     large_pop: float
     gnp_factor_lo: float
@@ -429,11 +429,11 @@ def load_climate_thresholds() -> ClimateThresholds:
 @lru_cache(maxsize=1)
 def load_town_growth() -> TownGrowth:
     keys = (
-        "pop_growth_lo",
-        "pop_growth_hi",
-        "rolling_gnp_weight",
-        "unemp_weight",
-        "unemp_baseline",
+        "pop_random_range",
+        "pop_base_offset",
+        "pop_gnp_scale",
+        "pop_unemp_target",
+        "pop_unemp_scale",
         "small_pop",
         "large_pop",
         "gnp_factor_lo",
