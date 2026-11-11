@@ -200,8 +200,10 @@ Each filled slot shows its job type icon, its product (`Job.product.name`),
 its rating (`Job.rating`, 1 to 9) and a small stock bar (`Job.stock` over
 `Job.capacity`). Empty slots show a plus. Lines between slots show the
 internal connections decoded from `Firm.links` over the 20 neighbour edges
-(`SLOT_EDGES`: horizontal, vertical and both diagonals); an arrow shows
-the direction product flows.
+(`SLOT_EDGES`: horizontal, vertical and both diagonals). Links are
+undirected: draw a plain line with no arrowhead. Which way stock moves is
+decided by the job types at each end, not by the link (see
+`docs/m2-view-briefs.md`).
 
 Media firms (`max_slots = 0`) have no grid; the Layout tab is replaced by a
 Media tab showing audience, reputation and monthly revenue. Seaport shows
