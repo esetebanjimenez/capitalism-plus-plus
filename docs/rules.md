@@ -368,6 +368,7 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `free_goal_multiplier` | 2 | factor | gamelogic.md: score is doubled |
 | `goal_bonus_max` | 500 | points | gamelogic.md: 0 to 500 |
 | `player_goal_check_interval` | 2 | days | gamelogic.md: every 2 game-days |
+| `product_goals_count_own_output` | 1 **provisional** | flag (0 or 1) | Researcher report, CAPPLUS.EXE: product goals read a per-corp counter at product+0x97+corp (FUN_00033fe9 classes, FUN_00034056 types); only job output setters change it, each -1 for the old product. +1 observed in FUN_00054071 (manufacturing) and FUN_00057149; +1 inferred, not observed, in FUN_00051ced (crop), FUN_000534b7 (livestock) and FUN_0005bdb8 (software range). Job owning FUN_000570e1/FUN_00057149 unconfirmed; logging, mining and oil are counted on the Designer's call, livestock processing is not. Takeover moves counts to the buyer (FUN_000331fc); here counts follow firm ownership. No purchasing, sales or retail writer found |
 | `product_points` | 5 | points/product | gamelogic.md: 5 each |
 | `sector_points` | 20 | points/sector | gamelogic.md: 20 each |
 | `sector_share_window_months` | 1 **provisional** | months | Researcher report: native sums 12 floats per firm from firm+0x8c (read as a 12-month history, unconfirmed) and rounds the share to a whole percent capped at 100 with an unknown formula; we use last month's sales revenue, unrounded |
@@ -749,24 +750,24 @@ Reference: docs/recipes.md — 1STD.SET METHOD. Speed is a throughput multiplier
 
 ## Job types
 
-| Id | Name | Staff | Setup cost | Training factor | Capacity mult | Units | Reference |
-|---|---|---|---|---|---|---|---|
-| 1 | Crop Growing | 16 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 2 | Livestock Raising | 16 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 3 | Livestock Processing | 16 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 4 | Logging | 24 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 5 | Inventory | 1 | 50000 | 10 **p** | 3 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 6 | Private Labelling | 6 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 7 | Manufacturing | 24 | 300000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 8 | Mining | 24 | 1000000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 9 | Oil Extraction | 24 | 1000000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 10 | Purchasing | 4 | 50000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 11 | Research & Development | 12 | 500000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 12 | Sales | 8 | 100000 | 10 **p** | 3 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 13 | Software Development | 8 | 50000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 14 | Software Production | 4 | 100000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 15 | Advertising | 1 | 5000 | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
-| 16 | Import | 0 **p** | 0 **p** | 10 **p** | 1 **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | design.md slice 4 — Seaport ImportJob |
+| Id | Name | Staff | Setup cost | Training factor | Capacity mult | Counts as produced (goals) | Units | Reference |
+|---|---|---|---|---|---|---|---|---|
+| 1 | Crop Growing | 16 | 100000 | 10 **p** | 1 **p** | yes **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 2 | Livestock Raising | 16 | 100000 | 10 **p** | 1 **p** | yes **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 3 | Livestock Processing | 16 | 100000 | 10 **p** | 1 **p** | no **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 4 | Logging | 24 | 100000 | 10 **p** | 1 **p** | yes **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 5 | Inventory | 1 | 50000 | 10 **p** | 3 **p** | no **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 6 | Private Labelling | 6 | 100000 | 10 **p** | 1 **p** | no **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 7 | Manufacturing | 24 | 300000 | 10 **p** | 1 **p** | yes **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 8 | Mining | 24 | 1000000 | 10 **p** | 1 **p** | yes **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 9 | Oil Extraction | 24 | 1000000 | 10 **p** | 1 **p** | yes **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 10 | Purchasing | 4 | 50000 | 10 **p** | 1 **p** | no **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 11 | Research & Development | 12 | 500000 | 10 **p** | 1 **p** | no **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 12 | Sales | 8 | 100000 | 10 **p** | 3 **p** | no **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 13 | Software Development | 8 | 50000 | 10 **p** | 1 **p** | yes **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 14 | Software Production | 4 | 100000 | 10 **p** | 1 **p** | yes **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 15 | Advertising | 1 | 5000 | 10 **p** | 1 **p** | no **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | Job types; cap_mult design.md slice 4 call 4 |
+| 16 | Import | 0 **p** | 0 **p** | 10 **p** | 1 **p** | no **p** | staff; usd (setup); daily-credit input (role unresolved); × base_capacity | design.md slice 4 — Seaport ImportJob |
 
 ## Jobs allowed per firm type
 

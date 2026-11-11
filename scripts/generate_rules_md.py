@@ -440,6 +440,7 @@ def render(con: sqlite3.Connection) -> str:
             "Setup cost",
             "Training factor",
             "Capacity mult",
+            "Counts as produced (goals)",
             "Units",
             "Reference",
         ],
@@ -448,6 +449,10 @@ def render(con: sqlite3.Connection) -> str:
             + [
                 _cell(r, c, _prov_set(r["provisional"]))
                 for c in ("staff", "setup_cost", "training_factor", "cap_mult")
+            ]
+            + [
+                ("yes" if r["counts_as_produced"] else "no")
+                + (P_SHORT if "counts_as_produced" in _prov_set(r["provisional"]) else "")
             ]
             + [r["units"], r["ref"]]
             for r in con.execute("SELECT * FROM job_types ORDER BY id")
