@@ -292,6 +292,7 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `dormant_year_threshold` | 10 | years | gamelogic.md NPC corporation spawning |
 | `finance_interval` | 30 | days | gamelogic.md Decision schedule |
 | `link_interval` | 15 | days | gamelogic.md Decision schedule |
+| `loan_minimum` | 100000 **provisional** | dollars | FUN_00037a7e decomp:33468-33495, constant 0xa481c (Researcher trace, PR #94); cap = total assets - debt. Requested amount unknown: max(shortfall, floor) is provisional |
 | `max_competitors` | 12 | count | gamelogic.md NPC corporation spawning |
 | `mode_transition_interval` | 200 | days | gamelogic.md Decision schedule |
 | `random_build_chance` | 0.001 | probability | gamelogic.md Strategy parameter change |
