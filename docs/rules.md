@@ -29,15 +29,15 @@ the wide catalog tables) are ours, not the original game's.
 
 | Rating | Efficiency % | Storage multiplier | Reference |
 |---|---|---|---|
-| 1 | 100 | 8 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
-| 2 | 130 | 10 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
-| 3 | 160 | 14 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
-| 4 | 200 | 16 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
-| 5 | 250 | 20 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
-| 6 | 300 | 24 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
-| 7 | 360 | 30 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
-| 8 | 430 | 35 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
-| 9 | 500 | 40 | docs/reference/gamelogic.md 558–585 — rating efficiency and storage |
+| 1 | 100 | 8 | docs/gamelogic.md 558–585 — rating efficiency and storage |
+| 2 | 130 | 10 | docs/gamelogic.md 558–585 — rating efficiency and storage |
+| 3 | 160 | 14 | docs/gamelogic.md 558–585 — rating efficiency and storage |
+| 4 | 200 | 16 | docs/gamelogic.md 558–585 — rating efficiency and storage |
+| 5 | 250 | 20 | docs/gamelogic.md 558–585 — rating efficiency and storage |
+| 6 | 300 | 24 | docs/gamelogic.md 558–585 — rating efficiency and storage |
+| 7 | 360 | 30 | docs/gamelogic.md 558–585 — rating efficiency and storage |
+| 8 | 430 | 35 | docs/gamelogic.md 558–585 — rating efficiency and storage |
+| 9 | 500 | 40 | docs/gamelogic.md 558–585 — rating efficiency and storage |
 
 The storage multiplier is registered but inactive: the native base capacity and
 type factor are missing, so M1 preserves the normalized product×size×3-day capacity.
