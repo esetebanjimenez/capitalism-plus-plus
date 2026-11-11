@@ -12,7 +12,16 @@ import struct
 from typing import TYPE_CHECKING
 
 from .catalog import Catalog, Product, TownMarket
-from .firms import FIRM_CLASSES, N_CATEGORIES, OPERATING_CATEGORIES, Firm, Ledger, MediaFirm
+from .firms import (
+    FIRM_CLASSES,
+    N_CATEGORIES,
+    OPERATING_CATEGORIES,
+    Firm,
+    InsufficientFunds,
+    Ledger,
+    MediaFirm,
+    book_asset,
+)
 from .jobs import CAT_LOAN_INTEREST, CAT_SALES
 from .links import Market
 from .news import NewsLog, random_events_daily
@@ -22,7 +31,14 @@ from .person import (
 )
 from .rng import Rng
 from .stock import MAX_CORPS, Stock, daily_price_update, stock_monthly, stock_yearly
-from .tables import CORPORATION_RULES, JOB_RULES, PERSON_RULES, PRODUCT_RULES, STOCK_RULES
+from .tables import (
+    CORPORATION_RULES,
+    FIRM_TYPES,
+    JOB_RULES,
+    PERSON_RULES,
+    PRODUCT_RULES,
+    STOCK_RULES,
+)
 from .world import TileCategory
 
 if TYPE_CHECKING:
@@ -50,10 +66,12 @@ class Corporation:
 
     __slots__ = (
         "brand_strategy",
+        "business_assets",
         "corp_type",
         "dividend_auto",
         "dividend_ratio",
         "id",
+        "land_assets",
         "ledger",
         "liabilities",
         "manufacturing_skill",
@@ -74,6 +92,9 @@ class Corporation:
         self.manufacturing_skill = 0
         self.training_budget = JOB_RULES.corp_training_budget_default
         self.liabilities = 0.0
+        # Balance-sheet accounts 2 and 3 (B1): setup costs paid and land bought.
+        self.business_assets = 0.0
+        self.land_assets = 0.0
         self.brand_strategy = BRAND_CORPORATE
         self.dividend_ratio = 0
         self.dividend_auto = True
@@ -144,9 +165,7 @@ class Corporation:
             for j in f.jobs()
             if j.stock > 0
         )
-        business = sum(f.row.overhead_month * 12 for f in firms if f is not None and f.owner is self)
-        land = sum(f.land_value for f in firms if f is not None and f.owner is self)
-        return cash + inventory + business + land
+        return cash + inventory + self.business_assets + self.land_assets
 
     def net_worth(self, firms: list[Firm | None]) -> float:
         return self.total_assets(firms) - self.liabilities
@@ -254,6 +273,9 @@ class Economy:
         self.stock_enabled = True
         self.news_log = NewsLog()
         self.event_frequency = 0
+        # Setup options (Sim.reset copies them from SetupOptions).
+        self.initial_capital = _CR.player_initial_capital
+        self.competitor_capital = 0
         self.firms: list[Firm | None] = []
         self.market = Market()
         self.interest_rate = _CR.interest_rate_default
@@ -308,6 +330,9 @@ class Economy:
     def add_corp(self, name: str, corp_type: int = CORP_PLAYER) -> Corporation:
         corp = Corporation(len(self.corps), name, corp_type)
         self.corps.append(corp)
+        if corp_type == CORP_PLAYER:
+            # Initial Capital of Your Corporation (C3); native hand-off not traced.
+            corp.ledger.cash = self.initial_capital
         if corp_type != CORP_GOVERNMENT and self.stock_enabled:
             initial_value = max(1.0, corp.ledger.cash)
             stock = Stock(corp.id, initial_value, STOCK_RULES.initial_price_per_share)
@@ -322,6 +347,16 @@ class Economy:
             raise NotImplementedError(f"firm type {firm_type} lands in systems 4b")
         if not self.world.can_build(x, y):
             raise ValueError(f"tile ({x},{y}) is not free land")
+        row = FIRM_TYPES[firm_type]
+        if owner is not None and not row.government:
+            # FUN_000698e0 (decomp:76662-76690): Build is disabled when cash is below
+            # setup cost + land value; no credit line (audit B3, corrected in #87).
+            cost = row.setup_cost + self.world.land_value(x, y)
+            if owner.ledger.cash < cost:
+                raise InsufficientFunds(
+                    f"{row.name} costs ${cost:,.0f} with land; {owner.name} has "
+                    f"${owner.ledger.cash:,.0f}"
+                )
         tile = self.world.tile_at(x, y)
         slot = next((i for i, f in enumerate(self.firms) if f is None), len(self.firms))
         firm = FIRM_CLASSES[firm_type](
@@ -333,6 +368,8 @@ class Economy:
             self.firms.append(firm)
         else:
             self.firms[slot] = firm
+        if not FIRM_TYPES[firm_type].government:
+            book_asset(owner, firm.row.setup_cost, firm.land_value)
         if hasattr(firm, "initialize_audience"):
             firm.initialize_audience(self)
         # First partial month of overhead (ref: (dim − day + 1) / dim).

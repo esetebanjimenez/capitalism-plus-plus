@@ -337,7 +337,17 @@ class TestSimIntegration:
         from capitalism.scenario import bread_town
         sim, _ = bread_town()
         sim.economy.add_corp("TestCorp", corp_type=1)
+        # The player now starts with Initial Capital ($10M, gap audit C3), so a
+        # tiny wealth goal is met at once and an out-of-reach one stays open.
         sim.goal_config.personal_wealth = 0.01
+        sim.goal_checker = GoalChecker(sim.goal_config, player_corp_id=0)
+        sim.advance_days(10)
+        assert sim.goal_checker.result == GameResult.VICTORY
+
+    def test_out_of_reach_goal_stays_in_progress(self):
+        from capitalism.scenario import bread_town
+        sim, _ = bread_town()
+        sim.goal_config.personal_wealth = 1e15
         sim.goal_checker = GoalChecker(sim.goal_config, player_corp_id=0)
         sim.advance_days(10)
         assert sim.goal_checker.result == GameResult.IN_PROGRESS

@@ -19,7 +19,14 @@ from .jobs import (
     SoftwareProduction,
     job_wage_day,
 )
-from .tables import ADVERTISING_RULES, FIRM_JOB_ALLOWED, FIRM_RULES, FIRM_TYPES, FirmTypeRow
+from .tables import (
+    ADVERTISING_RULES,
+    FIRM_JOB_ALLOWED,
+    FIRM_RULES,
+    FIRM_TYPES,
+    JOB_TYPES,
+    FirmTypeRow,
+)
 
 if TYPE_CHECKING:
     from .catalog import Product
@@ -58,6 +65,25 @@ def encode_links(edges: list[tuple[int, int]]) -> int:
 
 def decode_links(mask: int) -> list[tuple[int, int]]:
     return [e for i, e in enumerate(SLOT_EDGES) if mask >> i & 1]
+
+
+
+class InsufficientFunds(ValueError):
+    """A build the owner can't pay for in cash (audit B3)."""
+
+
+def book_asset(owner: Corporation | None, setup: float, land: float = 0.0) -> None:
+    """Move a build's price from Cash into Business Assets and Land (gap audit B1).
+
+    FUN_00063dd9 (decomp:68436-68443): group_move_balance(corp, 2, 0, setup) then
+    group_move_balance(corp, 3, 0, land). The cash check happens before this, in
+    build_firm (B3). Not a P&L posting.
+    """
+    if owner is None:
+        return
+    owner.ledger.cash -= setup + land
+    owner.business_assets += setup
+    owner.land_assets += land
 
 
 class Ledger:
@@ -165,6 +191,9 @@ class Firm:
             self.slots.extend([None] * (slot - len(self.slots) + 1))
         if self.slots[slot] is not None:
             raise ValueError(f"slot {slot} unavailable")
+        # Job setup (ref:540); native booking not traced, so it goes to Business Assets
+        # like the firm's own setup (C2, provisional).
+        book_asset(self.owner, JOB_TYPES[job_type].setup_cost)
         job = JOB_CLASSES[job_type](self, slot, product)
         self.slots[slot] = job
         return job

@@ -10,7 +10,7 @@ from .person import (
     ROLE_INDEPENDENT,
     STATE_ACTIVE,
 )
-from .tables import AI_RULES
+from .tables import AI_RULES, COMPETITOR_CAPITAL, FIRM_TYPES
 
 if TYPE_CHECKING:
     from .economy import Corporation, Economy
@@ -140,7 +140,10 @@ def ai_build_firm(
         return None
     x, y = site
     land_value = eco.world.land_value(x, y)
-    if corp.ledger.cash < land_value + int(_AR.template_cost_estimate):
+    # FUN_0002e19a (decomp:25264-25281): cash vs land value + the type's setup cost.
+    # Native then tries asset sales (FUN_00030ae2) before refusing; with the $1B
+    # daily reset (A1) that branch rarely runs, so the sim just refuses.
+    if corp.ledger.cash < land_value + FIRM_TYPES[firm_type].setup_cost:
         return None
     try:
         return eco.build_firm(firm_type, corp, x, y, town)
@@ -149,6 +152,17 @@ def ai_build_firm(
 
 
 # --- NPC spawning -----------------------------------------------------------
+
+def ai_starting_capital(setting: int, rng: Rng) -> float:
+    """AI starting money for a Competitor Capital setting (gap audit C4).
+
+    FUN_0007916c: (v/2 + random(v/2)) * 6,000,000 / 10 with integer v/2 and
+    random(n) in 0..n-1. Native credits the CEO's wealth; the hand-off to corp
+    cash is not traced, so the sim puts it in corp cash.
+    """
+    half = COMPETITOR_CAPITAL[setting].v // 2
+    return (half + rng.randint(0, half - 1)) * _AR.capital_unit
+
 
 def try_spawn_competitor(eco: Economy, day_serial: int) -> Corporation | None:
     """Try to spawn a new AI competitor (gamelogic.md NPC corporation spawning)."""
@@ -179,9 +193,7 @@ def try_spawn_competitor(eco: Economy, day_serial: int) -> Corporation | None:
     person.link_to_corp(corp.id, as_ceo=True)
 
     # Starting capital
-    base = _AR.starting_capital_low
-    half = base / 2.0
-    corp.ledger.cash = half + rng.uniform(0, half) * 600_000.0 / base
+    corp.ledger.cash = ai_starting_capital(eco.competitor_capital, rng)
 
     # Determine strategy mode
     game_years = day_serial / 365.0
