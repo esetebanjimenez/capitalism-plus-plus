@@ -779,9 +779,10 @@ multiplier. Higher ratings earn proportionally more credits:
 Daily base credits: Crop Growing = 20, Livestock = 10, R&D = 14.
 
 **Work-based mode** (manufacturing, sales, purchasing, extraction,
-labelling): credits are proportional to work output as a percentage
-of maximum capacity. If a factory produced 60 of a possible 100 units,
-it earns 60 credits. No rating multiplier applies.
+labelling, software production): credits are proportional to work
+output as a percentage of maximum capacity. If a factory produced 60
+of a possible 100 units, it earns 60 credits. No rating multiplier
+applies.
 
 All credits are then scaled by two factors:
 - **Training budget** (player-adjustable, default 10%): the same
@@ -927,6 +928,15 @@ purchased or manufactured.
 
 ### Manufacturing
 
+Each manufacturing job tracks its own **per-job technology level**,
+which starts at 0 when the job is created and increments weekly toward
+the corporation's technology level for that product. The weekly gate
+(every 7 days, staggered by firm index) advances the per-job tech by 1
+if it is below the corporation's level. Quality calculations use this
+per-job tech, not the corporation's tech level directly, so a newly
+placed manufacturing job produces at tech 0 and takes several weeks to
+catch up.
+
 When the product is set and the owning corporation has the upgrade flag,
 technology upgrade is checked. Then a sub-routine runs. If the product
 is unset or stock is at capacity, returns 0 (no supply pull).
@@ -945,9 +955,6 @@ an ingredient slot is below its recipe requirement and the other job
 has stock at capacity or it's day-of-week 0, it transfers the minimum
 of the other job's stock and the remaining need. Copies quality and
 price data from the source.
-
-The gate runs weekly (every 7 days, staggered by firm index) and may
-trigger technology upgrade.
 
 ### Purchasing
 
@@ -1029,8 +1036,9 @@ fully researched, with an effective duration of 0.
 
 Produces software units. Each day adds
 `min(remaining-room, efficiency × capacity)` to stock. Training credits
-are the production ratio. Returns true when stock reaches capacity
-(no reserve draw, unlike extraction). Monthly rolls production:
+are `(units × 100) / (efficiency × capacity)` — the production ratio
+as a percentage of the nominal output. Returns true when stock reaches
+capacity (no reserve draw, unlike extraction). Monthly rolls production:
 copies current to previous, zeros current. Has its own gate function.
 
 ### Advertising
