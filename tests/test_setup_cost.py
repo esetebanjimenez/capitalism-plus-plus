@@ -200,3 +200,21 @@ def test_ai_raise_cash_borrows_up_to_credit_limit():
     assert not ai_raise_cash(eco, corp, 10_000_000.0)
     assert corp.ledger.cash == pytest.approx(5_000_000.0)
     assert corp.liabilities == pytest.approx(5_000_000.0)
+
+
+def test_ai_loan_floor():
+    from capitalism.ai import ai_raise_cash
+
+    sim, _town = bread_town()
+    eco = sim.economy
+    corp = eco.add_corp("AI", CORP_AI)
+    corp.ledger.cash = 1_000_000.0
+    corp.business_assets = 1_000_000.0
+    # short by 10k: borrows the 100k floor
+    assert ai_raise_cash(eco, corp, 1_010_000.0)
+    assert corp.liabilities == pytest.approx(AI_RULES.loan_minimum)
+    # credit below the floor: no loan at all
+    corp.liabilities = corp.total_assets(eco.firms) - 50_000.0
+    debt = corp.liabilities
+    assert not ai_raise_cash(eco, corp, 10_000_000.0)
+    assert corp.liabilities == debt

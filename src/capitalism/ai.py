@@ -160,7 +160,8 @@ def ai_raise_cash(eco: Economy, corp: Corporation, target: float) -> bool:
        with Allow Stock, stopping at target.
     2. Bank loan (FUN_00037a7e, decomp:33468-33495), capped at total assets
        minus debt, booked to Cash and Loans. The amount asked for is lost in the
-       decompile; asking for the shortfall is provisional.
+       decompile; asking for max(shortfall, ai.loan_minimum = 100,000) is
+       provisional, and there's no loan when the cap is below that floor.
     Not modelled yet: the chairman-flag give-up, own-share issues
     (FUN_00030d97, share-cash PR), the second holdings sale and firm closures
     (FUN_00030e55). Returns True once cash >= target.
@@ -180,7 +181,11 @@ def ai_raise_cash(eco: Economy, corp: Corporation, target: float) -> bool:
                 held = stock.holdings_corps[corp.id]
     short = target - corp.ledger.cash
     if short > 0:
-        corp.borrow(min(short, corp.credit_limit(eco.firms)))  # shortfall ask: provisional
+        # Ask for the shortfall but at least ai.loan_minimum, capped at credit
+        # (assets - debt); no loan if the cap is below the floor. Provisional.
+        amount = min(max(short, _AR.loan_minimum), corp.credit_limit(eco.firms))
+        if amount >= _AR.loan_minimum:
+            corp.borrow(amount)
     return corp.ledger.cash >= target
 
 
