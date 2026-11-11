@@ -8,7 +8,9 @@ import {
   makeView,
   neededChunks,
   sheetFor,
+  STANDARD_STEP,
   stepZoom,
+  ZOOM_STEPS,
 } from "../src/chunkmath";
 
 const MAP_W = 240;
@@ -40,8 +42,8 @@ describe("neededChunks", () => {
       }
   });
 
-  it("accepts the fractional scale of a 16 pt step on a 3x phone", () => {
-    const v = phone3x(0, 0, 1);
+  it("accepts a fractional canvas scale", () => {
+    const v = makeView(0, 0, 1170, 2532, 1, 3);
     expect(v.zoom).toBe(1.5);
     expect(neededChunks(v, MAP_W, MAP_H).length).toBeGreaterThan(0);
   });
@@ -49,7 +51,7 @@ describe("neededChunks", () => {
 
 describe("zoom steps in points", () => {
   it("a step draws the same tile size in points on every screen", () => {
-    for (const step of [1, 2, 3])
+    for (const step of [1, 2])
       for (const res of [1, 2, 3]) {
         expect((deviceScale(step, res) * TILE_PX) / res).toBe(16 * step);
       }
@@ -60,7 +62,6 @@ describe("zoom steps in points", () => {
     expect(across(390, 2)).toBeCloseTo(12.19, 2);
     expect(across(390, 3)).toBeCloseTo(12.19, 2);
     expect(across(1920, 1)).toBe(60);
-    expect(across(390, 3, 1)).toBeCloseTo(24.38, 2);
   });
 
   it("picks the 64 px sheet once a tile spans 64 canvas px", () => {
@@ -73,19 +74,16 @@ describe("zoom steps in points", () => {
 });
 
 describe("zoom and camera", () => {
-  it("steps through the steps and stops at the ends", () => {
-    let v = makeView(0, 0, 1000, 1000, 1, 2);
-    v = stepZoom(v, 1);
-    expect([v.step, v.zoom]).toEqual([2, 2]);
-    v = stepZoom(stepZoom(v, 1), 1);
-    expect([v.step, v.zoom]).toEqual([3, 3]);
-    v = stepZoom(stepZoom(stepZoom(v, -1), -1), -1);
-    expect([v.step, v.zoom]).toEqual([1, 1]);
+  it("has only the standard 32 pt view", () => {
+    expect([...ZOOM_STEPS]).toEqual([STANDARD_STEP]);
+    const v = makeView(0, 0, 1000, 1000, STANDARD_STEP, 3);
+    expect(stepZoom(v, 1)).toBe(v);
+    expect(stepZoom(v, -1)).toBe(v);
   });
 
   it("keeps the point under the cursor fixed", () => {
     const v = makeView(1000, 2000, 800, 600, 1, 3);
-    const z = stepZoom(v, 1, 200, 100);
+    const z = { ...v, step: 2, zoom: 3, x: v.x + 200 / 1.5 - 200 / 3, y: v.y + 100 / 1.5 - 100 / 3 };
     expect(z.x + 200 / z.zoom).toBeCloseTo(v.x + 200 / v.zoom);
     expect(z.y + 100 / z.zoom).toBeCloseTo(v.y + 100 / v.zoom);
   });

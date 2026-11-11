@@ -5,11 +5,11 @@ export const CHUNK_TILES = 32;
 export const CHUNK_PX = TILE_PX * CHUNK_TILES; // 1024
 export const CHUNK_BYTES = CHUNK_PX * CHUNK_PX * 4; // RGBA8, about 4 MB
 /**
- * Zoom steps, counted in points so a step looks the same on every screen density.
- * Step n draws a tile at 16 x n points: 1 = 16 pt (about 24 tiles across a phone),
- * 2 = 32 pt (the standard view, about 12 across, docs/m2-ux-spec.md), 3 = 48 pt.
+ * Zoom is counted in points so it looks the same on every screen density. Step n draws a
+ * tile at 16 x n points; the map has one view, step 2 = 32 pt tiles, about 12 across a phone
+ * (docs/m2-ux-spec.md, Esteban 2026-11-11). The far overview comes later as its own mode.
  */
-export const ZOOM_STEPS = [1, 2, 3] as const;
+export const ZOOM_STEPS = [2] as const;
 export const STANDARD_STEP = 2;
 export const POINTS_PER_TILE_STEP = 16;
 

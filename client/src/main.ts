@@ -5,7 +5,7 @@ import atlas64Url from "../../art/atlas/terrain_atlas_64.png?url";
 import atlas64Json from "../../art/atlas/terrain_atlas_64.json";
 import { ChunkCache, TerrainOptions } from "./chunks";
 import { FirmLayer } from "./firms";
-import { CHUNK_TILES, STANDARD_STEP, TILE_PX, View, ZOOM_STEPS, clampView, makeView, sheetFor, stepZoom } from "./chunkmath";
+import { CHUNK_TILES, STANDARD_STEP, TILE_PX, View, clampView, makeView, sheetFor } from "./chunkmath";
 import { parseMap } from "./mapdata";
 
 interface AtlasJson {
@@ -65,13 +65,12 @@ async function boot() {
   app.stage.addChild(world);
 
   const screen = () => ({ w: app.screen.width * resolution, h: app.screen.height * resolution });
-  const stepParam = Math.round(Number(params.get("zoom") ?? STANDARD_STEP));
   let view: View = makeView(
     Number(params.get("x") ?? 100) * TILE_PX,
     Number(params.get("y") ?? 99) * TILE_PX,
     0,
     0,
-    ZOOM_STEPS.includes(stepParam as (typeof ZOOM_STEPS)[number]) ? stepParam : STANDARD_STEP,
+    STANDARD_STEP,
     resolution,
   );
   let art: 32 | 64 = 32;
@@ -121,56 +120,28 @@ async function boot() {
       baked: chunks.baked,
       firms: firms.visibleCount,
     };
-    hudInfo.textContent = `${stats.mode} ${art} px · zoom ${stats.zoom} (${view.zoom}x) · ${stats.tilesAcross} tiles across · ${stats.chunks} chunks · ${stats.mb} MB GPU · ${stats.firms} firms`;
+    hudInfo.textContent = `${stats.mode} ${art} px · ${view.zoom}x · ${stats.tilesAcross} tiles across · ${stats.chunks} chunks · ${stats.mb} MB GPU · ${stats.firms} firms`;
     (window as unknown as { __cppStats: typeof stats }).__cppStats = stats;
   };
 
-  // Pan with one pointer; zoom with the wheel, pinch or the buttons, in point-based steps (ZOOM_STEPS).
-  const pointers = new Map<number, { x: number; y: number }>();
-  let pinchStart = 0;
+  // Pan with one pointer or the mouse. There is one map view (32 pt tiles), so no zoom input.
+  let drag: { id: number; x: number; y: number } | null = null;
   app.canvas.addEventListener("pointerdown", (e) => {
+    if (drag) return;
     app.canvas.setPointerCapture(e.pointerId);
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pointers.size === 2) pinchStart = pinchDistance();
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
   });
   app.canvas.addEventListener("pointermove", (e) => {
-    const p = pointers.get(e.pointerId);
-    if (!p) return;
-    if (pointers.size === 1) {
-      view = { ...view, x: view.x - ((e.clientX - p.x) * resolution) / view.zoom, y: view.y - ((e.clientY - p.y) * resolution) / view.zoom };
-      apply();
-    }
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pointers.size === 2 && pinchStart) {
-      const d = pinchDistance();
-      if (d / pinchStart > 1.4 || d / pinchStart < 0.7) {
-        view = stepZoom(view, d > pinchStart ? 1 : -1);
-        pinchStart = d;
-        apply();
-      }
-    }
+    if (!drag || drag.id !== e.pointerId) return;
+    view = { ...view, x: view.x - ((e.clientX - drag.x) * resolution) / view.zoom, y: view.y - ((e.clientY - drag.y) * resolution) / view.zoom };
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    apply();
   });
   const up = (e: PointerEvent) => {
-    pointers.delete(e.pointerId);
-    if (pointers.size < 2) pinchStart = 0;
+    if (drag?.id === e.pointerId) drag = null;
   };
   app.canvas.addEventListener("pointerup", up);
   app.canvas.addEventListener("pointercancel", up);
-  function pinchDistance() {
-    const [a, b] = [...pointers.values()];
-    return Math.hypot(a.x - b.x, a.y - b.y);
-  }
-  app.canvas.addEventListener(
-    "wheel",
-    (e) => {
-      e.preventDefault();
-      view = stepZoom(view, e.deltaY < 0 ? 1 : -1, e.clientX * resolution, e.clientY * resolution);
-      apply();
-    },
-    { passive: false },
-  );
-  document.getElementById("zoom-in")!.onclick = () => ((view = stepZoom(view, 1)), apply());
-  document.getElementById("zoom-out")!.onclick = () => ((view = stepZoom(view, -1)), apply());
   window.addEventListener("resize", apply);
   apply();
 

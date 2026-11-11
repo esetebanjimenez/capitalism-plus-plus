@@ -16,7 +16,7 @@ const shots = [
   { name: "m2-map-desktop.png", w: 1280, h: 800, dpr: 1, q: "x=190&y=138" },
   { name: "m2-map-phone.png", w: 390, h: 844, dpr: 3, q: "x=183&y=68" },
   { name: "m2-map-phone-64-direct.png", w: 390, h: 844, dpr: 2, q: "x=176&y=62" },
-  { name: "m2-map-phone-16pt.png", w: 390, h: 844, dpr: 3, q: "x=165&y=50&zoom=1" },
+  { name: "m2-map-phone-firms.png", w: 390, h: 844, dpr: 3, q: "x=201&y=140" },
 ];
 const stats = {};
 try {

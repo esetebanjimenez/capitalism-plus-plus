@@ -14,12 +14,11 @@ npm run --prefix client screenshot   # after build: docs/art/m2-map-desktop.png,
 - **Chunks.** Terrain is baked into 32 x 32-tile chunks (1024 px, about 4 MB each) on first view.
   Only chunks within 8 tiles of the screen are kept; the rest are destroyed. A 1920 x 1080 screen
   holds at most 12 chunks (48 MB), a phone at standard zoom at most 6. The full map would be 56.
-- **Zoom.** Three steps counted in points, so each looks the same on every screen: step 1 draws
-  16 pt tiles (about 24 across a phone), step 2 32 pt tiles (the standard view, about 12 across a
-  phone, 60 across a 1920 px desktop), step 3 48 pt tiles. Canvas pixels per art pixel are
-  `16 x step x resolution / 32`, so a 3x phone at step 2 draws 64 px art at 1.5x (Esteban,
-  2026-11-11). Nearest-neighbour, camera snapped to whole canvas pixels. Wheel, pinch, and the
-  44 px +/- buttons.
+- **Zoom.** Counted in points, so the view looks the same on every screen: one map view with
+  32 pt tiles (about 12 across a phone, 60 across a 1920 px desktop; docs/m2-ux-spec.md). Canvas
+  pixels per art pixel are `32 pt x resolution / 32`, so a 3x phone draws 64 px art at 1.5x
+  nearest-neighbour (Esteban, 2026-11-11). Camera snapped to whole canvas pixels; one-finger or
+  mouse drag pans. The far overview comes later.
 - **Art sheet.** The 64 px sheet is used once a tile spans 64 or more canvas pixels, otherwise
   the 32 px sheet (`sheetFor`); frames missing from the 64 px sheet fall back to 32 px ones.
   Changing sheet rebuilds the visible chunks.
@@ -29,7 +28,7 @@ npm run --prefix client screenshot   # after build: docs/art/m2-map-desktop.png,
   Firms draw as grass until the firm sprites land.
 - **Sample map.** `public/sample-map.bin` comes from `python scripts/export_sample_map.py` (seed 1,
   240 x 198): `CPPM`, u16 width, u16 height, then kind and climate bytes per tile.
-- URL parameters: `x`, `y` (top-left tile), `zoom` (step 1-3, default 2), `margin` (tiles kept around the screen).
+- URL parameters: `x`, `y` (top-left tile), `margin` (tiles kept around the screen).
 
 ## Terrain renderer options
 
@@ -44,5 +43,5 @@ Chrome there renders WebGL on the CPU (SwiftShader), so frame times are only rel
 
 `.github/workflows/pages.yml` deploys `client/` to GitHub Pages on every push to main:
 https://esetebanjimenez.github.io/capitalism-plus-plus/ (same URL options, for example
-`?zoom=1` or `?mode=baked`). The HUD's second line shows the average frame time, the
+`?mode=baked` or `?art=32`). The HUD's second line shows the average frame time, the
 render call's CPU time and the screen's pixel density.
