@@ -248,3 +248,15 @@ at phone zoom (360 × 640, 1×) is [`concept-b2-phone.png`](concept-b2-phone.png
 
 B+ stays on the PR for reference. It's the same idea, but with a thin front
 wall on buildings and 48 colours.
+
+## UI for the clear-map layout (approved by Esteban 2026-11-11, PR #65)
+
+Concept: `concept-ui-phone.png`, `concept-ui-desktop.png`, `concept-ui-parts.png`.
+Cream cards with a 2 pt ink border, stepped corners and a 1 pt tan shadow. The
+status pill, menu button and toasts use a translucent cream card. Orange marks the
+main action, the open tab and the selection. Slot cells are 72 pt with the job icon,
+a rating chip and a stock bar. On desktop the menu button sits left of the open
+side panel. Production parts: `art/atlas/ui_atlas.png` (1 px per point),
+`ui_atlas_2x.png` (same layout, ×2) and `ui_atlas.json`, built by
+`art/tools/ui_build.py`. Nine-slice frames carry `slice` in points. All text,
+counts and numbers are live text, never baked.

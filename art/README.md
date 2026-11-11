@@ -62,3 +62,11 @@ The tile stays the same size on screen (32 points), so the map shows the same nu
 - `tools/firms64.py` draws the 14 firms (64 x 64, transparent margins) and 12 owner flags (16 x 24, drawn at +48, -8 on the firm,
   twice the 32 px offset). Each flag has its own cell. Review sheet: `docs/art/m2-firms-64-sheet.png`.
 - The 64 px sheet is now complete: 216 frames, every 32 px frame name has a 64 px twin.
+
+## UI atlas
+
+`python3 art/tools/ui_build.py` (run from `art/tools`) builds `art/atlas/ui_atlas.png`,
+`ui_atlas_2x.png` and `ui_atlas.json` (34 frames: cards, sheet top, buttons with pressed
+states, tab line, handle, slot cells, badge, rating chip, 16×16 status icons). JSON x/y/w/h
+are 1x pixels; double them for the 2x sheet. Nine-slice frames list `slice` [l, t, r, b] in
+points. Use the 2x sheet on 2x and 3x screens (3x draws it at 1.5×, nearest).
