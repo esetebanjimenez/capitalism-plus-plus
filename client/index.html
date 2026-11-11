@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>Capitalism++ map</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #10131a; overflow: hidden; touch-action: none; }
+      #map { position: fixed; inset: 0; }
+      #hud { position: fixed; left: 8px; top: 8px; right: 112px; width: max-content; max-width: calc(100% - 128px); padding: 4px 8px; font: 12px/1.4 ui-monospace, monospace;
+             color: #e8e4d8; background: rgba(16, 19, 26, 0.8); border-radius: 4px; pointer-events: none; }
+      #zoom { position: fixed; right: 8px; top: 8px; display: flex; gap: 4px; }
+      #zoom button { min-width: 44px; min-height: 44px; font: 20px monospace; }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <div id="hud"></div>
+    <div id="zoom"><button id="zoom-out" aria-label="Zoom out">−</button><button id="zoom-in" aria-label="Zoom in">+</button></div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
