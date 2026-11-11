@@ -50,7 +50,10 @@ class Town:
         "climate",
         "consumer_spending",
         "env_factors",
+        "gnp_growth_pct",
         "gnp_level_ring",
+        "gnp_prev_year",
+        "gnp_this_year",
         "id",
         "labor_cost",
         "labor_quality",
@@ -112,6 +115,12 @@ class Town:
         self.last_month_population = population
         self.last_month_gnp_growth = 0.0
         self.rolling_gnp_growth = 0.0
+        # Native monthly stats (FUN_0004b377): total GNP per month this year and last,
+        # and the 12-month total-GNP change that population growth reads.
+        # Seeded from the first month's total on first use (new-game init not traced).
+        self.gnp_this_year: list[float] = [0.0] * 12
+        self.gnp_prev_year: list[float] = [0.0] * 12
+        self.gnp_growth_pct: list[float] = [0.0] * 12
 
     @property
     def gnp(self) -> float:
@@ -178,7 +187,7 @@ class Town:
         # --- Population growth (always runs, even simple-mode) ---
         growth = (
             float(rng.randint(0, g.pop_random_range - 1))
-            + self.rolling_gnp_growth * g.pop_gnp_scale
+            + self.gnp_growth_pct[(self.ring_index - 1) % 12] * g.pop_gnp_scale
             + (g.pop_unemp_target - self.unemployment) * g.pop_unemp_scale
             + g.pop_base_offset
         )
@@ -192,9 +201,12 @@ class Town:
             unemp_people = self.population * self.unemployment / g.pop_unemp_scale + growth
             self.unemployment = unemp_people * g.pop_unemp_scale / new_pop
         self.population = max(0.0, new_pop)
-        self.level = level_for_population(self.population)
+        # Native: +1 level per tick once pop >= level_pop_per_sq x L^2; never down, no cap.
+        if self.population >= level_up_population(self.level):
+            self.level += 1
 
         if not detailed:
+            self.monthly_stats()
             self.pop_ring[self.ring_index] = self.population
             self.ring_index = (self.ring_index + 1) % 12
             self.last_month_population = prev_pop
@@ -262,6 +274,22 @@ class Town:
             new_env.append(max(g.env_lo, min(g.env_hi, f)))
         self.env_factors = (new_env[0], new_env[1], new_env[2])
 
+        self.monthly_stats()
         self.pop_ring[self.ring_index] = self.population
         self.ring_index = (self.ring_index + 1) % 12
         self.last_month_population = prev_pop
+
+    def monthly_stats(self) -> None:
+        """FUN_0004b377, run for every town in both modes: roll this month's total GNP
+        into last year's slot, then store gnp_growth_scale x the 12-month total change."""
+        m = self.ring_index
+        if not any(self.gnp_this_year):
+            total = self.per_capita_gnp * self.population
+            self.gnp_this_year = [total] * 12
+            self.gnp_prev_year = [total] * 12
+        self.gnp_prev_year[m] = self.gnp_this_year[m]
+        self.gnp_this_year[m] = self.per_capita_gnp * self.population
+        prev = sum(self.gnp_prev_year)
+        cur = sum(self.gnp_this_year)
+        scale = TOWN_GROWTH.gnp_growth_scale
+        self.gnp_growth_pct[m] = (cur - prev) * scale / prev if prev > 0 else 0.0
