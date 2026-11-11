@@ -30,7 +30,18 @@ from .person import (
     Person,
 )
 from .rng import Rng
-from .stock import MAX_CORPS, Stock, daily_price_update, stock_monthly, stock_yearly
+from .stock import (
+    MAX_CORPS,
+    Stock,
+    buy_back_shares,
+    buy_cost,
+    buy_shares,
+    daily_price_update,
+    issue_shares,
+    sell_shares,
+    stock_monthly,
+    stock_yearly,
+)
 from .tables import (
     CORPORATION_RULES,
     FIRM_TYPES,
@@ -78,6 +89,7 @@ class Corporation:
         "month_history",
         "name",
         "peak_revenue",
+        "stock_assets",
         "technology",
         "training_budget",
         "year_history",
@@ -95,6 +107,8 @@ class Corporation:
         # Balance-sheet accounts 2 and 3 (B1): setup costs paid and land bought.
         self.business_assets = 0.0
         self.land_assets = 0.0
+        # Account 4 (S1): money moved in and out by trades in other corps' stock.
+        self.stock_assets = 0.0
         self.brand_strategy = BRAND_CORPORATE
         self.dividend_ratio = 0
         self.dividend_auto = True
@@ -165,7 +179,7 @@ class Corporation:
             for j in f.jobs()
             if j.stock > 0
         )
-        return cash + inventory + self.business_assets + self.land_assets
+        return cash + inventory + self.business_assets + self.land_assets + self.stock_assets
 
     def net_worth(self, firms: list[Firm | None]) -> float:
         return self.total_assets(firms) - self.liabilities
@@ -339,6 +353,56 @@ class Economy:
             if corp.id < len(self.stocks):
                 self.stocks[corp.id] = stock
         return corp
+
+    # --- share trades (audit S1, S3, S4; FUN_0003f240, FUN_0004021e) -------
+
+    def buy_stock(self, corp: Corporation, target: int, shares: int) -> float:
+        """corp buys shares of corp `target`; returns the cost.
+
+        Another corp's stock: Cash -> Stock Assets (decomp:38407-38417); the
+        target's cash isn't touched. Own stock: a buyback that retires the
+        shares and lowers equity (S3, decomp:38425-38431). Refused when cash is
+        short, like the stock dialogs' "Sorry, you don't have enough cash."
+        (decomp:41281, 41659).
+        """
+        stock = self.stocks[target]
+        if stock is None:
+            raise ValueError("that corporation has no stock")
+        if target == corp.id:
+            est = buy_cost(stock, min(shares, stock.total_shares - 1))
+        else:
+            est = buy_cost(stock, shares)
+        if corp.ledger.cash < est:
+            raise InsufficientFunds(
+                f"{shares:,} shares cost ${est:,.0f}; {corp.name} has ${corp.ledger.cash:,.0f}"
+            )
+        if target == corp.id:
+            cost = buy_back_shares(stock, shares)
+        else:
+            cost = buy_shares(stock, "corp", corp.id, shares)
+            corp.stock_assets += cost
+        corp.ledger.cash -= cost
+        return cost
+
+    def sell_stock(self, corp: Corporation, target: int, shares: int) -> float:
+        """corp sells shares it holds in corp `target`: Stock Assets -> Cash (S1)."""
+        stock = self.stocks[target]
+        if stock is None:
+            raise ValueError("that corporation has no stock")
+        got = sell_shares(stock, "corp", corp.id, shares)
+        corp.stock_assets -= got
+        corp.ledger.cash += got
+        return got
+
+    def issue_stock(self, corp: Corporation, shares: int) -> float:
+        """New shares of corp's own stock: cash and equity rise by the proceeds,
+        total_shares and the float by the shares (S4, FUN_0004021e decomp:38851-38885)."""
+        stock = self.stocks[corp.id]
+        if stock is None:
+            raise ValueError("that corporation has no stock")
+        got = issue_shares(stock, shares)
+        corp.ledger.cash += got
+        return got
 
     def build_firm(
         self, firm_type: int, owner: Corporation | None, x: int, y: int, town: Town

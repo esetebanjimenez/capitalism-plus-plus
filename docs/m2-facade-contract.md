@@ -64,9 +64,9 @@ and any rule it turns out to need goes to its own sim PR.
 | `remove_link` | `link` | none | **wrapper** |
 | `borrow` | `amount` | none | `Corporation.borrow` |
 | `repay` | `amount` | Amount actually repaid | `Corporation.repay` |
-| `buy_shares` | `corp`, `shares` | Total cost | `stock.buy_shares` |
-| `sell_shares` | `corp`, `shares` | Total proceeds | `stock.sell_shares` |
-| `issue_shares` | `shares` | Amount received | `stock.issue_shares` |
+| `buy_shares` | `corp`, `shares` | Total cost, taken from cash; refused when cash is short. Buying your own corp's shares is a buyback that retires them | `Economy.buy_stock` |
+| `sell_shares` | `corp`, `shares` | Total proceeds, added to cash | `Economy.sell_stock` |
+| `issue_shares` | `shares` | Amount received, added to cash | `Economy.issue_stock` |
 | `set_training_budget` | `amount` | none | **wrapper** (sets `training_budget`) |
 | `set_brand_strategy` | `strategy` | none | **wrapper** (sets `brand_strategy`) |
 | `set_dividend` | `ratio`, `auto` | none | **wrapper** (sets `dividend_ratio`, `dividend_auto`) |
