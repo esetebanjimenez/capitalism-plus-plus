@@ -22,7 +22,7 @@ from .firms import (
     MediaFirm,
     book_asset,
 )
-from .jobs import CAT_LOAN_INTEREST, CAT_SALARIES, CAT_SALES, CAT_STOCK_RETURN
+from .jobs import CAT_LOAN_INTEREST, CAT_SALARIES, CAT_SALES, CAT_STOCK_RETURN, CAT_WRITEOFFS
 from .links import Market
 from .news import NewsLog, random_events_daily
 from .person import (
@@ -444,6 +444,29 @@ class Economy:
         dim = cal.real_month_days
         firm.post_overhead((dim - cal.real_day + 1) / dim)
         return firm
+
+    def demolish_firm(self, firm: Firm) -> None:
+        """Remove a firm and unbook its assets (gap audit B4).
+
+        FUN_00063f28 (decomp:68490-68540): move setup from BizAssets to Cash,
+        write it off as CAT_WRITEOFFS, floor BizAssets at 0, move land from
+        LandAssets to Cash, floor LandAssets at 0.  Net cash = +land_value.
+        """
+        owner = firm.owner
+        if owner is not None:
+            setup = firm.row.setup_cost
+            land = firm.land_value
+            owner.business_assets -= setup
+            owner.ledger.cash += setup
+            owner.ledger.post(CAT_WRITEOFFS, setup)
+            owner.business_assets = max(0.0, owner.business_assets)
+            owner.land_assets -= land
+            owner.ledger.cash += land
+            owner.land_assets = max(0.0, owner.land_assets)
+        self.firms[firm.id] = None
+        tile = self.world.tile_at(firm.x, firm.y)
+        tile.kind = TileCategory.GRASSLAND
+        tile.ref = -1
 
     def link_b2b(self, seller: Job, buyer: Job) -> Link:
         return self.market.add_link(seller, buyer)

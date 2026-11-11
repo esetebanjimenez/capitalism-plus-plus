@@ -23,7 +23,6 @@ from .plans import PlanLibrary, apply_plan, capture
 from .sim import Sim
 from .tables import FIRM_TYPES, JOB_TYPES
 from .town import Town
-from .world import TileCategory
 
 PLAYER = 0
 Json = dict[str, Any]
@@ -654,11 +653,7 @@ class Api:
     def c_demolish_firm(self, firm: int) -> None:
         f = self._own_firm(firm)
         self._drop_links(lambda x: x.seller.firm is f or (not x.consumer and x.buyer.firm is f))
-        self.eco.firms[f.id] = None
-        tile = self.sim.world.tile_at(f.x, f.y)
-        # Provisional: M1 does not keep the land kind under a firm (open question in the PR).
-        tile.kind = TileCategory.GRASSLAND
-        tile.ref = -1
+        self.eco.demolish_firm(f)
 
     def c_add_job(self, firm: int, slot: int, job_type: int, product: int | None = None) -> None:
         f = self._own_firm(firm)
