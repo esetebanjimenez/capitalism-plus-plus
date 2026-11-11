@@ -4,10 +4,11 @@ Original art only, made for this project. Nothing here is taken from the origina
 Direction and the full asset list: `docs/art/visual-direction.md`.
 
 - `tools/palette.json` is the shared 48-colour B+ palette. Every tile is checked against it on export.
+- `tools/firms.py` draws the 14 firm sprites and 12 owner flags.
 - `tools/terrain.py` draws the terrain and coast tiles, and `tools/town.py` draws the town tiles, all at 32 px.
   `tools/preview.py` rebuilds `tiles/*/*.png`, the single atlas `atlas/terrain_atlas.png` + `.json` (all
   tiles, name kept so the renderer path stays stable; empty cells are transparent) and
-  `docs/art/m2-tiles-preview.png`.
+  `docs/art/m2-tiles-preview-2.png`, plus `docs/art/m2-firms-sheet.png`.
 - Tiles are hard pixels. Scale them by whole numbers only, with nearest-neighbour filtering.
 
 ## Terrain tile names
@@ -35,3 +36,14 @@ second row of the town footprint, with taller blocks nearer the centre.
 
 Variant pick: any stable hash of (x, y). When a water tile has land on its sides and also only diagonally
 on a corner, use the side mask. A combined piece can follow later if it shows.
+
+## Firm sprites and owner flags
+
+| Name | Use |
+|---|---|
+| `firm_<type>` | one per `firm_types` row: department_store, factory, rnd_center, farm, logging_camp, mine, oil_well, software_developer, software_publisher, restaurant, television_station, radio_station, newspaper_publisher, seaport |
+| `flag_00..11` | 8 × 12 owner flag, one colour per corporation (00 = orange = player) |
+
+Firms are 32 px with transparent margins: draw the terrain tile first, then the firm on top, then the flag
+at (+24, −4) from the tile's top-left (it pokes 4 px above the tile, so draw flags after the row above).
+The seaport sprite carries its own quay and water and should sit on a coast tile.
