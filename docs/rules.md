@@ -282,7 +282,8 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 
 | Key | Value | Units | Reference |
 |---|---|---|---|
-| `ai_cash_reset` | 1000000000 | dollars | gamelogic.md Cash management |
+| `ai_cash_reset` | 1000000000 | dollars | Government corp only: FUN_00030ffc decomp:27691-27693, vtable 0x3553c (audit A1). Competitors keep real cash; the sim has no Government corp, so this is unused |
+| `asset_sale_rounds` | 10 | rounds | FUN_00030ae2 decomp:27421: other corps' stock sold in up to 10 rounds (techspec Asset sale) |
 | `bankruptcy_age_threshold` | 10 | years | gamelogic.md Bankruptcy check |
 | `bankruptcy_value_threshold` | 100000 | dollars | gamelogic.md Bankruptcy check |
 | `build_cooldown` | 30 | days | gamelogic.md Firm creation |
