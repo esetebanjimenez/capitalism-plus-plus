@@ -29,12 +29,13 @@ RULE_REF = (
     "Researcher report, CAPPLUS.EXE: product goals read a per-corp counter at "
     "product+0x97+corp (FUN_00033fe9 classes, FUN_00034056 types); only job output "
     "setters change it, each -1 for the old product. +1 observed in FUN_00054071 "
-    "(manufacturing) and FUN_00057149; +1 inferred, not observed, in FUN_00051ced (crop), "
-    "FUN_000534b7 (livestock) and FUN_0005bdb8 (software range). Job owning "
-    "FUN_000570e1/FUN_00057149 unconfirmed; logging, mining and oil are counted on the "
-    "Designer's call, livestock processing is not. Takeover moves counts to the buyer "
-    "(FUN_000331fc); here counts follow firm ownership. No purchasing, sales or retail "
-    "writer found"
+    "(manufacturing) and FUN_00057149 (raw-material extraction setup: product from the "
+    "firm's natural resource via DAT_000b1c2f, reserve from the map tile; teardown "
+    "FUN_000570e1 does the -1). Its callers FUN_0005e934/998/9fc read as Logging, Mine and "
+    "Oil (inferred). +1 inferred, not observed, in FUN_00051ced (crop), FUN_000534b7 "
+    "(livestock) and FUN_0005bdb8 (software). No writer found for livestock processing, "
+    "so it does not count. Takeover moves counts to the buyer (FUN_000331fc); here counts "
+    "follow firm ownership. No purchasing, sales or retail writer found"
 )
 
 
