@@ -258,6 +258,8 @@ class Extraction(Job):
             return False
         step = JOB_RULES.extraction_rate * self.efficiency * self.capacity / 100
         added = min(self.room, step)
+        if added > 0 and step > 0:
+            self._credit(added * 100.0 / step)
         self.receive(added, self.produced_quality(), self.product.row.base_cost)
         return self.stock >= self.ceiling
 
@@ -686,7 +688,10 @@ class SoftwareProduction(Job):
             return False
         if self.production_started_serial == 0:
             self.production_started_serial = eco.calendar.day_serial
-        added = min(self.room, self.efficiency * self.capacity)
+        nominal = self.efficiency * self.capacity
+        added = min(self.room, nominal)
+        if added > 0 and nominal > 0:
+            self._credit(added * 100.0 / nominal)
         self.receive(added, self.quality, self.product.row.base_cost)
         return self.stock < self.ceiling
 
