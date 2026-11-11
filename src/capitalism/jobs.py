@@ -388,18 +388,17 @@ class LivestockProcessing(Job):
             return False
         row = self.yield_for(src)
         assert row is not None
-        wanted = self.efficiency * src.capacity * row.yield_factor / 10_000
-        raw = min(
-            src.stock, wanted * row.input_ratio, self.room * row.input_ratio / row.yield_factor
-        )
+        wanted = self.efficiency * self.capacity * row.yield_factor / 10_000
+        raw = min(src.stock, wanted, self.room)
         if raw > 0:
-            self.take_from(src, raw, row.yield_factor)
-            self.month_output += raw * row.yield_factor
+            self.take_from(src, raw)
+            self.month_output += raw
         return False
 
-    def take_from(self, src: Job, raw: float, factor: float) -> None:
+    def take_from(self, src: Job, raw: float) -> None:
         src.take(raw)
-        self.receive(raw * factor, src.quality, src.unit_cost / factor)
+        quality = min(src.quality + (src.rating - 1) * 4, 100)
+        self.receive(raw, quality, src.unit_cost)
 
     def monthly(self, eco: Economy) -> None:
         super().monthly(eco)
