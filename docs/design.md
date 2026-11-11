@@ -447,7 +447,7 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
    slots 0..8: `work()` then `pull()` for each. Daily overhead is not
    posted; overhead posts in the month pass (category 2), prorated
    `days_left / days_in_month` in the first month (ref).
-3. **Efficiency** (`docs/gamelogic.md` 558–578). Put the retrieved
+3. **Efficiency** (`docs/gamelogic.md` 590–610). Put the retrieved
    rating table into the db, not Python. At ratings 1..9 its efficiency and
    fixed-credit multipliers are `100,130,160,200,250,300,360,430,500%`
    (also 743–747). Replace the provisional `50 + 5×rating` throughput and

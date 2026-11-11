@@ -1433,7 +1433,7 @@ Tile check: rural `0x3008..0x300c`, urban `0x3000..0x3007`.
 ### Firm creation (FUN_0002e19a)
 
 `FUN_00050864` → `FUN_0006a5f2` (template from `DAT_000b1990`) →
-`map_land_value` → cost check → `FUN_00030ae2` (sell assets) →
+`map_land_value` → cost check → `FUN_00030ae2` (raise cash) →
 re-check → `FUN_0006763b` → `firm_array_create` + `firm_init`.
 30-day cooldown per build type.
 
@@ -1547,17 +1547,67 @@ via `FUN_000347c2`.
 
 ### Asset sale (FUN_00030ae2)
 
-Escalating cash-raising when `corp+0x186` (cash) < needed amount.
-Steps tried in order until cash >= target:
+`FUN_00030ae2(corp, …, needed)` (line 27421) raises cash when
+`corp+0x186` (cash) < `needed`. Returns 0 at once if cash already
+covers `needed`. The gate byte is `+0x2a` of the chairman's person
+record (`corp+0x5a` → `FUN_0007c0c1(&DAT_000b1b87, …)`, lines
+27437-27439), not a stock record; its meaning is unrecovered. Steps in
+order:
 
-1. Check stock issuance flag (`stock_record+0x2a`)
-2. Sell own stock holdings via `FUN_00030c6e`
-3. Sell subsidiaries via `FUN_00037a7e`
-4. Sell stock in other corps via `FUN_00030d97` (up to 10 iterations)
-5. Fire sale at any price via `FUN_00030e55`
+1. Holdings sale (lines 27439-27440): only if the chairman byte is
+   set, `FUN_00030c6e` (0x30c6e, line 27484) sells shares this corp
+   holds in other corporations. Returns 1 if cash now covers `needed`.
+2. Bank loan (lines 27441-27446): `FUN_00037a7e` (0x37a7e, line 33468)
+   borrows a rounded amount, at least `DAT_000a481c` = 100,000. The
+   requested amount's source is lost in the decompile (x87 return
+   value). The loan is clamped to the credit limit (see Borrow).
+3. Give-up gate (lines 27447-27451): if still short, chairman byte is
+   0 and cash > 0, return 0. Nothing else is tried.
+4. Own share issue (line 27452): `FUN_00030d97` (0x30d97, line 27540)
+   issues new shares of this corp's own stock.
+5. Holdings sale again (lines 27453-27454), whatever the chairman byte.
+6. Retry loop (lines 27455-27459): `FUN_00030d97` up to 10 times; stops
+   when an issue fails, and returns 1 as soon as cash covers `needed`.
+7. Firm closures (lines 27460-27463): `FUN_00030e55` (0x30e55, line
+   27574) closes one firm per call, repeated only while cash < 0 (not
+   < `needed`) and a firm was closed. Then returns 1 only if cash ended
+   above its starting value (line 27464).
 
-Returns true (1) if cash >= target after all attempts. Reached by
-competitor builds through `FUN_0002e19a` (line 27421).
+Reached by competitor builds through `FUN_0002e19a`, by the AI
+bankruptcy path `FUN_00030a34` and by the corp daily `FUN_00034e34`.
+
+**FUN_00030c6e** (holdings sale): runs only when `DAT_000b1ee3` (Allow
+Stock Investment) is set and `corp+0x7e2` (investment value) is nonzero
+(line 27501). Each pass, `FUN_00044d44` (line 41713) picks the listed
+corporation whose stock this corp holds (≥ 1 share at
+`stock+0x30 + corp_index×4`) with the lowest `FUN_00040659` value,
+likely the share price, skipping one corp index read from the person
+record's `+0x32`. The quantity sold is the smaller of two rounded
+values (lines 27510-27518; their sources are lost in the decompile).
+The sale goes through the share-trade routine `FUN_0003f240` with a
+negative quantity (line 27519), so proceeds post as a normal share
+sale. Stops when cash covers `needed`, when no holding is left, or
+when the price exceeds a stack argument the decompile lost (line
+27507). Asserts after 1,000 passes (`oai_fina.cpp` line 0x138).
+
+**FUN_00030d97** (own share issue): needs the corp's own stock record
+(`corp+0x17e`) listed (`+2`) and `DAT_000b1ee3` set (line 27550). The
+issue size is a rounded value (source lost in the decompile) capped by
+`FUN_000403f7` (line 38898, the maximum issuable, 0 if the price
+`stock+7` < 1). It only issues if that maximum is at least
+`DAT_000a4835` = 10,000 shares (line 27555). `FUN_0004021e` (line
+38831) adds the shares to `stock+3`, lowers the price, and posts
+shares × price to accounts 6 and 0 (cash) via `FUN_00032044` (lines
+38882-38883). Returns 1 if shares were issued. `names_sim.csv` row 208
+labels it `ai_buy_stock`; it buys nothing.
+
+**FUN_00030e55** (firm closure): skipped when `corp+0x66` == 1
+(meaning unrecovered). Walks this corp's firms from the highest index
+down. Closes the first firm with byte `+0x31` set; otherwise the R&D
+Center (firm type 3) with the lowest `FUN_00062002(firm, 1)` value,
+likely profit (lines 27588-27605). Calls `news_firm_closed` and
+`firm_array_delete` (lines 27607-27608). No cash is credited in this
+function; whether `firm_array_delete` posts any proceeds is not traced.
 
 ### Broad fallback location (FUN_0002de97)
 
@@ -3758,11 +3808,9 @@ Triggered when cash < 0 at monthly check (player corps only):
 
 Triggered when cash < 0 at monthly check (AI corps):
 1. Computes total deficit
-2. Runs 4-step sell-assets escalation (`FUN_00030ae2`, line 27416):
-   - Step 1: Sell stocks held by the corp
-   - Step 2: Sell individual firms
-   - Step 3: Sell more assets (up to 10 rounds)
-   - Step 4: Close remaining firms
+2. Runs the cash-raising sequence (`FUN_00030ae2`, line 27421; see
+   Asset sale): holdings sale, bank loan, own share issue (retried up
+   to 10 times), then R&D Center closures while cash < 0
 3. If still negative after all steps: declares bankruptcy
 
 ### Declare bankruptcy — FUN_000347c2 (ogroupa.cpp line 30950)

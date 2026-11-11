@@ -19,13 +19,13 @@ stored rows match the rules.
 
 | Job (id) | Products | Count | Source | Status |
 |---|---|---|---|---|
-| Crop Growing (1) | Every product with `kind = crop` (Rubber Plant, Sugar Cane, Barley, Cocoa, Cotton, Grapes, Rubber, Sugar, Tobacco, Wheat) | 10 | `gamelogic.md` product catalog, Plants and Crops (around line 3058); Crop Growing reads the product's planting month and growth duration (around 820) | Sourced |
-| Livestock Raising (2) | Every product with `kind = livestock` (Cattle, Chicken, Pig, Sheep) | 4 | `gamelogic.md` "Livestock (4) ... Raised on farms" (around 3066) | Sourced |
-| Livestock Processing (3) | Leather, Milk, Wool, Eggs, Frozen Beef, Frozen Chicken, Frozen Pork, Frozen Lamb | 8 | `gamelogic.md` "Livestock semi-products ... from livestock processing" (around 3071) and livestock "processed into consumer-grade meat products" (3067); the meat and egg rows are the five Livestock Products consumer goods with no recipe | Leather, Milk, Wool sourced; meat and eggs inferred |
-| Logging (4) | Timber | 1 | Logging Camp creates "the matching extraction job" (`gamelogic.md` around 461); Timber is the only wood raw material | Inferred |
+| Crop Growing (1) | Every product with `kind = crop` (Rubber Plant, Sugar Cane, Barley, Cocoa, Cotton, Grapes, Rubber, Sugar, Tobacco, Wheat) | 10 | `gamelogic.md` product catalog, Plants and Crops (around line 3229); Crop Growing reads the product's planting month and growth duration (around 852) | Sourced |
+| Livestock Raising (2) | Every product with `kind = livestock` (Cattle, Chicken, Pig, Sheep) | 4 | `gamelogic.md` "Livestock (4) ... Raised on farms" (around 3239) | Sourced |
+| Livestock Processing (3) | Leather, Milk, Wool, Eggs, Frozen Beef, Frozen Chicken, Frozen Pork, Frozen Lamb | 8 | `gamelogic.md` "Livestock semi-products ... from livestock processing" (around 3242) and livestock "processed into consumer-grade meat products" (3240); the meat and egg rows are the five Livestock Products consumer goods with no recipe | Leather, Milk, Wool sourced; meat and eggs inferred |
+| Logging (4) | Timber | 1 | Logging Camp creates "the matching extraction job" (`gamelogic.md` around 493); Timber is the only wood raw material | Inferred |
 | Mining (8) | Aluminum, Chemical Minerals, Coal, Gold, Iron Ore, Silica | 6 | The raw materials that are neither Timber nor Oil | Inferred |
 | Oil Extraction (9) | Oil | 1 | Same as Logging | Inferred |
-| Manufacturing (7) | Every product with a row in `recipes` | 54 | `recipes` table (from `docs/recipes.md`); Manufacturing needs a recipe to run (`gamelogic.md` around 905) | Sourced |
+| Manufacturing (7) | Every product with a row in `recipes` | 54 | `recipes` table (from `docs/recipes.md`); Manufacturing needs a recipe to run (`gamelogic.md` around 938) | Sourced |
 | Research & Development (11) | Every product with a row in `recipes` | 54 | R&D raises a corporation's technology for a product, and technology only changes manufactured quality | Inferred |
 | Software Development (13) | Software | 1 | `SoftwareDevelopment` requires the catalog `Software` product (M1 provisional, one title) | Sourced from M1 |
 | Software Production (14) | Software | 1 | Same | Sourced from M1 |
@@ -45,7 +45,7 @@ rows. The picker handles them like this:
   shows "Connect to a job to choose its product" until then.
 - **Import.** Seaport only: `importable = 1` products.
 - **Advertising (15).** No product; it advertises the last connected job's
-  product (`gamelogic.md` around 1000).
+  product (`gamelogic.md` around 1040).
 
 Selling to consumers (`link_consumer`) stays limited to products with
 consumer demand. That is an existing check, not part of this table.
