@@ -1,4 +1,4 @@
-import { DEEP_OCEAN, FIRM, FOREST_HILL, MapData, TOWN, WATER } from "./mapdata";
+import { DEEP_OCEAN, FIRM, FOREST_HILL, MapData, WATER } from "./mapdata";
 
 /** Stable per-tile hash for variant picks (art/README.md: any stable hash of x, y). */
 export function tileHash(x: number, y: number): number {
@@ -14,12 +14,18 @@ function kindAt(m: MapData, x: number, y: number): number {
 
 const isLand = (k: number) => k > WATER;
 
-/**
- * Placeholder town layout until town data reaches the client: on TOWN tiles,
- * every third column and every second row is road (art/README.md preview rule).
- */
+/** Index of the town whose footprint covers (x, y), or -1. */
+function townIndex(m: MapData, x: number, y: number): number {
+  if (x < 0 || y < 0 || x >= m.width || y >= m.height) return -1;
+  return m.townAt[y * m.width + x];
+}
+
+/** Town roads form a plus through the centre of the footprint (Designer rule, PR #50). */
 export function isRoad(m: MapData, x: number, y: number): boolean {
-  return kindAt(m, x, y) === TOWN && (x % 3 === 0 || y % 2 === 0);
+  const i = townIndex(m, x, y);
+  if (i < 0) return false;
+  const t = m.towns[i];
+  return t.radius > 0 && (x === t.x || y === t.y);
 }
 
 /** Climate suffix: `c{a}`, or `c{a}c{b}` on a band edge where the tile south has climate b = a±1. */
@@ -59,15 +65,9 @@ export function frameFor(m: MapData, x: number, y: number): string {
     if (isLand(kindAt(m, x - 1, y - 1))) return "coast_corner_nw";
     return `water_${h % 3}`;
   }
-  if (k === TOWN) {
-    // The sim marks a town as one tile today; draw a lone town tile as a tower block.
-    const lone = ![
-      [0, -1],
-      [1, 0],
-      [0, 1],
-      [-1, 0],
-    ].some(([dx, dy]) => kindAt(m, x + dx, y + dy) === TOWN);
-    if (lone) return `block_s${h % 4}_l2`;
+  const ti = townIndex(m, x, y);
+  if (ti >= 0) {
+    const t = m.towns[ti];
     if (isRoad(m, x, y)) {
       const mask =
         (isRoad(m, x, y - 1) ? 1 : 0) |
@@ -76,8 +76,9 @@ export function frameFor(m: MapData, x: number, y: number): string {
         (isRoad(m, x - 1, y) ? 8 : 0);
       return `road_${String(mask).padStart(2, "0")}`;
     }
-    if (h % 11 === 0) return h % 2 ? "plaza" : `park_${(h >>> 1) % 2}`;
-    return `block_s${h % 4}_l${(h >>> 2) % 3}`;
+    // Roof style per tile from the town id and offset, so a town keeps its look.
+    const roof = tileHash(t.id * 97 + (x - t.x), y - t.y) % 4;
+    return `block_s${roof}_l${t.blockLevel}`;
   }
   const c = climateKey(m, x, y);
   if (k === FOREST_HILL) {

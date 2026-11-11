@@ -2,9 +2,12 @@
 
 Format (little-endian): b"CPPM", u16 width, u16 height, then width*height bytes of
 TileCategory, width*height bytes of climate (0 = poles .. 4 = equator), then u16 firm
-count and per firm u16 x, u16 y, u8 firm type id, u8 owner corp id (255 = no owner).
+count and per firm u16 x, u16 y, u8 firm type id, u8 owner corp id (255 = no owner),
+then u16 town count and per town u16 x, u16 y, u8 town id, u8 level, u8 footprint radius,
+u8 block level (radius and block level from the town_footprints table).
 The firms are the player's bread chain plus one of every other firm type, split between
-the player and two AI corporations, so every firm sprite and a few flags show.
+the player and two AI corporations, so every firm sprite and a few flags show. The
+second town is raised to level 5 so the sample shows a 5x5 footprint as well as 3x3.
 """
 
 import struct
@@ -17,12 +20,17 @@ sys.path.insert(0, str(ROOT / "src"))
 from capitalism.economy import CORP_AI
 from capitalism.firms import FIRM_CLASSES
 from capitalism.scenario import bread_town, build_bread_chain, find_site
+from capitalism.tables import TOWN_FOOTPRINTS
+from capitalism.town import population_for_level
 
 SEED = 1
 
 
 def main() -> None:
     sim, town = bread_town(SEED)
+    big = sim.towns[1]
+    big.population = population_for_level(5)
+    big.level = 5
     build_bread_chain(sim, town)
     eco = sim.economy
     corps = [eco.corps[0], eco.add_corp("Rival A", CORP_AI), eco.add_corp("Rival B", CORP_AI)]
@@ -46,9 +54,23 @@ def main() -> None:
         + climate
         + struct.pack("<H", len(firms))
         + body
+        + struct.pack("<H", len(sim.towns))
+        + b"".join(
+            struct.pack(
+                "<HHBBBB",
+                t.x,
+                t.y,
+                t.id,
+                t.level,
+                TOWN_FOOTPRINTS[t.level].radius,
+                TOWN_FOOTPRINTS[t.level].block_level,
+            )
+            for t in sim.towns
+        )
     )
     print(f"wrote {out} ({world.width}x{world.height}, seed {SEED}, {len(firms)} firms)")
-    print(f"town at {town.x},{town.y}")
+    for t in sim.towns:
+        print(f"town {t.id} at {t.x},{t.y} level {t.level}")
 
 
 if __name__ == "__main__":
