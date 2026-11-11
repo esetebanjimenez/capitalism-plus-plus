@@ -4,7 +4,25 @@ export const TILE_PX = 32;
 export const CHUNK_TILES = 32;
 export const CHUNK_PX = TILE_PX * CHUNK_TILES; // 1024
 export const CHUNK_BYTES = CHUNK_PX * CHUNK_PX * 4; // RGBA8, about 4 MB
+/**
+ * Zoom steps, counted in points so a step looks the same on every screen density.
+ * Step n draws a tile at 16 x n points: 1 = 16 pt (about 24 tiles across a phone),
+ * 2 = 32 pt (the standard view, about 12 across, docs/m2-ux-spec.md), 3 = 48 pt.
+ */
 export const ZOOM_STEPS = [1, 2, 3] as const;
+export const STANDARD_STEP = 2;
+export const POINTS_PER_TILE_STEP = 16;
+
+/** Canvas pixels per 32 px art pixel for a zoom step on a canvas at `resolution` px per point. */
+export const deviceScale = (step: number, resolution: number) =>
+  (step * POINTS_PER_TILE_STEP * resolution) / TILE_PX;
+
+/**
+ * Which art sheet to draw with: the 64 px sheet once a tile spans 64 or more canvas pixels
+ * (64 px art at 1:1 or larger, e.g. 1.5x on a 3x phone at the standard step), else the
+ * 32 px sheet, which is pixel-exact or larger there instead of dropping pixels.
+ */
+export const sheetFor = (scale: number): 32 | 64 => (scale * TILE_PX >= 64 ? 64 : 32);
 
 export interface View {
   /** World pixel (at zoom 1) of the screen's top-left corner. */
@@ -13,7 +31,11 @@ export interface View {
   /** Screen size in device pixels. */
   w: number;
   h: number;
-  /** Whole-number zoom: device pixels per art pixel. */
+  /** Zoom step (ZOOM_STEPS), in points; see deviceScale. */
+  step: number;
+  /** Canvas pixels per point (the renderer resolution). */
+  resolution: number;
+  /** Canvas pixels per 32 px art pixel: deviceScale(step, resolution). May be fractional. */
   zoom: number;
 }
 
@@ -41,7 +63,7 @@ export function neededChunks(
   marginPx = MARGIN_PX,
   chunkTiles = CHUNK_TILES,
 ): [number, number][] {
-  if (!Number.isInteger(v.zoom) || v.zoom < 1) throw new Error("zoom must be a whole number >= 1");
+  if (!(v.zoom > 0)) throw new Error("zoom must be positive");
   const { cols, rows } = chunkGrid(mapW, mapH, chunkTiles);
   const CHUNK_PX = chunkTiles * TILE_PX;
   const wx = v.w / v.zoom;
@@ -55,7 +77,7 @@ export function neededChunks(
   return out;
 }
 
-/** Keep the camera inside the map and on whole device pixels. */
+/** Keep the camera inside the map and on whole canvas pixels. */
 export function clampView(v: View, mapW: number, mapH: number): View {
   const worldW = mapW * TILE_PX;
   const worldH = mapH * TILE_PX;
@@ -67,12 +89,18 @@ export function clampView(v: View, mapW: number, mapH: number): View {
   return { ...v, x: snap(clamp(v.x, viewW, worldW)), y: snap(clamp(v.y, viewH, worldH)) };
 }
 
-/** Next whole-number zoom step, keeping the world point under (sx, sy) fixed on screen. */
+/** A view at a zoom step; zoom follows from the step and the resolution. */
+export function makeView(x: number, y: number, w: number, h: number, step: number, resolution: number): View {
+  return { x, y, w, h, step, resolution, zoom: deviceScale(step, resolution) };
+}
+
+/** Next zoom step, keeping the world point under (sx, sy) fixed on screen. */
 export function stepZoom(v: View, dir: 1 | -1, sx = v.w / 2, sy = v.h / 2): View {
-  const i = ZOOM_STEPS.indexOf(v.zoom as (typeof ZOOM_STEPS)[number]);
-  const next = ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, i + dir))];
-  if (next === v.zoom) return v;
+  const i = ZOOM_STEPS.indexOf(v.step as (typeof ZOOM_STEPS)[number]);
+  const step = ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, i + dir))];
+  if (step === v.step) return v;
+  const next = deviceScale(step, v.resolution);
   const px = v.x + sx / v.zoom;
   const py = v.y + sy / v.zoom;
-  return { ...v, zoom: next, x: px - sx / next, y: py - sy / next };
+  return { ...v, step, zoom: next, x: px - sx / next, y: py - sy / next };
 }

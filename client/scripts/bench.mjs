@@ -17,11 +17,12 @@ const browser = await puppeteer.launch({
   ],
 });
 const views = {
-  phone: { w: 390, h: 844, dpr: 3, q: "x=183&y=68&zoom=3" },
-  desktop: { w: 1920, h: 1080, dpr: 1, q: "x=150&y=100&zoom=1" },
+  phone: { w: 390, h: 844, dpr: 3, q: "x=183&y=68" },
+  desktop: { w: 1920, h: 1080, dpr: 1, q: "x=150&y=100" },
 };
 const variants = {
-  "baked 32px, 32-tile chunks (today)": "mode=baked&art=32&chunk=32",
+  "default (direct, sheet by zoom, 16-tile chunks)": "",
+  "baked 32px, 32-tile chunks": "mode=baked&art=32&chunk=32",
   "baked 64px, 32-tile chunks": "mode=baked&art=64&chunk=32",
   "baked 64px, 16-tile chunks": "mode=baked&art=64&chunk=16",
   "direct 64px, 16-tile chunks": "mode=direct&art=64&chunk=16",

@@ -36,21 +36,45 @@ export class FirmLayer {
   private readonly firmSprites = new Container();
   private readonly flagSprites = new Container();
   private readonly items: { firm: FirmInfo; sprites: Sprite[] }[] = [];
+  private frames?: Record<string, Texture>;
 
-  constructor(firms: FirmInfo[], frames: Record<string, Texture>) {
+  /**
+   * `texelsPerArtPx` says how many atlas texels a frame uses per 32 px art pixel
+   * (2 for frames from the 64 px sheet), so every sprite keeps its 32-unit layout size.
+   */
+  constructor(
+    firms: FirmInfo[],
+    frames: Record<string, Texture>,
+    texelsPerArtPx: (t: Texture) => number = () => 1,
+  ) {
     this.layer.addChild(this.firmSprites, this.flagSprites);
     for (const firm of [...firms].sort((a, b) => a.y - b.y || a.x - b.x)) {
-      const body = new Sprite(frames[FIRM_SPRITES[firm.type]] ?? Texture.EMPTY);
+      const body = new Sprite();
       body.position.set(firm.x * TILE_PX, firm.y * TILE_PX);
       this.firmSprites.addChild(body);
       const sprites = [body];
       if (firm.owner !== null) {
-        const flag = new Sprite(frames[flagFrame(firm.owner)] ?? Texture.EMPTY);
+        const flag = new Sprite();
         flag.position.set(firm.x * TILE_PX + FLAG_DX, firm.y * TILE_PX + FLAG_DY);
         this.flagSprites.addChild(flag);
         sprites.push(flag);
       }
       this.items.push({ firm, sprites });
+    }
+    this.setFrames(frames, texelsPerArtPx);
+  }
+
+  /** Point every sprite at `frames`; missing frames draw nothing. */
+  setFrames(frames: Record<string, Texture>, texelsPerArtPx: (t: Texture) => number = () => 1): void {
+    if (frames === this.frames) return;
+    this.frames = frames;
+    for (const { firm, sprites } of this.items) {
+      const names = [FIRM_SPRITES[firm.type], firm.owner !== null ? flagFrame(firm.owner) : ""];
+      sprites.forEach((s, i) => {
+        const tex = frames[names[i]] ?? Texture.EMPTY;
+        s.texture = tex;
+        s.scale.set(1 / texelsPerArtPx(tex));
+      });
     }
   }
 
