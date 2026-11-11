@@ -389,7 +389,8 @@ def product_freight_rate(product: Product, seller: Firm, buyer: Firm) -> float:
     Only a zero raw rate uses the $0.01/unit floor. Positive sub-cent rates stay exact.
     """
     r = JOB_RULES
-    distance = abs(seller.x - buyer.x) + abs(seller.y - buyer.y)
+    dx, dy = seller.x - buyer.x, seller.y - buyer.y
+    distance = math.isqrt(dx * dx + dy * dy)
     raw = (
         product.row.freight
         * distance
@@ -415,7 +416,7 @@ class Purchasing(Job):
         if (
             self.product is None
             or link is None
-            or (eco.calendar.day_serial + self.firm.id) % r.purchase_every_days
+            or self.slot % r.purchase_every_days != eco.calendar.day_serial % r.purchase_every_days
             or self.stock >= self.capacity
         ):
             return False
