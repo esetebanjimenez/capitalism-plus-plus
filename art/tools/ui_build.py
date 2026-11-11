@@ -6,6 +6,7 @@ in points for CSS border-image or a canvas nine-slice. Text, counts and numbers 
 import json, os
 from PIL import Image
 from ui_concept import card, button, slot, handle, badge, icon, ICON, cream, P
+import ui_controls as U
 
 def frames():
     f = {}
@@ -22,6 +23,16 @@ def frames():
     f['chip'] = (card(20, 20, 'INK', 'INK', shadow=False), None)  # rating chip in a slot
     for k in ICON: f['icon_' + k] = (icon(k), None)
     for k in ('play', 'ff', 'pause'): f['icon_' + k + '_on'] = (cream(icon(k)), None)  # on orange buttons
+    # M2 item 3 controls
+    f['bar_track'] = (U.bar('SAND'), [4, 4, 4, 4])     # slider and progress track
+    f['bar_fill'] = (U.bar('ORANGE'), [4, 4, 4, 4])    # slider value, progress
+    f['bar_fill_good'] = (U.bar('GREEN'), [4, 4, 4, 4])  # progress when done or on target
+    f['knob'] = (U.knob(), None)
+    f['chip_off'] = (U.chip(False), [6, 6, 6, 6]); f['chip_on'] = (U.chip(True), [6, 6, 6, 6])
+    f['switch_off'] = (U.switch(False), None); f['switch_on'] = (U.switch(True), None)
+    for k in ('normal', 'focus', 'error'): f['field_' + k] = (U.field(k), [6, 6, 6, 6])
+    f['caret'] = (U.caret(), None)
+    f['toast_error'] = (U.toast_error(), [10, 6, 6, 7])
     return f
 
 def pressed(k):
