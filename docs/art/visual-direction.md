@@ -121,7 +121,8 @@ Development (flask and bulb), Sales (cash register), Software Development
 On the concept sheet the shopping bag is a spare, and Import's ship isn't drawn
 yet. Both get settled in production.
 
-Link arrows between slots use ink at 2 px, and signal orange when selected.
+Links between slots have no direction (job/link brief, PR #77): plain ink lines at 2 px with no arrowheads,
+signal orange when selected, and dashed when the link can't move anything.
 
 ## UI panels
 
