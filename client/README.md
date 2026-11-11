@@ -30,3 +30,10 @@ URL parameters pick the terrain renderer, for comparison: `mode=baked|direct`, `
 `chunk=<tiles per chunk side>`. Default is `mode=baked&art=32&chunk=32`. `npm run bench` (after
 `npm run build`) prints memory and frame time for each variant at phone and desktop sizes.
 Chrome there renders WebGL on the CPU (SwiftShader), so frame times are only relative.
+
+## Live build
+
+`.github/workflows/pages.yml` deploys `client/` to GitHub Pages on every push to main:
+https://esetebanjimenez.github.io/capitalism-plus-plus/ (same URL options, for example
+`?mode=direct&art=64&chunk=16`). The HUD's second line shows the average frame time, the
+render call's CPU time and the screen's pixel density.
