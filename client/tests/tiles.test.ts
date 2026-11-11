@@ -68,10 +68,16 @@ describe("frameFor", () => {
     expect(frameFor(m, 0, 0)).toMatch(/^grass_/);
   });
 
-  it("draws level 5-6 as 5x5 and keeps a town's roofs stable", () => {
+  it("draws level 5-6 as 5x5 with a # of roads and a plaza, and keeps a town's roofs stable", () => {
     const m = tiny(["ggggg", "ggggg", "ggtgg", "ggggg", "ggggg"], 5);
-    expect(frameFor(m, 0, 0)).toMatch(/^block_s[0-3]_l2$/);
-    expect(frameFor(m, 0, 2)).toBe("road_02");
+    expect(frameFor(m, 2, 2)).toBe("plaza");
+    expect(frameFor(m, 1, 1)).toBe("road_15"); // the # crossings
+    expect(frameFor(m, 3, 3)).toBe("road_15");
+    expect(frameFor(m, 2, 1)).toBe("road_10"); // between crossings, beside the plaza
+    expect(frameFor(m, 1, 0)).toBe("road_04"); // a road end at the footprint edge
+    expect(frameFor(m, 0, 1)).toBe("road_02");
+    for (const [x, y] of [[0, 0], [2, 0], [0, 2], [4, 2], [2, 4], [4, 4]])
+      expect(frameFor(m, x, y)).toMatch(/^block_s[0-3]_l2$/);
     expect(frameFor(m, 4, 4)).toBe(frameFor(tiny(["ggggg", "ggggg", "ggtgg", "ggggg", "ggggg"], 5), 4, 4));
   });
 

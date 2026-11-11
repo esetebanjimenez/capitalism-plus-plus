@@ -20,13 +20,26 @@ function townIndex(m: MapData, x: number, y: number): number {
   return m.townAt[y * m.width + x];
 }
 
-/** Town roads form a plus through the centre of the footprint (Designer rule, PR #50). */
+/**
+ * Town roads (docs/m2-ux-spec.md, town footprint): a plus through the centre of a 3 x 3
+ * town; a # along rows and columns 1 and 3 of a 5 x 5 town, whose centre is a plaza.
+ */
 export function isRoad(m: MapData, x: number, y: number): boolean {
   const i = townIndex(m, x, y);
   if (i < 0) return false;
   const t = m.towns[i];
-  return t.radius > 0 && (x === t.x || y === t.y);
+  const dx = x - t.x;
+  const dy = y - t.y;
+  if (t.radius === 1) return dx === 0 || dy === 0;
+  if (t.radius >= 2) return Math.abs(dx) === 1 || Math.abs(dy) === 1;
+  return false;
 }
+
+/** The plaza on a 5 x 5 town's own tile. */
+export const isPlaza = (m: MapData, x: number, y: number): boolean => {
+  const i = townIndex(m, x, y);
+  return i >= 0 && m.towns[i].radius >= 2 && x === m.towns[i].x && y === m.towns[i].y;
+};
 
 /** Climate suffix: `c{a}`, or `c{a}c{b}` on a band edge where the tile south has climate b = a±1. */
 function climateKey(m: MapData, x: number, y: number): string {
@@ -68,6 +81,7 @@ export function frameFor(m: MapData, x: number, y: number): string {
   const ti = townIndex(m, x, y);
   if (ti >= 0) {
     const t = m.towns[ti];
+    if (isPlaza(m, x, y)) return "plaza";
     if (isRoad(m, x, y)) {
       const mask =
         (isRoad(m, x, y - 1) ? 1 : 0) |
