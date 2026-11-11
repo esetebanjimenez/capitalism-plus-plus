@@ -546,8 +546,8 @@ def _run_chain(seed: int = 1, days: int = 120):
 def test_bread_chain_end_to_end_seed_1():  # hash moved with $10M initial capital + setup costs
     sim, chain = _run_chain()
     link = chain.store_link
-    assert sim.state_hash() == ("b29dcb0ed3b9bfd4dd3630e89f492a289783fa7ae207bdbedcba5234e7b69e25")
-    assert sum(link.money_month) == pytest.approx(1003817.0716583957, abs=1e-3)
+    assert sim.state_hash() == ("613af5d16655c423989a9d186c9065ab658ed8bd627828613eb5e35804b89bd2")
+    assert sum(link.money_month) == pytest.approx(1003817.1406193954, abs=1e-3)
     assert chain.store_sales.unit_cost == pytest.approx(1.5)
     assert link.brand == pytest.approx(11.0, abs=1e-6)
     assert chain.store_sales.quality == pytest.approx(17.688357230363863, abs=1e-5)
@@ -572,7 +572,7 @@ def test_bread_chain_monthly_accounting():
         results[month] = chain_month_profit(chain, month - 1)
     r = results[4]  # month after April closes; ledger index remains zero-based April = 3
     assert r["overhead"] == pytest.approx(300000.0)  # 2 factories + dept store, $100k/mo each
-    assert r["revenue"] == pytest.approx(273_916.5623417781, abs=0.002)
+    assert r["revenue"] == pytest.approx(273_916.6313027778, abs=0.002)
     assert (r["wages"], r["overhead"], r["wheat"]) == (167_910, 300_000, 16_431.3)
     # Training is budget × daily wage / divisor accumulated in floats: equal to cents, not bits.
     assert r["training"] == pytest.approx(16_791, abs=1e-6)
@@ -585,7 +585,7 @@ def test_bread_chain_monthly_accounting():
         assert job.received_month[3] == pytest.approx(qty)
         assert job.freight_month[3] == pytest.approx(charge)
     assert r["freight"] == pytest.approx(1_144.831290240259)
-    assert r["profit"] == pytest.approx(-228_360.5689484622, abs=0.002)
+    assert r["profit"] == pytest.approx(-228_360.50012419547, abs=0.002)
     assert r["profit"] == pytest.approx(
         r["revenue"] - r["wages"] - r["training"] - r["overhead"] - r["freight"] - r["wheat"]
     )

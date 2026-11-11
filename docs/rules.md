@@ -87,12 +87,13 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `gnp_divisor` | 200 **provisional** | $/capita per index point | Towns and cities — labor cost (design.md provisional) |
 | `gnp_factor_hi` | 1.013 | multiplier / month | Towns and cities — per-capita GNP factor |
 | `gnp_factor_lo` | 0.983 | multiplier / month | Towns and cities — per-capita GNP factor |
+| `gnp_growth_scale` | 50 | scalar | Binary FUN_0004b377: town gnp_growth_pct = scale × 12-month total-GNP change (capplus_decompiled.c:46466) |
 | `labor_quality_hi` | 100 | index | Towns and cities — labor quality clamp |
 | `labor_quality_lo` | 1 | index | Towns and cities — labor quality clamp |
 | `labor_step` | 0.2 **provisional** | fraction toward target / month | Towns and cities — labor/spend/quality (design.md provisional) |
 | `large_pop` | 1500000 | people | Binary FUN_0004b4de: additive pop growth (capplus_decompiled.c:46505) |
-| `level_max` | 6 | level | Towns and cities — level table |
-| `level_pop_per_sq` | 160000 | people | Towns and cities — level = (L−1)² × this |
+| `level_max` | 6 | level | Initial level and footprint table only; native level-up has no cap (FUN_0004b4de) |
+| `level_pop_per_sq` | 160000 | people | Binary FUN_0004b4de: level +1 per tick at pop ≥ this × L², never down (capplus_decompiled.c:46538) |
 | `pop_base_offset` | -150 | people | Binary FUN_0004b4de: additive pop growth (capplus_decompiled.c:46505) |
 | `pop_gnp_scale` | 100 | scalar | Binary FUN_0004b4de: additive pop growth (capplus_decompiled.c:46505) |
 | `pop_per_tier` | 300000 | people | Towns and cities — initial population |
