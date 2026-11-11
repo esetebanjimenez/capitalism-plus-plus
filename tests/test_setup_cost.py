@@ -71,7 +71,6 @@ def test_demolish_unbooks_assets_and_writes_off_setup():
     land = sim.world.land_value(x, y)
     firm = eco.build_firm(DEPT_STORE, corp, x, y, town)
     setup = FIRM_TYPES[DEPT_STORE].setup_cost
-    overhead = -firm.ledger.cash
     cash_after_build = corp.ledger.cash
 
     eco.demolish_firm(firm)
