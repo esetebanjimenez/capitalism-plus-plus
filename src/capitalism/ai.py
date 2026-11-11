@@ -10,6 +10,7 @@ from .person import (
     ROLE_INDEPENDENT,
     STATE_ACTIVE,
 )
+from .stock import sell_shares
 from .tables import AI_RULES, COMPETITOR_CAPITAL, FIRM_TYPES
 
 if TYPE_CHECKING:
@@ -141,14 +142,43 @@ def ai_build_firm(
     x, y = site
     land_value = eco.world.land_value(x, y)
     # FUN_0002e19a (decomp:25264-25281): cash vs land value + the type's setup cost.
-    # Native then tries asset sales (FUN_00030ae2) before refusing; with the $1B
-    # daily reset (A1) that branch rarely runs, so the sim just refuses.
-    if corp.ledger.cash < land_value + FIRM_TYPES[firm_type].setup_cost:
+    # If short, raise cash with FUN_00030ae2 and re-check; cancel only if still short.
+    cost = land_value + FIRM_TYPES[firm_type].setup_cost
+    if corp.ledger.cash < cost and not ai_raise_cash(eco, corp, cost):
         return None
     try:
         return eco.build_firm(firm_type, corp, x, y, town)
     except (ValueError, NotImplementedError):
         return None
+
+
+def ai_raise_cash(eco: Economy, corp: Corporation, target: float) -> bool:
+    """Sell assets until cash reaches target (FUN_00030ae2, audit B2/A3).
+
+    Native order (techspec "Asset sale"): own-stock check, own holdings
+    (FUN_00030c6e), subsidiaries (FUN_00037a7e), other corps' stock in up to
+    10 rounds (FUN_00030d97), then a fire sale (FUN_00030e55). The sim has no
+    subsidiaries or firm sales yet, so only the share-sale rounds run: each
+    round sells just enough of each holding, at the market's sell price, to
+    cover what's left. Returns True once cash >= target.
+    """
+    for _ in range(int(_AR.asset_sale_rounds)):
+        if corp.ledger.cash >= target:
+            return True
+        sold = False
+        for stock in eco.stocks:
+            if stock is None or stock.corp_id == corp.id:
+                continue
+            held = stock.holdings_corps[corp.id]
+            short = target - corp.ledger.cash
+            if held <= 0 or short <= 0:
+                continue
+            want = min(held, int(short // max(stock.price, 0.10)) + 1)
+            corp.ledger.cash += sell_shares(stock, "corp", corp.id, want)
+            sold = True
+        if not sold:
+            break
+    return corp.ledger.cash >= target
 
 
 # --- NPC spawning -----------------------------------------------------------
@@ -228,8 +258,8 @@ def ai_daily(eco: Economy, corp: Corporation, day_serial: int) -> None:
     for k in expired:
         del ai.build_cooldowns[k]
 
-    # Cash management: reset AI cash to ~$1B (gamelogic.md Cash management)
-    corp.ledger.cash = _AR.ai_cash_reset
+    # No cash reset here: native resets cash to $1B only for the Government corp
+    # (FUN_00030ffc, vtable 0x3553c; audit A1). Competitors spend real cash.
 
     # Strategy dispatcher (every 15 days)
     if offset_day - ai.last_strategy_day >= int(_AR.strategy_interval):

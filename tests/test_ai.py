@@ -181,8 +181,8 @@ class TestAIDaily:
         ai = AIState(corp.id, ds, rng)
         eco.ai_states[corp.id] = ai
         sim.advance_days(60)
-        # Cash gets reset to $1B each day
-        assert corp.ledger.cash == pytest.approx(AI_RULES.ai_cash_reset)
+        # No $1B reset for competitors (audit A1): real cash only
+        assert corp.ledger.cash <= 10_000_000.0
 
     def test_strategy_dispatch_fires(self):
         sim, _town = bread_town(1)
@@ -292,7 +292,7 @@ class TestBankruptcy:
 
 
 class TestCashManagement:
-    def test_cash_reset(self):
+    def test_no_competitor_cash_reset(self):
         sim, _ = bread_town(1)
         eco = sim.economy
         ds = sim.calendar.day_serial
@@ -304,7 +304,7 @@ class TestCashManagement:
         ai = AIState(corp.id, ds, rng)
         eco.ai_states[corp.id] = ai
         ai_daily(eco, corp, ds + 1)
-        assert corp.ledger.cash == pytest.approx(AI_RULES.ai_cash_reset)
+        assert corp.ledger.cash == pytest.approx(100.0)
 
 
 class TestIntegration:
@@ -324,10 +324,10 @@ class TestIntegration:
             ai = AIState(corp.id, ds, rng_ai)
             eco.ai_states[corp.id] = ai
         sim.advance_days(120)
-        # All corps should have cash reset to $1B
+        # Competitors spend real cash; nothing tops them up to $1B
         for corp in eco.corps:
             if corp.corp_type == CORP_AI:
-                assert corp.ledger.cash == pytest.approx(AI_RULES.ai_cash_reset)
+                assert corp.ledger.cash <= 10_000_000.0
 
     def test_deterministic_with_ai(self):
         """Same seed produces same state with AI active."""

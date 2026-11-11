@@ -43,6 +43,19 @@ RULES = [
         ),
         1,
     ),
+    (
+        "ai", "asset_sale_rounds", 10.0, "rounds",
+        "FUN_00030ae2 decomp:27421: other corps' stock sold in up to 10 rounds (techspec Asset sale)",
+        0,
+    ),
+    (
+        "ai", "ai_cash_reset", 1_000_000_000.0, "dollars",
+        (
+            "Government corp only: FUN_00030ffc decomp:27691-27693, vtable 0x3553c (audit A1). "
+            "Competitors keep real cash; the sim has no Government corp, so this is unused"
+        ),
+        0,
+    ),
 ]
 
 
