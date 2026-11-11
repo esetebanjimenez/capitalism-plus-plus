@@ -55,6 +55,36 @@ def test_build_moves_setup_and_land_into_assets():
     assert corp.total_assets(eco.firms) == pytest.approx(assets_before + firm.ledger.cash)
 
 
+def test_demolish_unbooks_assets_and_writes_off_setup():
+    """B4: demolish reverses build_firm's asset bookings.
+
+    Decomp FUN_00063f28: BizAssets→Cash, write-off setup as CAT_WRITEOFFS,
+    floor BizAssets, LandAssets→Cash, floor LandAssets.
+    Net cash change = +land_value (setup is a wash).
+    """
+    from capitalism.jobs import CAT_WRITEOFFS
+
+    sim, town = bread_town()
+    eco = sim.economy
+    corp = eco.add_corp("P")
+    x, y = find_site(sim, town)
+    land = sim.world.land_value(x, y)
+    firm = eco.build_firm(DEPT_STORE, corp, x, y, town)
+    setup = FIRM_TYPES[DEPT_STORE].setup_cost
+    cash_after_build = corp.ledger.cash
+
+    eco.demolish_firm(firm)
+
+    assert corp.business_assets == 0.0
+    assert corp.land_assets == 0.0
+    assert corp.ledger.cash == pytest.approx(cash_after_build + land)
+    assert corp.ledger.month[CAT_WRITEOFFS] == pytest.approx(setup)
+    assert eco.firms[firm.id] is None
+    tile = sim.world.tile_at(x, y)
+    assert tile.kind == TileCategory.GRASSLAND
+    assert tile.ref == -1
+
+
 def test_build_refused_below_setup_plus_land():
     sim, town = bread_town()
     eco = sim.economy
