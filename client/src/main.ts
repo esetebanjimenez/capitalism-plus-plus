@@ -65,6 +65,27 @@ async function boot() {
   };
 
   const hud = document.getElementById("hud")!;
+  const hudInfo = document.createElement("span");
+  const hudPerf = document.createElement("span");
+  hud.replaceChildren(hudInfo, document.createElement("br"), hudPerf);
+
+  // On-screen frame time for real-device checks: average frame interval over the last
+  // 60 frames (capped by the screen's refresh rate) and the CPU time of the render call.
+  const frameMs: number[] = [];
+  const renderMs: number[] = [];
+  const push = (a: number[], v: number) => (a.push(v), a.length > 60 && a.shift());
+  const avg = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
+  const render = app.render.bind(app);
+  app.render = () => {
+    const t0 = performance.now();
+    render();
+    push(renderMs, performance.now() - t0);
+  };
+  app.ticker.add((t) => push(frameMs, t.deltaMS));
+  setInterval(() => {
+    const f = avg(frameMs);
+    hudPerf.textContent = `${f.toFixed(1)} ms/frame (${f ? Math.round(1000 / f) : 0} fps) · render ${avg(renderMs).toFixed(1)} ms · ${devicePixelRatio}× screen`;
+  }, 500);
   const apply = () => {
     view = clampView({ ...view, ...screen() }, map.width, map.height);
     chunks.update(view);
@@ -84,7 +105,7 @@ async function boot() {
       baked: chunks.baked,
       firms: firms.visibleCount,
     };
-    hud.textContent = `${stats.mode} ${art} px · zoom ${stats.zoom}x · ${stats.tilesAcross} tiles across · ${stats.chunks} chunks · ${stats.mb} MB GPU · ${stats.firms} firms`;
+    hudInfo.textContent = `${stats.mode} ${art} px · zoom ${stats.zoom}x · ${stats.tilesAcross} tiles across · ${stats.chunks} chunks · ${stats.mb} MB GPU · ${stats.firms} firms`;
     (window as unknown as { __cppStats: typeof stats }).__cppStats = stats;
   };
 
