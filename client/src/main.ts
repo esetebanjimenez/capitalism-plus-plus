@@ -1,9 +1,11 @@
 import { Application, Assets, Container, Rectangle, Texture } from "pixi.js";
 import atlasUrl from "../../art/atlas/terrain_atlas.png?url";
 import atlasJson from "../../art/atlas/terrain_atlas.json";
-import { ChunkCache } from "./chunks";
+import atlas64Url from "../../art/atlas/terrain_atlas_64.png?url";
+import atlas64Json from "../../art/atlas/terrain_atlas_64.json";
+import { ChunkCache, TerrainOptions } from "./chunks";
 import { FirmLayer } from "./firms";
-import { TILE_PX, View, clampView, stepZoom } from "./chunkmath";
+import { CHUNK_TILES, TILE_PX, View, clampView, stepZoom } from "./chunkmath";
 import { parseMap } from "./mapdata";
 
 interface AtlasJson {
@@ -25,16 +27,30 @@ async function boot() {
   });
   document.getElementById("map")!.appendChild(app.canvas);
 
-  const base: Texture = await Assets.load({ src: atlasUrl, data: { scaleMode: "nearest" } });
-  base.source.scaleMode = "nearest";
-  const atlas = atlasJson as AtlasJson;
+  // ?art=64 draws terrain from the 64 px set (frames it lacks fall back to the 32 px set).
+  const art = params.get("art") === "64" ? 64 : 32;
+  const terrain: TerrainOptions = {
+    mode: params.get("mode") === "direct" ? "direct" : "baked",
+    chunkTiles: Number(params.get("chunk") ?? CHUNK_TILES),
+    artScale: art / TILE_PX,
+    marginPx: Number(params.get("margin") ?? 8) * TILE_PX,
+  };
+  let atlasBytes = 0;
+  const loadAtlas = async (url: string, json: AtlasJson, into: Record<string, Texture>) => {
+    const base: Texture = await Assets.load({ src: url, data: { scaleMode: "nearest" } });
+    base.source.scaleMode = "nearest";
+    atlasBytes += base.source.pixelWidth * base.source.pixelHeight * 4;
+    for (const [name, f] of Object.entries(json.frames)) {
+      into[name] = new Texture({ source: base.source, frame: new Rectangle(f.x, f.y, f.w, f.h) });
+    }
+  };
   const frames: Record<string, Texture> = {};
-  for (const [name, f] of Object.entries(atlas.frames)) {
-    frames[name] = new Texture({ source: base.source, frame: new Rectangle(f.x, f.y, f.w, f.h) });
-  }
+  await loadAtlas(atlasUrl, atlasJson as AtlasJson, frames);
+  const terrainFrames: Record<string, Texture> = { ...frames };
+  if (art === 64) await loadAtlas(atlas64Url, atlas64Json as AtlasJson, terrainFrames);
 
   const map = parseMap(await (await fetch("./sample-map.bin")).arrayBuffer());
-  const chunks = new ChunkCache(app.renderer, map, frames, Number(params.get("margin") ?? 8) * TILE_PX);
+  const chunks = new ChunkCache(app.renderer, map, terrainFrames, terrain);
   const firms = new FirmLayer(map.firms, frames);
   const world = new Container();
   world.addChild(chunks.layer, firms.layer);
@@ -60,11 +76,15 @@ async function boot() {
       zoom: view.zoom,
       tilesAcross: +(view.w / view.zoom / TILE_PX).toFixed(1),
       chunks: chunks.count,
-      mb: +(chunks.bytes / 2 ** 20).toFixed(0),
+      mode: terrain.mode,
+      art,
+      chunkTiles: terrain.chunkTiles,
+      mb: +((chunks.bytes + atlasBytes) / 2 ** 20).toFixed(1),
+      sprites: chunks.sprites,
       baked: chunks.baked,
       firms: firms.visibleCount,
     };
-    hud.textContent = `zoom ${stats.zoom}x · ${stats.tilesAcross} tiles across · ${stats.chunks} chunks (${stats.mb} MB) · baked ${stats.baked} · ${stats.firms} firms`;
+    hud.textContent = `${stats.mode} ${art} px · zoom ${stats.zoom}x · ${stats.tilesAcross} tiles across · ${stats.chunks} chunks · ${stats.mb} MB GPU · ${stats.firms} firms`;
     (window as unknown as { __cppStats: typeof stats }).__cppStats = stats;
   };
 
@@ -116,6 +136,36 @@ async function boot() {
   document.getElementById("zoom-out")!.onclick = () => ((view = stepZoom(view, -1)), apply());
   window.addEventListener("resize", apply);
   apply();
+
+  // Benchmark hook for scripts/bench.mjs: pan `frames` frames by `step` art px and time
+  // each update + render, including GPU work (a 1-pixel readback waits for it).
+  (window as unknown as { __bench: unknown }).__bench = (frames: number, step: number) => {
+    app.ticker.stop();
+    const gl = (app.renderer as unknown as { gl?: WebGLRenderingContext }).gl;
+    const px = new Uint8Array(4);
+    const times: number[] = [];
+    let dir = 1;
+    for (let i = 0; i < frames; i++) {
+      const t0 = performance.now();
+      const before = view.x;
+      view = { ...view, x: view.x + dir * step };
+      apply();
+      if (view.x === before) dir = -dir;
+      app.renderer.render(app.stage);
+      gl?.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); // waits for the GPU
+      times.push(performance.now() - t0);
+    }
+    times.sort((a, b) => a - b);
+    const mem = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
+    return {
+      avgMs: +(times.reduce((a, b) => a + b, 0) / frames).toFixed(2),
+      medianMs: +times[Math.floor(frames / 2)].toFixed(2),
+      gl: Boolean(gl),
+      p95Ms: +times[Math.floor(frames * 0.95)].toFixed(2),
+      maxMs: +times[frames - 1].toFixed(2),
+      jsHeapMb: mem ? +(mem.usedJSHeapSize / 2 ** 20).toFixed(1) : null,
+    };
+  };
   document.title = "Capitalism++ map ready";
 }
 
