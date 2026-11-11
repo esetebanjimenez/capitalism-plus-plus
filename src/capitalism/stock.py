@@ -170,6 +170,32 @@ def buy_shares(
     return total_cost
 
 
+def buy_cost(stock: Stock, quantity: int, *, from_float: bool = True) -> float:
+    """What buy_shares would charge, without trading (for cash checks)."""
+    actual = min(quantity, stock.public_float if from_float else quantity)
+    if actual <= 0:
+        return 0.0
+    impact = price_impact(actual, stock.total_shares, stock.price)
+    return (stock.price + impact / 2) * actual
+
+
+def buy_back_shares(stock: Stock, quantity: int) -> float:
+    """Own-stock buyback: buy from the float and retire the shares (audit S3).
+
+    decomp:38425-38431: cash and equity drop by the cost and total_shares falls
+    by the shares bought back. Priced like any buy (S2). Returns the cost.
+    """
+    actual = min(quantity, stock.public_float, stock.total_shares - 1)
+    if actual <= 0:
+        return 0.0
+    impact = price_impact(actual, stock.total_shares, stock.price)
+    cost = (stock.price + impact / 2) * actual
+    stock.price = max(0.10, stock.price + impact)
+    stock.trade_volume_decay += impact * _SR.volume_trade_factor
+    stock.total_shares -= actual
+    return cost
+
+
 def sell_shares(
     stock: Stock, seller_type: str, seller_id: int, quantity: int
 ) -> float:
@@ -331,8 +357,7 @@ def ai_buyback(stock: Stock, corp_id: int, rng: Rng) -> float:
     # Buy back a fraction of the float
     target = int(stock.public_float * _SR.buyback_fraction)
     target = max(1, target)
-    cost = buy_shares(stock, "corp", corp_id, target)
-    return cost
+    return buy_back_shares(stock, target)  # S3: retired, not held
 
 
 def ai_invest(

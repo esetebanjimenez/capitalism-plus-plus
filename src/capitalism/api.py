@@ -449,6 +449,7 @@ class Api:
                 for f in firms
                 if f is not None and f.owner is c
             ],
+            "stock_assets": c.stock_assets,
             "total_assets": c.total_assets(firms),
             "liabilities": c.liabilities,
             "net_worth": c.net_worth(firms),
@@ -738,19 +739,16 @@ class Api:
         return {"repaid": before - p.liabilities}
 
     def c_buy_shares(self, corp: int, shares: int) -> Json:
-        st = self._stock(corp)
-        cost = stk.buy_shares(st, "corp", PLAYER, int(shares))
-        return {"cost": cost}
+        self._stock(corp)
+        return {"cost": self.eco.buy_stock(self.player, corp, int(shares))}
 
     def c_sell_shares(self, corp: int, shares: int) -> Json:
-        st = self._stock(corp)
-        got = stk.sell_shares(st, "corp", PLAYER, int(shares))
-        return {"proceeds": got}
+        self._stock(corp)
+        return {"proceeds": self.eco.sell_stock(self.player, corp, int(shares))}
 
     def c_issue_shares(self, shares: int) -> Json:
-        st = self._stock(PLAYER)
-        got = stk.issue_shares(st, int(shares))
-        return {"received": got}
+        self._stock(PLAYER)
+        return {"received": self.eco.issue_stock(self.player, int(shares))}
 
     def c_set_training_budget(self, amount: float) -> None:
         self.player.training_budget = amount
