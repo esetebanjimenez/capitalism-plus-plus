@@ -93,10 +93,11 @@ def climate_edge(im,a,b):
     """Dithered band edge: the tile is climate a at the top and fades to climate b at the bottom."""
     m={H(ca):H(cb) for ca,cb in reversed(list(zip(CLIM[a],CLIM[b])))}
     if a==0: m.update({H(C['SAND']):H(C['CREAM'])})
-    out=im.copy(); px_=out.load()
+    out=im.copy(); px_=out.load(); import math
+    k=1+(sum(im.convert('RGB').getpixel((x,x)) [0] for x in range(32))%2)  # 1 or 2 waves, seamless at x=0/32
     for y in range(32):
-        t=min(1,max(0,(y-3)/26))
         for x in range(32):
+            t=min(1,max(0,(y-6-4*math.sin(2*math.pi*k*x/32))/20))
             if (BAYER[y%4][x%4]+.5)/16<t:
                 c=px_[x,y][:3]
                 if c in m: px_[x,y]=m[c]+(255,)
