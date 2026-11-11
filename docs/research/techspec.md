@@ -690,6 +690,7 @@ slows at higher levels.
 | 11/13 R&D | 14 | 0 | Fixed daily |
 | 12 Sales | `sold × 100 / cap` | 1 | Units sold |
 | 4/8/9 Extraction | `produced × 100 / cap` | 1 | Units produced |
+| 14 Software Production | `produced × 100 / (efficiency × capacity)` | 1 | Units produced |
 
 #### job_train (`0x5c8c0`)
 
@@ -792,7 +793,10 @@ Input int `+0xde`. `job_refill_input` (`0x54599`). Step:
 `(recipe_short_+0x20 × recipe_int_+0x2c × job_short_+0x3e) / 100`.
 Abort below 1 (`oj_mft.cpp:0x221`). `job_add_training`:
 `(units × 100) / step`. Gate `job_manufacturing_daily` (`0x556c4`):
-`day_serial % 7 == firm_index % 7`. `job_take_linked_type7` (`0x547c7`):
+`day_serial % 7 == firm_index % 7`. Advances per-job tech level (stored
+at job struct, starts at 0) by 1 toward the corporation's technology
+level for the product. Quality uses this per-job tech, not the corp
+level directly. `job_take_linked_type7` (`0x547c7`):
 recipe from `0x76f36` on `0xb1b2f` indexed by short `+0x56`.
 
 **Type 10 (Purchasing)** — `job_purchase` (`0x55de5`), `oj_pur.cpp`:
@@ -828,8 +832,9 @@ Returns 0. `job_add_training(job, 14, 0)`. Duration from short `+0x28`:
 100 → rounded float (lost); otherwise `0xadcf8 + short × 2 + 2`.
 
 **Type 14 (Software Production)** — `job_software_produce` (`0x5bf73`):
-Units: `min(room, short +0x3e × int +0x30)`. Gate: `job_software_gate`
-(`0x5c06f`).
+Units: `min(room, short +0x3e × int +0x30)`.
+Training: `job_add_training(job, units × 100 / (efficiency × capacity), 1)`.
+Gate: `job_software_gate` (`0x5c06f`).
 
 **Type 15 (Advertising)** — `0x50edb` (unnamed), `oj_ext.cpp:0x100`:
 Returns 0. Calls `job_advertise_setup` (`0x50afa`). Walks firm links
