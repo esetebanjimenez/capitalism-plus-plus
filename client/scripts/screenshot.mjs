@@ -13,9 +13,10 @@ const browser = await puppeteer.launch({
   args: ["--no-sandbox", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
 });
 const shots = [
-  { name: "m2-map-desktop.png", w: 1280, h: 800, dpr: 1, q: "x=190&y=138&zoom=1" },
-  { name: "m2-map-phone.png", w: 390, h: 844, dpr: 3, q: "x=183&y=68&zoom=3" },
-  { name: "m2-map-phone-64-direct.png", w: 390, h: 844, dpr: 2, q: "x=176&y=62&zoom=2&art=64&mode=direct&chunk=16" },
+  { name: "m2-map-desktop.png", w: 1280, h: 800, dpr: 1, q: "x=190&y=138" },
+  { name: "m2-map-phone.png", w: 390, h: 844, dpr: 3, q: "x=183&y=68" },
+  { name: "m2-map-phone-64-direct.png", w: 390, h: 844, dpr: 2, q: "x=176&y=62" },
+  { name: "m2-map-phone-firms.png", w: 390, h: 844, dpr: 3, q: "x=201&y=140" },
 ];
 const stats = {};
 try {

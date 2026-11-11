@@ -42,9 +42,21 @@ export class ChunkCache {
   constructor(
     private readonly renderer: Renderer,
     private readonly map: MapData,
-    private readonly frames: Record<string, Texture>,
+    private frames: Record<string, Texture>,
     readonly opts: TerrainOptions = DEFAULT_TERRAIN,
   ) {}
+
+  /** Swap the art sheet (e.g. on a zoom change); every chunk is rebuilt on the next update. */
+  setFrames(frames: Record<string, Texture>, artScale: number): void {
+    if (frames === this.frames && artScale === this.opts.artScale) return;
+    this.frames = frames;
+    this.opts.artScale = artScale;
+    for (const c of this.live.values()) {
+      c.node.destroy({ children: true });
+      c.tex?.destroy(true);
+    }
+    this.live.clear();
+  }
 
   get count(): number {
     return this.live.size;

@@ -5,7 +5,7 @@ import atlas64Url from "../../art/atlas/terrain_atlas_64.png?url";
 import atlas64Json from "../../art/atlas/terrain_atlas_64.json";
 import { ChunkCache, TerrainOptions } from "./chunks";
 import { FirmLayer } from "./firms";
-import { CHUNK_TILES, TILE_PX, View, clampView, stepZoom } from "./chunkmath";
+import { CHUNK_TILES, STANDARD_STEP, TILE_PX, View, clampView, makeView, sheetFor } from "./chunkmath";
 import { parseMap } from "./mapdata";
 
 interface AtlasJson {
@@ -27,12 +27,17 @@ async function boot() {
   });
   document.getElementById("map")!.appendChild(app.canvas);
 
-  // ?art=64 draws terrain from the 64 px set (frames it lacks fall back to the 32 px set).
-  const art = params.get("art") === "64" ? 64 : 32;
+  // Art sheet: by default the 64 px sheet once a tile spans 64+ canvas px, else the 32 px
+  // sheet (sheetFor). ?art=32 or ?art=64 forces one. Frames missing from the 64 px sheet
+  // fall back to their 32 px versions (same frame names).
+  const artParam = params.get("art");
+  const forced = artParam === "32" ? 32 : artParam === "64" ? 64 : null;
   const terrain: TerrainOptions = {
-    mode: params.get("mode") === "direct" ? "direct" : "baked",
-    chunkTiles: Number(params.get("chunk") ?? CHUNK_TILES),
-    artScale: art / TILE_PX,
+    // Default: tiles drawn straight from the atlas (about 4 MB of GPU memory with both
+    // sheets, against about 100 MB of baked 64 px chunks on a 3x phone). ?mode=baked compares.
+    mode: params.get("mode") === "baked" ? "baked" : "direct",
+    chunkTiles: Number(params.get("chunk") ?? (params.get("mode") === "baked" ? CHUNK_TILES : 16)),
+    artScale: 1,
     marginPx: Number(params.get("margin") ?? 8) * TILE_PX,
   };
   let atlasBytes = 0;
@@ -43,26 +48,32 @@ async function boot() {
     for (const [name, f] of Object.entries(json.frames)) {
       into[name] = new Texture({ source: base.source, frame: new Rectangle(f.x, f.y, f.w, f.h) });
     }
+    return base.source;
   };
-  const frames: Record<string, Texture> = {};
-  await loadAtlas(atlasUrl, atlasJson as AtlasJson, frames);
-  const terrainFrames: Record<string, Texture> = { ...frames };
-  if (art === 64) await loadAtlas(atlas64Url, atlas64Json as AtlasJson, terrainFrames);
+  const frames32: Record<string, Texture> = {};
+  await loadAtlas(atlasUrl, atlasJson as AtlasJson, frames32);
+  const frames64: Record<string, Texture> = { ...frames32 };
+  const source64 = await loadAtlas(atlas64Url, atlas64Json as AtlasJson, frames64);
+  const texels = (t: Texture) => (t.source === source64 ? 2 : 1);
+  const sheets = { 32: frames32, 64: frames64 } as const;
 
   const map = parseMap(await (await fetch("./sample-map.bin")).arrayBuffer());
-  const chunks = new ChunkCache(app.renderer, map, terrainFrames, terrain);
-  const firms = new FirmLayer(map.firms, frames);
+  const chunks = new ChunkCache(app.renderer, map, frames32, terrain);
+  const firms = new FirmLayer(map.firms, frames32, texels);
   const world = new Container();
   world.addChild(chunks.layer, firms.layer);
   app.stage.addChild(world);
 
   const screen = () => ({ w: app.screen.width * resolution, h: app.screen.height * resolution });
-  let view: View = {
-    x: Number(params.get("x") ?? 100) * TILE_PX,
-    y: Number(params.get("y") ?? 99) * TILE_PX,
-    zoom: Math.max(1, Math.min(3, Math.round(Number(params.get("zoom") ?? 1)))),
-    ...screen(),
-  };
+  let view: View = makeView(
+    Number(params.get("x") ?? 100) * TILE_PX,
+    Number(params.get("y") ?? 99) * TILE_PX,
+    0,
+    0,
+    STANDARD_STEP,
+    resolution,
+  );
+  let art: 32 | 64 = 32;
 
   const hud = document.getElementById("hud")!;
   const hudInfo = document.createElement("span");
@@ -88,13 +99,17 @@ async function boot() {
   }, 500);
   const apply = () => {
     view = clampView({ ...view, ...screen() }, map.width, map.height);
+    art = forced ?? sheetFor(view.zoom);
+    chunks.setFrames(sheets[art], art / TILE_PX);
+    firms.setFrames(sheets[art], texels);
     chunks.update(view);
     firms.update(view);
     const s = view.zoom / resolution;
     world.scale.set(s);
     world.position.set(-view.x * s, -view.y * s);
     const stats = {
-      zoom: view.zoom,
+      zoom: view.step,
+      pxPerArtPx: view.zoom,
       tilesAcross: +(view.w / view.zoom / TILE_PX).toFixed(1),
       chunks: chunks.count,
       mode: terrain.mode,
@@ -105,56 +120,28 @@ async function boot() {
       baked: chunks.baked,
       firms: firms.visibleCount,
     };
-    hudInfo.textContent = `${stats.mode} ${art} px · zoom ${stats.zoom}x · ${stats.tilesAcross} tiles across · ${stats.chunks} chunks · ${stats.mb} MB GPU · ${stats.firms} firms`;
+    hudInfo.textContent = `${stats.mode} ${art} px · ${view.zoom}x · ${stats.tilesAcross} tiles across · ${stats.chunks} chunks · ${stats.mb} MB GPU · ${stats.firms} firms`;
     (window as unknown as { __cppStats: typeof stats }).__cppStats = stats;
   };
 
-  // Pan with one pointer; zoom with the wheel, pinch or the buttons, in whole-number steps.
-  const pointers = new Map<number, { x: number; y: number }>();
-  let pinchStart = 0;
+  // Pan with one pointer or the mouse. There is one map view (32 pt tiles), so no zoom input.
+  let drag: { id: number; x: number; y: number } | null = null;
   app.canvas.addEventListener("pointerdown", (e) => {
+    if (drag) return;
     app.canvas.setPointerCapture(e.pointerId);
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pointers.size === 2) pinchStart = pinchDistance();
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
   });
   app.canvas.addEventListener("pointermove", (e) => {
-    const p = pointers.get(e.pointerId);
-    if (!p) return;
-    if (pointers.size === 1) {
-      view = { ...view, x: view.x - ((e.clientX - p.x) * resolution) / view.zoom, y: view.y - ((e.clientY - p.y) * resolution) / view.zoom };
-      apply();
-    }
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pointers.size === 2 && pinchStart) {
-      const d = pinchDistance();
-      if (d / pinchStart > 1.4 || d / pinchStart < 0.7) {
-        view = stepZoom(view, d > pinchStart ? 1 : -1);
-        pinchStart = d;
-        apply();
-      }
-    }
+    if (!drag || drag.id !== e.pointerId) return;
+    view = { ...view, x: view.x - ((e.clientX - drag.x) * resolution) / view.zoom, y: view.y - ((e.clientY - drag.y) * resolution) / view.zoom };
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    apply();
   });
   const up = (e: PointerEvent) => {
-    pointers.delete(e.pointerId);
-    if (pointers.size < 2) pinchStart = 0;
+    if (drag?.id === e.pointerId) drag = null;
   };
   app.canvas.addEventListener("pointerup", up);
   app.canvas.addEventListener("pointercancel", up);
-  function pinchDistance() {
-    const [a, b] = [...pointers.values()];
-    return Math.hypot(a.x - b.x, a.y - b.y);
-  }
-  app.canvas.addEventListener(
-    "wheel",
-    (e) => {
-      e.preventDefault();
-      view = stepZoom(view, e.deltaY < 0 ? 1 : -1, e.clientX * resolution, e.clientY * resolution);
-      apply();
-    },
-    { passive: false },
-  );
-  document.getElementById("zoom-in")!.onclick = () => ((view = stepZoom(view, 1)), apply());
-  document.getElementById("zoom-out")!.onclick = () => ((view = stepZoom(view, -1)), apply());
   window.addEventListener("resize", apply);
   apply();
 
