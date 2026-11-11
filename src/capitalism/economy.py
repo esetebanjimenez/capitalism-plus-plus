@@ -22,11 +22,12 @@ from .firms import (
     MediaFirm,
     book_asset,
 )
-from .jobs import CAT_LOAN_INTEREST, CAT_SALES
+from .jobs import CAT_LOAN_INTEREST, CAT_SALARIES, CAT_SALES, CAT_STOCK_RETURN
 from .links import Market
 from .news import NewsLog, random_events_daily
 from .person import (
     STATE_ACTIVE,
+    STATE_LINKED,
     Person,
 )
 from .rng import Rng
@@ -36,8 +37,10 @@ from .stock import (
     buy_back_shares,
     buy_cost,
     buy_shares,
+    compute_ai_dividend,
     daily_price_update,
     issue_shares,
+    pay_dividend,
     sell_shares,
     stock_monthly,
     stock_yearly,
@@ -484,6 +487,13 @@ class Economy:
     def corps_daily(self) -> None:
         for corp in self.corps:
             corp.daily_finance(self.interest_rate)
+        # W4: president/CEO salary (decomp 28817-28823)
+        for person in self.persons:
+            if person is not None and person.state == STATE_LINKED and person.salary > 0:
+                corp = self.corps[person.corp_id]
+                daily_pay = person.salary / 365.0
+                corp.ledger.post(CAT_SALARIES, daily_pay)
+                person.wealth += daily_pay
 
     def persons_daily(self, day_serial: int) -> None:
         """Staggered person processing: one person per day on a 30-day cycle."""
@@ -590,11 +600,51 @@ class Economy:
 
     def corps_yearly(self) -> None:
         """Corporation yearly pass — runs before firms yearly."""
+        # R4: pay dividends before roll_year() wipes year accumulators
+        if self.stock_enabled:
+            self._pay_dividends()
         for corp in self.corps:
             corp.yearly(self.firms)
         self.interest_rate_history.append(self.interest_rate)
         if len(self.interest_rate_history) > 10:
             self.interest_rate_history.pop(0)
+
+    def _pay_dividends(self) -> None:
+        """Year-end dividend distribution for all corps with stocks."""
+        person_for_corp: dict[int, Person] = {}
+        for p in self.persons:
+            if p is not None and p.state == STATE_LINKED and p.corp_id is not None:
+                person_for_corp[p.corp_id] = p
+        for i, stock in enumerate(self.stocks):
+            if stock is None or i >= len(self.corps):
+                continue
+            corp = self.corps[i]
+            earnings = corp.net_profit
+            person = person_for_corp.get(i)
+            if corp.dividend_auto:
+                leadership = person.trait7 if person else 50
+                payout = compute_ai_dividend(
+                    stock, corp.ledger.cash, corp.liabilities, earnings,
+                    leadership, self.rng,
+                )
+            else:
+                payout = earnings * corp.dividend_ratio / 100.0
+            if payout <= 0:
+                continue
+            dist = pay_dividend(stock, payout)
+            for cid, amount in dist["corps"]:
+                if cid < len(self.corps):
+                    # Dividend income: record in CAT_STOCK_RETURN and add cash
+                    # (Ledger.post would subtract cash for non-SALES cats).
+                    rcorp = self.corps[cid]
+                    for arr in (rcorp.ledger.month, rcorp.ledger.year,
+                                rcorp.ledger.total):
+                        arr[CAT_STOCK_RETURN] += amount
+                    rcorp.ledger.cash += amount
+            for pid, amount in dist["persons"]:
+                if pid < len(self.persons) and self.persons[pid] is not None:
+                    self.persons[pid].wealth += amount
+            corp.ledger.cash -= payout
 
     def stocks_yearly(self) -> None:
         if not self.stock_enabled:
