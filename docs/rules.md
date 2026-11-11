@@ -29,15 +29,15 @@ the wide catalog tables) are ours, not the original game's.
 
 | Rating | Efficiency % | Storage multiplier | Reference |
 |---|---|---|---|
-| 1 | 100 | 8 | docs/gamelogic.md 558–585 — rating efficiency and storage |
-| 2 | 130 | 10 | docs/gamelogic.md 558–585 — rating efficiency and storage |
-| 3 | 160 | 14 | docs/gamelogic.md 558–585 — rating efficiency and storage |
-| 4 | 200 | 16 | docs/gamelogic.md 558–585 — rating efficiency and storage |
-| 5 | 250 | 20 | docs/gamelogic.md 558–585 — rating efficiency and storage |
-| 6 | 300 | 24 | docs/gamelogic.md 558–585 — rating efficiency and storage |
-| 7 | 360 | 30 | docs/gamelogic.md 558–585 — rating efficiency and storage |
-| 8 | 430 | 35 | docs/gamelogic.md 558–585 — rating efficiency and storage |
-| 9 | 500 | 40 | docs/gamelogic.md 558–585 — rating efficiency and storage |
+| 1 | 100 | 8 | docs/gamelogic.md 590–617 — rating efficiency and storage |
+| 2 | 130 | 10 | docs/gamelogic.md 590–617 — rating efficiency and storage |
+| 3 | 160 | 14 | docs/gamelogic.md 590–617 — rating efficiency and storage |
+| 4 | 200 | 16 | docs/gamelogic.md 590–617 — rating efficiency and storage |
+| 5 | 250 | 20 | docs/gamelogic.md 590–617 — rating efficiency and storage |
+| 6 | 300 | 24 | docs/gamelogic.md 590–617 — rating efficiency and storage |
+| 7 | 360 | 30 | docs/gamelogic.md 590–617 — rating efficiency and storage |
+| 8 | 430 | 35 | docs/gamelogic.md 590–617 — rating efficiency and storage |
+| 9 | 500 | 40 | docs/gamelogic.md 590–617 — rating efficiency and storage |
 
 The storage multiplier is registered but inactive: the native base capacity and
 type factor are missing, so M1 preserves the normalized product×size×3-day capacity.
@@ -814,12 +814,12 @@ Reference: docs/recipes.md — 1STD.SET METHOD. Speed is a throughput multiplier
 
 | Town level | Radius (tiles) | Block level | Reference |
 |---|---|---|---|
-| 1 | 0 **p** | 0 **p** | Game Designer, PR #50 (m2-ux-spec.md): visual only, sim town stays one tile; reference draws a town as one tile (gamelogic.md ~4008) |
-| 2 | 0 **p** | 0 **p** | Game Designer, PR #50 (m2-ux-spec.md): visual only, sim town stays one tile; reference draws a town as one tile (gamelogic.md ~4008) |
-| 3 | 1 **p** | 1 **p** | Game Designer, PR #50 (m2-ux-spec.md): visual only, sim town stays one tile; reference draws a town as one tile (gamelogic.md ~4008) |
-| 4 | 1 **p** | 1 **p** | Game Designer, PR #50 (m2-ux-spec.md): visual only, sim town stays one tile; reference draws a town as one tile (gamelogic.md ~4008) |
-| 5 | 2 **p** | 2 **p** | Game Designer, PR #50 (m2-ux-spec.md): visual only, sim town stays one tile; reference draws a town as one tile (gamelogic.md ~4008) |
-| 6 | 2 **p** | 2 **p** | Game Designer, PR #50 (m2-ux-spec.md): visual only, sim town stays one tile; reference draws a town as one tile (gamelogic.md ~4008) |
+| 1 | 0 **p** | 0 **p** | Game Designer, PR #50 (m2-ux-spec.md): visual only, sim town stays one tile; reference draws a town as one tile (gamelogic.md ~4181) |
+| 2 | 0 **p** | 0 **p** | Game Designer, PR #50 (m2-ux-spec.md): visual only, sim town stays one tile; reference draws a town as one tile (gamelogic.md ~4181) |
+| 3 | 1 **p** | 1 **p** | Game Designer, PR #50 (m2-ux-spec.md): visual only, sim town stays one tile; reference draws a town as one tile (gamelogic.md ~4181) |
+| 4 | 1 **p** | 1 **p** | Game Designer, PR #50 (m2-ux-spec.md): visual only, sim town stays one tile; reference draws a town as one tile (gamelogic.md ~4181) |
+| 5 | 2 **p** | 2 **p** | Game Designer, PR #50 (m2-ux-spec.md): visual only, sim town stays one tile; reference draws a town as one tile (gamelogic.md ~4181) |
+| 6 | 2 **p** | 2 **p** | Game Designer, PR #50 (m2-ux-spec.md): visual only, sim town stays one tile; reference draws a town as one tile (gamelogic.md ~4181) |
 
 ## Competitor capital (AI starting money = (v/2 + random(v/2)) * ai.capital_unit)
 

@@ -1,7 +1,7 @@
 """Idempotent migration: which job types count toward the product goals.
 
 The product types and product classes goals count products "being produced"
-(gamelogic.md 3780-3781 gives only the labels). Game Designer call
+(gamelogic.md 3953-3954 gives only the labels). Game Designer call
 (2026-11-10), confirmed by the Reverse Engineering Researcher's report on
 CAPPLUS.EXE: a product type counts for a corp while at least one of its jobs is
 set to make it; a class counts when any of its types does; buying, stocking and
