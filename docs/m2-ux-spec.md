@@ -177,7 +177,7 @@ Overlays show a legend with the value range.
 rows the sim rejects), each with its build cost (setup cost plus the tile's
 land value) and monthly overhead (`firm_types.setup_cost`, `overhead_month`).
 A type the player can't afford (cash below setup cost plus land value; credit
-doesn't count) is shown greyed with the shortfall and can't be chosen, as in
+doesn't count) is shown greyed with the shortfall in red and can't be chosen, as in
 the original (audit #87: `FUN_000698e0` clears the Build button's enable
 flag). Choosing a type queues `build_firm`.
 After a successful build, firm detail opens on the new firm.
