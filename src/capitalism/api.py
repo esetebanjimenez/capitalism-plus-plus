@@ -735,23 +735,17 @@ class Api:
 
     def c_buy_shares(self, corp: int, shares: int) -> Json:
         st = self._stock(corp)
-        q = self.q_trade_quote(corp, "buy", shares)
-        if q["amount"] > self.player.ledger.cash:
-            raise CommandError("Not enough cash.")
         cost = stk.buy_shares(st, "corp", PLAYER, int(shares))
-        self.player.ledger.cash -= cost
         return {"cost": cost}
 
     def c_sell_shares(self, corp: int, shares: int) -> Json:
         st = self._stock(corp)
         got = stk.sell_shares(st, "corp", PLAYER, int(shares))
-        self.player.ledger.cash += got
         return {"proceeds": got}
 
     def c_issue_shares(self, shares: int) -> Json:
         st = self._stock(PLAYER)
         got = stk.issue_shares(st, int(shares))
-        self.player.ledger.cash += got
         return {"received": got}
 
     def c_set_training_budget(self, amount: float) -> None:
