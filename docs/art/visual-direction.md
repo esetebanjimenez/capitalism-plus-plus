@@ -260,3 +260,6 @@ side panel. Production parts: `art/atlas/ui_atlas.png` (1 px per point),
 `ui_atlas_2x.png` (same layout, ×2) and `ui_atlas.json`, built by
 `art/tools/ui_build.py`. Nine-slice frames carry `slice` in points. All text,
 counts and numbers are live text, never baked.
+
+## Far overview and overlays
+Okayed by Esteban on 2026-11-11 ("Looking good"), PR #73. Colours and rules live in `art/overlays.json`; preview `docs/art/m2-overlays-preview.png`.
