@@ -779,7 +779,6 @@ class AIRules(StaticModel):
     vertical_interval: int
     mode_transition_interval: int
     build_cooldown: int
-    template_cost_estimate: float
     ai_cash_reset: float
     spawn_chance: float
     spawn_first_day_gate: float

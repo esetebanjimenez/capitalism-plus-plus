@@ -9,9 +9,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .firms import Firm, InsufficientFunds
+from .firms import Firm
 from .jobs import JOB_CLASSES, Sales
-from .tables import JOB_TYPES
 
 if TYPE_CHECKING:
     from .economy import Economy
@@ -161,15 +160,6 @@ def apply_plan(plan: Plan, firm: Firm, eco: Economy) -> None:
             f"but firm is type {firm.type_id}"
         )
 
-    cost = sum(
-        JOB_TYPES[ps.job_type].setup_cost
-        for ps in plan.slots
-        if not ps.empty and ps.job_type in JOB_CLASSES
-    )
-    if firm.owner is not None and firm.owner.ledger.cash < cost:
-        raise InsufficientFunds(
-            f"plan setup costs ${cost:,.0f}; {firm.owner.name} has ${firm.owner.ledger.cash:,.0f}"
-        )
     firm.links = plan.connection_mask
     for i in range(MAX_SLOTS):
         firm.slots[i] = None

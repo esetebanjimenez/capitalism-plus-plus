@@ -224,19 +224,23 @@ class Api:
 
     def q_build_options(self, x: int, y: int) -> Json:
         cash = self.player.ledger.cash
+        land = float(self.sim.world.land_value(x, y))
         rows = []
         for tid in sorted(FIRM_CLASSES):
             row = FIRM_TYPES[tid]
             if row.government:
                 continue
+            cost = row.setup_cost + land  # B1: setup + land; the player may go negative (B3)
             rows.append(
                 {
                     "type_id": tid,
                     "name": row.name,
                     "setup_cost": row.setup_cost,
+                    "land_value": land,
+                    "build_cost": cost,
                     "overhead_month": row.overhead_month,
-                    "affordable": cash >= row.setup_cost,
-                    "shortfall": max(0.0, row.setup_cost - cash),
+                    "affordable": cash >= cost,
+                    "shortfall": max(0.0, cost - cash),
                 }
             )
         return {"x": x, "y": y, "can_build": self.sim.world.can_build(x, y), "options": rows}

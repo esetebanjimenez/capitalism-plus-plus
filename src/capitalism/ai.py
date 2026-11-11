@@ -10,7 +10,7 @@ from .person import (
     ROLE_INDEPENDENT,
     STATE_ACTIVE,
 )
-from .tables import AI_RULES, COMPETITOR_CAPITAL
+from .tables import AI_RULES, COMPETITOR_CAPITAL, FIRM_TYPES
 
 if TYPE_CHECKING:
     from .economy import Corporation, Economy
@@ -140,7 +140,10 @@ def ai_build_firm(
         return None
     x, y = site
     land_value = eco.world.land_value(x, y)
-    if corp.ledger.cash < land_value + int(_AR.template_cost_estimate):
+    # FUN_0002e19a (decomp:25264-25281): cash vs land value + the type's setup cost.
+    # Native then tries asset sales (FUN_00030ae2) before refusing; with the $1B
+    # daily reset (A1) that branch rarely runs, so the sim just refuses.
+    if corp.ledger.cash < land_value + FIRM_TYPES[firm_type].setup_cost:
         return None
     try:
         return eco.build_firm(firm_type, corp, x, y, town)

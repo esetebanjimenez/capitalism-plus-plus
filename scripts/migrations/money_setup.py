@@ -72,7 +72,9 @@ def migrate(con: sqlite3.Connection) -> None:
             "provisional=excluded.provisional",
             row,
         )
-    con.execute("DELETE FROM rules WHERE system='ai' AND key='starting_capital_low'")
+    con.execute(
+        "DELETE FROM rules WHERE system='ai' AND key IN ('starting_capital_low', 'template_cost_estimate')"
+    )
     con.commit()
     assert con.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
 

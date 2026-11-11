@@ -68,23 +68,19 @@ def decode_links(mask: int) -> list[tuple[int, int]]:
 
 
 
-class InsufficientFunds(ValueError):
-    """The owner can't pay a one-time setup cost in cash (gap audit C1/C2)."""
+def book_asset(owner: Corporation | None, setup: float, land: float = 0.0) -> None:
+    """Move a build's price from Cash into Business Assets and Land (gap audit B1).
 
-
-def charge_setup(owner: Corporation | None, cost: float, what: str) -> None:
-    """Take a one-time setup cost from the owner's cash, or refuse.
-
-    ref:403 calls setup "a one-time cash payment"; ref:1515-1524 has the AI
-    cancel a build it can't pay for. It is a cash payment, not a P&L category.
+    FUN_00063dd9 (decomp:68436-68443): group_move_balance(corp, 2, 0, setup) then
+    group_move_balance(corp, 3, 0, land). There's no cash check, so cash can go
+    negative (B3); overdraft interest handles it. Not a P&L posting.
     """
-    if owner is None or cost <= 0:
+    if owner is None:
         return
-    if owner.ledger.cash < cost:
-        raise InsufficientFunds(
-            f"{what} costs ${cost:,.0f}; {owner.name} has ${owner.ledger.cash:,.0f}"
-        )
-    owner.ledger.cash -= cost
+    owner.ledger.cash -= setup + land
+    owner.business_assets += setup
+    owner.land_assets += land
+
 
 class Ledger:
     """12 posting categories (ref). Revenue is category 0; everything else is a cost."""
@@ -191,7 +187,9 @@ class Firm:
             self.slots.extend([None] * (slot - len(self.slots) + 1))
         if self.slots[slot] is not None:
             raise ValueError(f"slot {slot} unavailable")
-        charge_setup(self.owner, JOB_TYPES[job_type].setup_cost, JOB_TYPES[job_type].name)
+        # Job setup (ref:540); native booking not traced, so it goes to Business Assets
+        # like the firm's own setup (C2, provisional).
+        book_asset(self.owner, JOB_TYPES[job_type].setup_cost)
         job = JOB_CLASSES[job_type](self, slot, product)
         self.slots[slot] = job
         return job

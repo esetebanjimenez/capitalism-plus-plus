@@ -298,7 +298,6 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `spawn_first_day_gate` | 0.01 | probability | gamelogic.md NPC corporation spawning |
 | `strategy_interval` | 15 | days | gamelogic.md Decision schedule |
 | `survey_interval` | 30 | days | gamelogic.md Decision schedule |
-| `template_cost_estimate` | 500000 | dollars | gamelogic.md Firm creation |
 | `vertical_interval` | 60 | days | gamelogic.md Decision schedule |
 
 ## 10 — Stock market

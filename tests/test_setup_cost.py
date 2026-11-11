@@ -4,7 +4,6 @@ import pytest
 
 from capitalism.ai import ai_starting_capital
 from capitalism.economy import CORP_AI
-from capitalism.firms import InsufficientFunds
 from capitalism.rng import Rng
 from capitalism.scenario import bread_town, find_site
 from capitalism.sim import Sim
@@ -36,35 +35,37 @@ def test_initial_capital_setup_option_overrides_db():
     assert sim.economy.add_corp("P").ledger.cash == 2_500_000
 
 
-def test_build_firm_charges_setup_cost():
+def test_build_moves_setup_and_land_into_assets():
     sim, town = bread_town()
     eco = sim.economy
     corp = eco.add_corp("P")
     x, y = find_site(sim, town)
+    land = sim.world.land_value(x, y)
+    assets_before = corp.total_assets(eco.firms)
     firm = eco.build_firm(DEPT_STORE, corp, x, y, town)
     cost = FIRM_TYPES[DEPT_STORE].setup_cost
     assert cost == 1_000_000
-    # Setup is a cash payment, not a P&L post; the firm's ledger only carries
-    # the first partial month of overhead, which also hits the owner.
+    assert corp.business_assets == cost
+    assert corp.land_assets == land
+    # The firm ledger only carries the first partial month of overhead (a P&L post);
+    # setup and land are asset moves, so total assets drop by that overhead only.
     assert firm.ledger.cash < 0
-    assert corp.ledger.cash == pytest.approx(10_000_000 - cost + firm.ledger.cash)
+    assert corp.ledger.cash == pytest.approx(10_000_000 - cost - land + firm.ledger.cash)
+    assert corp.total_assets(eco.firms) == pytest.approx(assets_before + firm.ledger.cash)
 
 
-def test_build_firm_refused_when_cash_short():
+def test_player_build_goes_negative_instead_of_refusing():
     sim, town = bread_town()
     eco = sim.economy
     corp = eco.add_corp("P")
-    corp.ledger.cash = FIRM_TYPES[DEPT_STORE].setup_cost - 1
+    corp.ledger.cash = 10.0
     x, y = find_site(sim, town)
-    n = len(eco.firms)
-    with pytest.raises(InsufficientFunds):
-        eco.build_firm(DEPT_STORE, corp, x, y, town)
-    assert corp.ledger.cash == FIRM_TYPES[DEPT_STORE].setup_cost - 1
-    assert len(eco.firms) == n
-    assert sim.world.tile_at(x, y).kind != TileCategory.FIRM
+    eco.build_firm(DEPT_STORE, corp, x, y, town)
+    assert corp.ledger.cash < 10.0 - FIRM_TYPES[DEPT_STORE].setup_cost
+    assert sim.world.tile_at(x, y).kind == TileCategory.FIRM
 
 
-def test_add_job_charges_and_refuses():
+def test_add_job_moves_setup_into_business_assets():
     sim, town = bread_town()
     eco = sim.economy
     corp = eco.add_corp("P")
@@ -72,20 +73,33 @@ def test_add_job_charges_and_refuses():
     firm = eco.build_firm(DEPT_STORE, corp, x, y, town)
     bread = eco.catalog["Bread"]
     cost = JOB_TYPES[PURCHASING].setup_cost
-    before = corp.ledger.cash
+    cash, business = corp.ledger.cash, corp.business_assets
     firm.add_job(0, PURCHASING, bread)
-    assert corp.ledger.cash == pytest.approx(before - cost)
-    corp.ledger.cash = cost - 1
-    with pytest.raises(InsufficientFunds):
-        firm.add_job(1, PURCHASING, bread)
-    assert firm.slots[1] is None
-    assert corp.ledger.cash == cost - 1
+    assert corp.ledger.cash == pytest.approx(cash - cost)
+    assert corp.business_assets == pytest.approx(business + cost)
+    corp.ledger.cash = 0.0
+    firm.add_job(1, PURCHASING, bread)  # never refused
+    assert corp.ledger.cash == -cost
 
 
 def test_government_firm_is_free():
     sim, town = bread_town()
     x, y = find_site(sim, town)
-    sim.economy.build_firm(DEPT_STORE, None, x, y, town)  # no owner, nothing to charge
+    sim.economy.build_firm(DEPT_STORE, None, x, y, town)  # no owner, nothing to book
+
+
+def test_ai_build_checks_land_plus_real_setup_cost():
+    from capitalism.ai import ai_build_firm
+
+    sim, town = bread_town()
+    eco = sim.economy
+    corp = eco.add_corp("AI", CORP_AI)
+    corp.ledger.cash = FIRM_TYPES[DEPT_STORE].setup_cost - 1  # short even before land
+    assert ai_build_firm(eco, corp, DEPT_STORE, town, Rng(1)) is None
+    assert corp.business_assets == 0
+    corp.ledger.cash = 1e9
+    assert ai_build_firm(eco, corp, DEPT_STORE, town, Rng(1)) is not None
+    assert corp.business_assets == FIRM_TYPES[DEPT_STORE].setup_cost
 
 
 @pytest.mark.parametrize(
@@ -102,7 +116,7 @@ def test_ai_starting_capital_by_setting(setting, lo, hi):
     assert max(values) == hi == (2 * half - 1) * 600_000
 
 
-def test_facade_reports_unaffordable_build():
+def test_facade_build_cost_and_negative_cash():
     from capitalism.api import Api
 
     api = Api.new_game("Me", seed=1, detailed_cities=False)
@@ -110,6 +124,14 @@ def test_facade_reports_unaffordable_build():
     town = api.sim.towns[0]
     x, y = find_site(api.sim, town)
     api.player.ledger.cash = 10.0
+    opt = next(
+        o for o in api.query("build_options", {"x": x, "y": y})["options"]
+        if o["type_id"] == DEPT_STORE
+    )
+    assert opt["land_value"] == api.sim.world.land_value(x, y)
+    assert opt["build_cost"] == opt["setup_cost"] + opt["land_value"]
+    assert opt["affordable"] is False and opt["shortfall"] == opt["build_cost"] - 10.0
     api.command("build_firm", {"firm_type": DEPT_STORE, "x": x, "y": y})
     (res,) = api.tick(1)["results"]
-    assert res["ok"] is False and "costs $1,000,000" in res["error"]
+    assert res["ok"] is True
+    assert api.player.ledger.cash < 0

@@ -19,7 +19,7 @@ from .firms import (
     Firm,
     Ledger,
     MediaFirm,
-    charge_setup,
+    book_asset,
 )
 from .jobs import CAT_LOAN_INTEREST, CAT_SALES
 from .links import Market
@@ -65,10 +65,12 @@ class Corporation:
 
     __slots__ = (
         "brand_strategy",
+        "business_assets",
         "corp_type",
         "dividend_auto",
         "dividend_ratio",
         "id",
+        "land_assets",
         "ledger",
         "liabilities",
         "manufacturing_skill",
@@ -89,6 +91,9 @@ class Corporation:
         self.manufacturing_skill = 0
         self.training_budget = JOB_RULES.corp_training_budget_default
         self.liabilities = 0.0
+        # Balance-sheet accounts 2 and 3 (B1): setup costs paid and land bought.
+        self.business_assets = 0.0
+        self.land_assets = 0.0
         self.brand_strategy = BRAND_CORPORATE
         self.dividend_ratio = 0
         self.dividend_auto = True
@@ -159,9 +164,7 @@ class Corporation:
             for j in f.jobs()
             if j.stock > 0
         )
-        business = sum(f.row.overhead_month * 12 for f in firms if f is not None and f.owner is self)
-        land = sum(f.land_value for f in firms if f is not None and f.owner is self)
-        return cash + inventory + business + land
+        return cash + inventory + self.business_assets + self.land_assets
 
     def net_worth(self, firms: list[Firm | None]) -> float:
         return self.total_assets(firms) - self.liabilities
@@ -343,9 +346,6 @@ class Economy:
             raise NotImplementedError(f"firm type {firm_type} lands in systems 4b")
         if not self.world.can_build(x, y):
             raise ValueError(f"tile ({x},{y}) is not free land")
-        row = FIRM_TYPES[firm_type]
-        if not row.government:
-            charge_setup(owner, row.setup_cost, row.name)
         tile = self.world.tile_at(x, y)
         slot = next((i for i, f in enumerate(self.firms) if f is None), len(self.firms))
         firm = FIRM_CLASSES[firm_type](
@@ -357,6 +357,8 @@ class Economy:
             self.firms.append(firm)
         else:
             self.firms[slot] = firm
+        if not FIRM_TYPES[firm_type].government:
+            book_asset(owner, firm.row.setup_cost, firm.land_value)
         if hasattr(firm, "initialize_audience"):
             firm.initialize_audience(self)
         # First partial month of overhead (ref: (dim − day + 1) / dim).
