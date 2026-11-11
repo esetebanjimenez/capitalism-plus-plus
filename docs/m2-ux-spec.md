@@ -154,7 +154,7 @@ levels 3 and 5. The radius per level lives in a small DB table so it can be
 retuned. Firms always win: ring tiles stay buildable, a firm tile never gets
 a block drawn on it, and tapping a ring tile opens the real tile card with
 Build. This is a design call; the reference draws a town as one tile in 13
-variants (`docs/reference/gamelogic.md`, tile categories) and shows a
+variants (`docs/gamelogic.md`, tile categories) and shows a
 town's reach through land value.
 
 **Overlays** (a toggle in the map's corner, one at a time, drawn on the standard zoom): none, land value

@@ -16,7 +16,7 @@ checked against `main` at `4a7d556`.
   The decoding was checked against two known values: `0xa6e8e` = 20000 and
   `0xa6eca` = 300. A constant listed as "f64" is an 8-byte double. Nothing
   was run, and no original files are in this repo.
-- Reference: `docs/reference/gamelogic.md` (cited as `ref:LINE`).
+- Reference: `docs/gamelogic.md` (cited as `ref:LINE`).
 - Sim: `src/capitalism/*.py` and `src/capitalism/data/capitalism.db` (cited
   as `file:LINE` or `db:table`).
 
@@ -202,7 +202,7 @@ from the EXE this pass, unless marked f64.
 ## Reference-doc rows (Game Designer)
 
 _For the Game Designer: add the rules that come from
-`docs/reference/gamelogic.md` and other reference docs here, in the same
+`docs/gamelogic.md` and other reference docs here, in the same
 table format._
 
 | # | Rule | Sim now | Native / reference | Status | Fix PR |

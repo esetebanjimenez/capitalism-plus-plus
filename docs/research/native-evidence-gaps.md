@@ -9,8 +9,8 @@ document/db only.
 
 | Artifact | Path | Notes |
 |---|---|---|
-| Merged reference (canonical) | `/workspace/capitalism-plus-plus/docs/reference/gamelogic.md` | **4192 lines**, md5 `761169ca0a22df093f80a6cdac6d9bd0`. Byte-identical in `cpp-repo` and `cpp-rating-training`. Esteban attachment per older-research / derived-4b-5. |
-| Older repo reference | `/workspace/cpp/gamelogic.md`, `docs/gamelogic.md` (~4024–4028) | Pre-merge; lacks rating/media/training expansions. |
+| Merged reference (canonical) | `/workspace/capitalism-plus-plus/docs/gamelogic.md` (was `docs/reference/gamelogic.md` when inspected) | **4192 lines**, md5 `761169ca0a22df093f80a6cdac6d9bd0`. Byte-identical in `cpp-repo` and `cpp-rating-training`. Esteban attachment per older-research / derived-4b-5. |
+| Older repo reference | `/workspace/cpp/gamelogic.md`, the old `docs/gamelogic.md` (~4024–4028; removed, its path now holds the canonical reference) | Pre-merge; lacks rating/media/training expansions. |
 | Research backlog | `/workspace/older-research.md` (= `research-backup-draft.md`) | 2026-11-06 backlog of open gaps. |
 | Derived corrections | `/workspace/cpp-repo/docs/research/derived-4b-5.md` (213 lines, newer than capitalism-plus-plus copy at 192) | Strongest synthesis of gaps + 20k-vs-60k policy. |
 | Design / rules | `docs/design.md`, `docs/rules.md` in repos | Label provisional vs ref. |
@@ -194,6 +194,6 @@ Wages, setup/overhead, recipes, freight (`FUN_000785f1`), training expense golde
 
 ## Paths
 - Detailed notes: this file.
-- Canonical reference: `/workspace/capitalism-plus-plus/docs/reference/gamelogic.md`
+- Canonical reference: `/workspace/capitalism-plus-plus/docs/gamelogic.md`
 - Best synthesis: `/workspace/cpp-repo/docs/research/derived-4b-5.md`
 - Prior backlog: `/workspace/older-research.md`

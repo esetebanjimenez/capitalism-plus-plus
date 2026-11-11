@@ -1,8 +1,8 @@
 # 4b/5 corrections from the 4,192-line reference
 
 The attachment supplied by Esteban on 2026-11-06 matches
-`docs/reference/gamelogic.md` byte-for-byte. References below are line ranges
-in that committed file. Relative to the earlier repo reference, its substantive
+`docs/gamelogic.md` (then at `docs/reference/gamelogic.md`) byte-for-byte.
+References below are line ranges in that committed file. Relative to the earlier repo reference, its substantive
 additions are rating/capacity (558–585), media (608–713), and training
 (730–794). This is a **docs-only correction**: it changes neither runtime code
 nor tests, and any follow-up experiment must be measured by the Programmer.
