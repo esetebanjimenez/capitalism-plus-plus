@@ -46,6 +46,7 @@ class TownGrowth(StaticModel):
     pop_random_range: int
     pop_base_offset: float
     pop_gnp_scale: float
+    gnp_growth_scale: float
     pop_unemp_target: float
     pop_unemp_scale: float
     small_pop: float
@@ -432,6 +433,7 @@ def load_town_growth() -> TownGrowth:
         "pop_random_range",
         "pop_base_offset",
         "pop_gnp_scale",
+        "gnp_growth_scale",
         "pop_unemp_target",
         "pop_unemp_scale",
         "small_pop",
