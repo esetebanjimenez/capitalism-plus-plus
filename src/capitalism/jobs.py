@@ -286,20 +286,30 @@ def cycle_quality(recipe: RecipeRow, input_quality: dict[int, float], skill: flo
 
 class Manufacturing(Job):
     type_id = 7
-    __slots__ = ("inputs",)
+    __slots__ = ("inputs", "job_tech")
 
     def __init__(self, firm: Firm, slot: int, product: Product | None, rating: int = 1) -> None:
         super().__init__(firm, slot, product, rating)
         self.inputs: dict[int, list[float]] = {}
+        self.job_tech: int = 0
 
     def skill(self) -> float:
-        """Own technology, with a manager's manufacturing skill once people are available."""
+        """Per-job tech (catching up weekly to corp level), plus manager skill."""
         if self.product is None or self.firm.owner is None:
             return 0.0
         manager = self.firm.owner.manufacturing_skill
-        tech = self.firm.owner.technology_level(self.product)
-        skill = manager / RESEARCH_RULES.manager_skill_divisor + tech
+        skill = manager / RESEARCH_RULES.manager_skill_divisor + self.job_tech
         return min(JOB_RULES.mfg_skill_max, skill)
+
+    def _weekly_tech_upgrade(self, eco: Economy) -> None:
+        """decomp:54813-54864: once per week, job tech catches up to corp tech."""
+        if eco.calendar.day_serial % 7 != self.firm.id % 7:
+            return
+        if self.product is None or self.firm.owner is None:
+            return
+        corp_tech = self.firm.owner.technology_level(self.product)
+        if self.job_tech < corp_tech:
+            self.job_tech += 1
 
     def cycles_per_day(self, recipe: RecipeRow) -> int:
         return int(
@@ -307,6 +317,7 @@ class Manufacturing(Job):
         )
 
     def work(self, eco: Economy) -> bool:
+        self._weekly_tech_upgrade(eco)
         p = self.product
         if p is None or self.room <= 0 or (recipe := eco.catalog.recipe(p)) is None:
             return False
