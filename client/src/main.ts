@@ -1,7 +1,8 @@
-import { Application, Assets, Rectangle, Texture } from "pixi.js";
+import { Application, Assets, Container, Rectangle, Texture } from "pixi.js";
 import atlasUrl from "../../art/atlas/terrain_atlas.png?url";
 import atlasJson from "../../art/atlas/terrain_atlas.json";
 import { ChunkCache } from "./chunks";
+import { FirmLayer } from "./firms";
 import { TILE_PX, View, clampView, stepZoom } from "./chunkmath";
 import { parseMap } from "./mapdata";
 
@@ -34,7 +35,10 @@ async function boot() {
 
   const map = parseMap(await (await fetch("./sample-map.bin")).arrayBuffer());
   const chunks = new ChunkCache(app.renderer, map, frames, Number(params.get("margin") ?? 8) * TILE_PX);
-  app.stage.addChild(chunks.layer);
+  const firms = new FirmLayer(map.firms, frames);
+  const world = new Container();
+  world.addChild(chunks.layer, firms.layer);
+  app.stage.addChild(world);
 
   const screen = () => ({ w: app.screen.width * resolution, h: app.screen.height * resolution });
   let view: View = {
@@ -48,17 +52,19 @@ async function boot() {
   const apply = () => {
     view = clampView({ ...view, ...screen() }, map.width, map.height);
     chunks.update(view);
+    firms.update(view);
     const s = view.zoom / resolution;
-    chunks.layer.scale.set(s);
-    chunks.layer.position.set(-view.x * s, -view.y * s);
+    world.scale.set(s);
+    world.position.set(-view.x * s, -view.y * s);
     const stats = {
       zoom: view.zoom,
       tilesAcross: +(view.w / view.zoom / TILE_PX).toFixed(1),
       chunks: chunks.count,
       mb: +(chunks.bytes / 2 ** 20).toFixed(0),
       baked: chunks.baked,
+      firms: firms.visibleCount,
     };
-    hud.textContent = `zoom ${stats.zoom}x · ${stats.tilesAcross} tiles across · ${stats.chunks} chunks (${stats.mb} MB) · baked ${stats.baked}`;
+    hud.textContent = `zoom ${stats.zoom}x · ${stats.tilesAcross} tiles across · ${stats.chunks} chunks (${stats.mb} MB) · baked ${stats.baked} · ${stats.firms} firms`;
     (window as unknown as { __cppStats: typeof stats }).__cppStats = stats;
   };
 
