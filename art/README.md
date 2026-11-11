@@ -82,3 +82,6 @@ points. Use the 2x sheet on 2x and 3x screens (3x draws it at 1.5×, nearest).
 top-left, +2/+2 units). Frames that aren't full tiles keep their own w/h in the JSON and
 are drawn at half size in map units on the 64 px sheet, like flags. Preview:
 `docs/art/m2-map-marks-preview.png`.
+
+## Far overview and overlays
+`python3 art/tools/overlays.py` (needs the sim's deps, e.g. pydantic) writes `art/overlays.json` and `docs/art/m2-overlays-preview.png` from the sample-map seed. The JSON holds the far overview colours (1 px per tile, by tile kind and climate; firms in owner flag colour), the colour steps for the land value, soil, rainfall, climate and ownership overlays, and the drawing rules: solid on the far view with water greyed, about 70% over land on the standard view, water never tinted. Every colour is from `palette.json`. The six toggle icons are `icon_ov_*` in the UI atlas (`ui_concept.ICON`, rebuilt with `ui_build.py`).
