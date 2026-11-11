@@ -122,11 +122,19 @@ water, grassland, forest/hill, town, firm), towns with name labels, firms as
 one tile each with an owner-colour flag (`Firm.owner`), and the player's
 selection outline.
 
-**Zoom.** Art is B+ (32 px tiles and firm sprites, 48 px icons, chosen by
-Esteban on 2026-11-10), so the standard view shows about 11 tiles across a
-phone. Two levels: far (1 px per tile overview, no sprites) and standard
-(sprites at 1x on phone, whole-number scale on desktop where room allows).
-There is no closer zoom; a 2x step would show about 5 tiles. Pinch or mouse
+**Zoom.** Zoom is counted in points, so a step looks the same on every
+screen. The standard view draws a tile in 32 points, which is about 12
+tiles across a 390-point phone. The art is B+ (decided 2026-11-10), drawn
+at 64 px with the 32 px set kept (decided 2026-11-11):
+
+| Screen density | Art sheet | Art pixel to screen pixel |
+|---|---|---|
+| 1× | 32 px | 1:1, exact |
+| 2× | 64 px | 1:1, exact |
+| 3× | 64 px | 1:1.5, nearest-neighbour (slightly uneven pixels, accepted by Esteban) |
+
+Two levels: far (1 px per tile overview, no sprites) and standard. There is
+no closer zoom, and no zoomed-out viewing step for now. Pinch or mouse
 wheel switches between them. Pan by one-finger drag or mouse drag.
 
 **Town footprint (visual only).** The sim stores a town as one tile, so the
