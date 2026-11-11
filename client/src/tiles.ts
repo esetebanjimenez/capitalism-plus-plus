@@ -34,7 +34,7 @@ function climateKey(m: MapData, x: number, y: number): string {
 
 /**
  * Atlas frame name for one tile, following the naming in art/README.md.
- * Firms draw as grassland until the firm sprites land.
+ * Firm tiles draw as grassland here; the firm sprite goes on top (src/firms.ts).
  */
 export function frameFor(m: MapData, x: number, y: number): string {
   const k = kindAt(m, x, y);

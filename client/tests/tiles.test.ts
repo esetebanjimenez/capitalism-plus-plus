@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import atlas from "../../art/atlas/terrain_atlas.json";
 import { DEEP_OCEAN, GRASSLAND, MapData, TOWN, WATER, parseMap } from "../src/mapdata";
+import { FIRM_SPRITES, flagFrame } from "../src/firms";
 import { frameFor } from "../src/tiles";
 
 function tiny(rows: string[]): MapData {
@@ -10,7 +11,7 @@ function tiny(rows: string[]): MapData {
   const width = rows[0].length;
   const kind = new Uint8Array(width * height);
   rows.forEach((r, y) => [...r].forEach((ch, x) => (kind[y * width + x] = codes[ch])));
-  return { width, height, kind, climate: new Uint8Array(width * height).fill(2) };
+  return { width, height, kind, climate: new Uint8Array(width * height).fill(2), firms: [] };
 }
 
 describe("frameFor", () => {
@@ -57,5 +58,21 @@ describe("frameFor", () => {
         if (!(f in atlas.frames)) missing.add(f);
       }
     expect([...missing]).toEqual([]);
+  });
+});
+
+describe("firms", () => {
+  const buf = readFileSync(new URL("../public/sample-map.bin", import.meta.url));
+  const m = parseMap(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
+
+  it("the sample map has all 14 firm types, owned firms flagged", () => {
+    expect(new Set(m.firms.map((f) => f.type)).size).toBe(14);
+    expect(m.firms.find((f) => f.type === 14)?.owner).toBeNull();
+    expect(new Set(m.firms.map((f) => f.owner))).toEqual(new Set([null, 0, 1, 2]));
+  });
+
+  it("every firm type and owner flag has an atlas frame", () => {
+    for (const name of Object.values(FIRM_SPRITES)) expect(name in atlas.frames).toBe(true);
+    for (let o = 0; o < 12; o++) expect(flagFrame(o) in atlas.frames).toBe(true);
   });
 });
