@@ -10,12 +10,16 @@
   box-sizing: border-box; display: flex; align-items: center; gap: 6px; padding: 0 4px 0 10px; font-weight: 700; font-size: 16px; }
 .pill-date { margin-right: 6px; padding-right: 8px; border-right: 1px solid rgba(34, 38, 46, 0.25); }
 .pill-cash { font-variant-numeric: tabular-nums; margin-right: 4px; }
-.pill-speed { width: 44px; height: 32px; display: grid; place-items: center; }
+.pill-speed { position: relative; width: 44px; height: 32px; display: grid; place-items: center; }
+/* Tap area reaches 44x44 pt past the 32 pt-tall art (spec: tap targets at least 44 pt). */
+.pill-speed::before { content: ""; position: absolute; left: 0; right: 0; top: -6px; bottom: -6px; }
 
 .menu-btn { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom));
   width: 48px; height: 48px; display: grid; place-items: center; }
 .shell.desktop.panel-open .menu-btn { right: 412px; }
-.shell:not(.desktop).panel-open .menu-btn { display: none; }
+/* Phone: the menu button rides just above the sheet at peek and half, hidden at full. */
+.shell:not(.desktop).panel-open .menu-btn { bottom: calc(var(--sheet-h, 0px) + 12px); }
+.shell:not(.desktop).sheet-full .menu-btn { display: none; }
 .badge { position: absolute; right: -7px; top: -7px; min-width: 18px; height: 18px; box-sizing: border-box; padding: 0 4px;
   display: grid; place-items: center; color: #fff; font-size: 11px; font-weight: 800; background-size: 100% 100%; }
 

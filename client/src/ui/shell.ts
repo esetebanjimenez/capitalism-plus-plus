@@ -140,8 +140,11 @@ export class Shell {
     const desktop = isDesktop(window.innerWidth);
     this.root.classList.toggle("desktop", desktop);
     this.root.classList.toggle("panel-open", !!this.spec);
+    this.root.classList.toggle("sheet-full", !!this.spec && this.height === "full");
     if (this.spec) {
-      this.panel.style.height = desktop ? "" : `${sheetPt(this.height, window.innerHeight)}px`;
+      const h = sheetPt(this.height, window.innerHeight);
+      this.panel.style.height = desktop ? "" : `${h}px`;
+      this.root.style.setProperty("--sheet-h", `${h}px`);
       this.panel.dataset.height = this.height;
     }
     this.onLayout(this.openHeight);
