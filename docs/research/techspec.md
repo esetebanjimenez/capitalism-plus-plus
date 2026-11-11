@@ -797,7 +797,12 @@ Calls `job_process_calc` (`0x52f0c`), stores at int `+0x58`. Returns 0.
 `job_process_calc`: requires short `+0x16` nonzero. Looks up product
 record via `FUN_00074e17` on `0xb1c1c` indexed by short `+0x16`.
 Formula: `((short +0x3e × int +0x30) / 100 × record_short[1]) / 100`.
-This is `(efficiency × capacity / 100 × product_yield_factor) / 100`.
+This is `(efficiency × own_capacity / 100 × product_yield_factor) / 100`.
+Note: `+0x30` is the **processing** job's capacity, not the raising job's.
+Daily transfer (`FUN_00052afc` lines 52430-52462): amount taken =
+`min(raising.stock_slot, throughput, room)`. Quality set to
+`raising.quality + (raising.rating − 1) × 4`, capped at 100 (line 52456;
+both `+0x44` and `+0x13` read from `iVar5` = raising job).
 Month override (`FUN_00052fe7`): copies `+0x5c → +0x60`, zeros `+0x5c`.
 
 **Types 5 (Inventory)/6 (Private Labelling)**: store `job_take_linked` at `+0x48`. Both call

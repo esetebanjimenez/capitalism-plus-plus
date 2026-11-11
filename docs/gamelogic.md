@@ -888,11 +888,17 @@ Adds 10 training credits per visit.
 
 ### Livestock Processing
 
-Converts raw livestock into processed goods. The daily output is
-`(efficiency × capacity / 100 × product-yield-factor) / 100`,
-where the product-yield-factor comes from the livestock record for the
-assigned product. The result is stored as the processing total; monthly,
-the current total rolls to previous and resets.
+Converts raw livestock into processed goods. The daily throughput is
+`(efficiency × own_capacity / 100 × product-yield-factor) / 100`,
+where `own_capacity` is the **processing** job's capacity (not the
+raising job's) and the product-yield-factor comes from the output
+product's record in the livestock catalog. The amount actually taken
+each day is `min(raising_stock, throughput, room)`.
+
+Quality: `raising.quality + (raising.rating − 1) × 4`, capped at 100.
+The bonus comes from the **raising** job's rating, not the processing
+job's. The result is stored as the processing total; monthly, the
+current total rolls to previous and resets.
 
 Always returns 0 — processing is continuous with no completion signal
 and no supply chain pull.
