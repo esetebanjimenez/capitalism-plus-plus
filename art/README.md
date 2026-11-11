@@ -54,8 +54,9 @@ Screens at 2x density or more use a second sheet drawn natively at 64 px; ordina
 The tile stays the same size on screen (32 points), so the map shows the same number of tiles.
 
 - `tools/terrain64.py` draws the 64 px terrain and coast tiles, same palette and the same frame names as `terrain.py`.
-- `tools/build64.py` writes `tiles64/terrain/*.png`, `atlas/terrain_atlas_64.png` + `.json` and `docs/art/m2-terrain-64-preview.png`.
+- `tools/build64.py` writes `tiles64/{terrain,town}/*.png`, `atlas/terrain_atlas_64.png` + `.json` and `docs/art/m2-terrain-64-preview.png`.
   It fails if a 64 px frame has no 32 px frame of the same name.
 - Each frame sits in a 68 px cell with its edge pixels repeated 2 px outward, so drawing straight from the
   atlas never picks up a neighbour's pixels. The JSON `x, y, w, h` give the 64 x 64 art only, not the padding.
-- So far the 64 px sheet has terrain and coast (159 frames). Town, firms and flags follow in separate PRs.
+- `tools/town64.py` draws the 64 px town tiles (roads, blocks, parks, plaza), same names as `town.py`, preview in `docs/art/m2-town-64-preview.png`.
+- So far the 64 px sheet has terrain, coast and town (190 frames). Firms and flags follow in a separate PR.
