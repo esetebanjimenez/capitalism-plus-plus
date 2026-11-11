@@ -3,8 +3,9 @@
 This lists sim rules that are missing or wrong compared with the original
 game. It's docs only. Each gap gets its own sim PR later, one rule at a time.
 
-**Compared:** `main` at `29a1828`. The sim code hasn't changed since
-`54b8508`, because #77 only changed docs.
+**Compared:** `main` at `29a1828` for sections 1–6. Sections 7–13 and the
+Town row updates were checked against `main` at `36c7be5`, which includes
+#80 (the town GNP term and level-up fix).
 
 **Sources**
 - Native: the Ghidra export of `CAPPLUS.EXE` (`capplus_decompiled.c`, cited
@@ -34,18 +35,18 @@ move.
 
 | # | Rule | Sim now | Native / reference | Status | Fix PR |
 |---|---|---|---|---|---|
-| T1 | The GNP term in population growth | `town.py:212-221` sets `rolling_gnp_growth` to the year-on-year change in per-capita GNP (a fraction), and `town.py:181` multiplies it by 100 | `decomp:46520` reads `town+0x113[month]` × 100 (`0xa6eb6`). `FUN_0004b377` (`decomp:46454-46467`) writes it as 50 × (this year's 12-month total of pop × per-capita GNP − last year's total) ÷ last year's total. The 50 is `0xa6e9e`, f64. So the term uses total GNP, follows pop, and is about 50× larger | Observed | sim-town-gnp |
-| T2 | The GNP term in simple mode | `town.py:197-201` returns before the GNP block, so the term stays 0 | `FUN_0004b377` runs for every town from `FUN_0004daa3` (`decomp:48270-48278`), and that loop doesn't check the detailed flag. Pop growth (`FUN_0004b490`, `decomp:46484`) is also unconditional. Per-capita GNP is constant in simple mode, so the term tracks pop growth | Observed (that the caller is the month pass is Inferred) | sim-town-gnp |
-| T3 | Level-up | `town.py:33-38` and `town.py:195`: `level_for_population` can skip levels, can go down, and is capped at `level_max` = 6 (`db:rules towns.level_max`) | `decomp:46538-46542`: +1 per tick only when the frozen flag `+0x1d` == 0 and pop ≥ `L × 80000 × L × 2` (= 160,000·L²). It never goes down and has no cap | Observed | sim-town-level |
+| T1 | The GNP term in population growth | Fixed in #80: `town.py:190` reads `gnp_growth_pct`, which `monthly_stats` (`town.py:282-295`) writes as 50 × the 12-month change in total GNP | `decomp:46520` reads `town+0x113[month]` × 100 (`0xa6eb6`). `FUN_0004b377` (`decomp:46454-46467`) writes it as 50 × (this year's 12-month total of pop × per-capita GNP − last year's total) ÷ last year's total. The 50 is `0xa6e9e`, f64. So the term uses total GNP, follows pop, and is about 50× larger | Observed. **Fixed in #80** | — |
+| T2 | The GNP term in simple mode | Fixed in #80: `monthly_stats` runs in both modes (`town.py:209`, `277`) | `FUN_0004b377` runs for every town from `FUN_0004daa3` (`decomp:48270-48278`), and that loop doesn't check the detailed flag. Pop growth (`FUN_0004b490`, `decomp:46484`) is also unconditional. Per-capita GNP is constant in simple mode, so the term tracks pop growth | Observed. **Fixed in #80** | — |
+| T3 | Level-up | Fixed in #80: `town.py:205-206` adds +1 per tick at pop ≥ 160,000·L², with no cap and no decrease. The frozen flag `+0x1d` isn't modelled | `decomp:46538-46542`: +1 per tick only when the frozen flag `+0x1d` == 0 and pop ≥ `L × 80000 × L × 2` (= 160,000·L²). It never goes down and has no cap | Observed. **Fixed in #80** | — |
 | T4 | The town spreads on level-up | Nothing: footprints are a fixed 3×3 or 5×5 (`db:town_footprints`) | `FUN_0004c334` (`decomp:47131`, body 47149-47201): each tile within distance ≤ level of the centre has a 1-in-10 chance per level-up of becoming a town tile. The tile kind affects land value (T10) and where firms can be built | Observed | sim-town-level (sim effect). How it looks is a separate UX call |
 | T5 | Pop-growth constants | `db:rules towns.pop_*`, `small_pop`, `large_pop` | `0xa6ea6`=4, `0xa6eae`=100, `0xa6eb6`=100, `0xa6eba`=−150, `0xa6ec2`=750,000, `0xa6ec6`=1,500,000. The formula shape matches `decomp:46516-46537` | Observed: **matches, no change** | — |
-| T6 | Monthly per-capita GNP walk | `town.py:205`: `uniform(0.983, 1.013)`, continuous | `FUN_0004b609` (`decomp:46562-46564`): `gnp × (random(10) + 295) / 300` (`0x127` = 295, `0xa6eca` = 300). That gives 10 discrete steps from 295/300 to 304/300 | Observed | sim-town-gnp |
-| T7 | Tier floor and tier upgrade | `town.py:206-210`: floor at `tier_gnp.lo` in dollars. The tier keeps rising while GNP > `tier_gnp.hi`, up to tier 3 | `decomp:46565-46572` compares dollar GNP with raw shorts: the floor is `DAT_000adae4` = {0, 10, 35, 70}, and the upgrade happens when GNP ≥ {10, 35, 70, 100}[tier] **and** GNP < `0xa6ece` = 3.0 (f32). It moves at most one tier per month. Read literally, the floor never applies and the upgrade never fires. `techspec:2319-2336` reads these values as tier bounds in $200 units. The decompiler may be misreading an x87 compare, for example `tier < 3` | Unknown (needs a disassembly check) | Hold until resolved |
-| T8 | Climate input and scale | `town.py:223-234` compares the per-capita year-on-year change (a fraction) with 0.08 / 0.04 / −0.01 / −0.06 | `FUN_0004b68e` (`decomp:46590-46598`) compares `town+0x113[month]`, the same total-GNP term as T1, with `DAT_000adad0` = {8, 4, −1, −6, −100000} (f32, decoded). The first threshold that's ≤ the value sets index 0 = Boom … 4 = Panic (`techspec:2345-2350`). So Boom needs 50·Δ ≥ 8, which is about a 16% year-on-year rise in total GNP. If nothing matches, the climate stays as it was | Observed (the 16% reading is Inferred from T1) | sim-town-gnp |
+| T6 | Monthly per-capita GNP walk | `town.py:217`: `uniform(0.983, 1.013)`, continuous | `FUN_0004b609` (`decomp:46562-46564`): `gnp × (random(10) + 295) / 300` (`0x127` = 295, `0xa6eca` = 300). That gives 10 discrete steps from 295/300 to 304/300 | Observed | sim-town-gnp |
+| T7 | Tier floor and tier upgrade | `town.py:218-222`: floor at `tier_gnp.lo` in dollars. The tier keeps rising while GNP > `tier_gnp.hi`, up to tier 3 | `decomp:46565-46572` compares dollar GNP with raw shorts: the floor is `DAT_000adae4` = {0, 10, 35, 70}, and the upgrade happens when GNP ≥ {10, 35, 70, 100}[tier] **and** GNP < `0xa6ece` = 3.0 (f32). It moves at most one tier per month. Read literally, the floor never applies and the upgrade never fires. `techspec:2319-2336` reads these values as tier bounds in $200 units. The decompiler may be misreading an x87 compare, for example `tier < 3` | Unknown (needs a disassembly check) | Hold until resolved |
+| T8 | Climate input and scale | Still open after #80: `town.py:235-246` compares the per-capita year-on-year change (a fraction) with 0.08 / 0.04 / −0.01 / −0.06 | `FUN_0004b68e` (`decomp:46590-46598`) compares `town+0x113[month]`, the same total-GNP term as T1, with `DAT_000adad0` = {8, 4, −1, −6, −100000} (f32, decoded). The first threshold that's ≤ the value sets index 0 = Boom … 4 = Panic (`techspec:2345-2350`). So Boom needs 50·Δ ≥ 8, which is about a 16% year-on-year rise in total GNP. If nothing matches, the climate stays as it was | Observed (the 16% reading is Inferred from T1) | sim-town-gnp |
 | T9 | Land-value base | `world.py:119-122`: `level × per-capita GNP × 50 × small`. `land_value_base_mult` is provisional | `map_land_value` (`decomp:43436-43437`): `(per-capita GNP × 100 / 20000) × pop × 2.5 / 100`, using `0xa6a36`=100, `0xa6a3e`=20000 and `0xa6a2e`=2.5, all f64. That's per-capita GNP × pop ÷ 8000, so it uses **pop**, not level | Observed | sim-land-value |
 | T10 | Small-town discount | `world.py:119-121`: ×0.6 when level ≤ 2 (provisional) | `decomp:43397`, `43414` and `43443-43444`: ×0.5 (`0xa6a4e`, f32) when the town's tile is the small-town range `0x3008-0x300c` | Observed | sim-land-value |
 | T11 | Land-value cap and floor | `world.py:127` clamps at `land_value_bonus_cap` = 50M (provisional), then floors at 500k | `decomp:43440-43441`: 1e9 (`0xa6a46`, f64) is an **assert** (abort), not a clamp. The floor is 500,000 (`0xa6a52`, `decomp:43446-43447`) | Observed (cap differs, floor matches) | sim-land-value |
-| T12 | Land-value decay radius | `world.py:118`: `level + 4` | `decomp:43438-43439`: `level + 4` (`town+0x1e`). This is the **land-value** decay at `techspec:4914`, not town demand. With T3 fixed, the radius grows past 10 | Observed: **matches** | — |
+| T12 | Land-value decay radius | `world.py:118`: `level + 4` | `decomp:43438-43439`: `level + 4` (`town+0x1e`). This is the **land-value** decay at `techspec:4914`. It is **not** a town demand radius, and no separate native demand radius was found (see K4). Now that T3 is fixed, the radius grows past 10 | Observed: **matches** | — |
 
 ## 2. Stock market and corporate cash
 
@@ -107,12 +108,70 @@ move.
 | U7 | `DAT_000b1c2f` resource-table entries (product, firm type, rate) | Save-game section `0x1011` | J4, J6 |
 | U8 | Where the initial capital and AI person wealth become corp cash | Not traced | C3, C4 |
 
-## Not audited in this pass
+## 7. Build cost and affordability
 
-Overhead and wages, freight (the sim already cites `FUN_000785f1`), market
-share and consumer demand, goals, and the AI. They need their own pass.
-Sales, purchasing and manufacturing rate formulas match in form. The only
-gap found there is the capacity base (J1).
+| # | Rule | Sim now | Native / reference | Status | Fix PR |
+|---|---|---|---|---|---|
+| B1 | What placing a firm books | `economy.py:318-342` `build_firm` books nothing except the first partial month of overhead (`economy.py:337-341`). The land value is stored on the firm and counted as an asset (`economy.py:148`) without ever being paid for | `FUN_00063dd9` (`decomp:68436-68443`), called from firm init (`decomp:68413`). It stores `map_land_value` at `firm+0x52` and calls `group_move_balance(corp, 2, 0, firm, type.+0x1b)`, which moves the setup cost from Cash to Business Assets (account 2). It then calls `group_move_balance(corp, 3, 0, firm, land)`, which moves the land value from Cash to Land & Resource (account 3). So the build price is setup cost + land value, and there's no cash check here | Observed | sim-setup-cost (extends C1: land value is charged too) |
+| B2 | AI build affordability | `ai.py:142-144` compares cash with land value + `template_cost_estimate` (a flat $500,000) and just returns `None` when short | `FUN_0002e19a` (`decomp:25264-25281`) compares `corp+0x186` cash with land value + `type.+0x1b`, the firm type's real setup cost. If short, it calls `FUN_00030ae2` (asset sales, `decomp:27421`) and re-checks. It only refuses if still short, and otherwise builds with `FUN_0006763b`. With the $1B AI cash reset (A1), the check rarely matters | Observed | sim-setup-cost |
+| B3 | Player build when short of cash | No player build cost at all (see B1) | The build screen handler `FUN_0006984e` (`decomp:76603-76628`) calls `FUN_0006a306` on the Build button (`decomp:76626`). That function (`decomp:76986-77005`) plays "BUILD" and calls `FUN_0006763b` → firm init → `FUN_00063dd9`, with **no cash comparison** anywhere on that path. The only "Sorry, you don't have enough cash." strings are in the stock dialogs `FUN_0004407f` (`decomp:41281`) and `FUN_00044aec` (`decomp:41659`). Going negative is handled by overdraft interest (`FUN_00032178`, `decomp:28805-28809`) and the month-end out-of-cash dialog `FUN_000340d4` (`techspec:3601-3611`). Not traced: whether the Build button is greyed out when cash is short | Observed (no check on the call path). Inferred (the player can build into the red) | sim-setup-cost: charge, don't refuse, for the player |
+| B4 | Demolish ("Destruct the firm and sell the land") | No demolish rule in the sim | `FUN_0006a371` (`decomp:77013-77030`) shows the dialog. `FUN_00064005` (`decomp:68548-68560`), called from `FUN_00063f28` (`decomp:68501`), does `group_move_balance(corp, 0, 2, setup)` to move Business Assets back to Cash, then `group_post_expense(corp, 7, setup)` to write off the setup cost. It then does `group_move_balance(corp, 0, 3, firm.+0x52)` to sell the land at the firm's current stored land value back to Cash. Both asset accounts are floored at 0 (`+0x7da`, `+0x7de`) | Observed (bookings). Inferred (the net effect: the setup cost is lost as a write-off and the land is refunded) | sim-setup-cost or its own |
+
+## 8. Overhead
+
+| # | Rule | Sim now | Native / reference | Status | Fix PR |
+|---|---|---|---|---|---|
+| O1 | Monthly overhead | `firms.py:241-247` posts the whole `overhead_month` each month | `firm_post_overhead` (`decomp:68919-68940`), called from `firm_month` (`decomp:68807`), posts category 2 from firm-type `+0x1f`. It only prorates by `(days_in_month − day + 1) / days_in_month` when `day_of_month > 1`. It also rolls the nine monthly slot buckets (`decomp:68927-68932`) | Observed: **matches** (the Designer's R9 agrees) | — |
+| O2 | Monthly land revaluation | `firms.py:248` re-reads the land value and posts nothing | `firm_month` (`decomp:68809-68814`): delta = the new `map_land_value` − `firm+0x52`. It stores the new value, posts the delta as revenue category 11 (`group_post_revenue(corp, 0xb, …)`) and moves account 3 by the delta (`group_move_balance(corp, 3, 0, delta)`) | Observed (confirms the Designer's R1 natively) | sim-land-reval |
+
+## 9. Wages, salaries and interest
+
+| # | Rule | Sim now | Native / reference | Status | Fix PR |
+|---|---|---|---|---|---|
+| W1 | Job wage formula | `jobs.py:34-37`: `((staff × 2000) // days × labor) // 100`, with staff from `job_types.staff` (`jobs.py:70`) | `job_post_wages` (`decomp:60683-60690`): `((job.+0x1c × 2000) / days × labor) / 100`, posted as category 1. `+0x1c` is STAFF_NEED (`techspec:666`) | Observed: **matches** in form | — |
+| W2 | Labor factor used in wages | `jobs.py:124` uses `firm.town.labor_cost` for every firm | `firm_labor_factor` (`decomp:70639-70654`) uses the town's value, rounded (formula lost to `__CHP`, `decomp:70648`), only when the firm's `place_kind +0x4a` is a town tile (`0x3000-0x300c`). Otherwise it uses the global `DAT_000b1b26` | Observed (the split). The global value and the town formula are Unknown | sim-wages (after U10) |
+| W3 | Training expense | `jobs.py:131-133`: budget × wage ÷ 100 | `decomp:60691-60693`: `budget × salary / 100` (`0xa8136` = 100, f32), posted as category 3 | Observed: **matches** | — |
+| W4 | President salary | Not charged: `economy.py:174-187` `daily_finance` only handles interest | `FUN_00032178` (`decomp:28817-28823`): if the corp has a president (`+0x51`), each day it posts `salary (+0x3e) / 365` (`0xa48a7` = 365) as category 1 and adds the same amount to the person's wealth `+0x2c` | Observed | sim-wages |
+| W5 | Overdraft and debt interest | `economy.py:174-187`: (rate + 2) × −cash ÷ 100 ÷ 365 when cash is negative, added to liabilities. Liabilities × rate ÷ 100 ÷ 365 | `FUN_00032178` (`decomp:28805-28815`): the same formula with `0xa489f` = 2, `0xa48a3` = 100 and `0xa48a7` = 365 (all f32), posted as category 9. Adding the overdraft charge to liabilities is per `techspec:3424` and isn't visible in these lines | Observed: **matches** (the liabilities add is Inferred) | — |
+
+## 10. Freight
+
+| # | Rule | Sim now | Native / reference | Status | Fix PR |
+|---|---|---|---|---|---|
+| F1 | Freight distance | `jobs.py:392`: Manhattan, `|dx| + |dy|` | `FUN_000785f1` (`decomp:87210`) calls `FUN_00090746`, which is `isqrt(dx² + dy²)` (`decomp:105137`). `FUN_000906f8` (`decomp:105102-105122`) is an odd-number integer square root rounded to the nearest whole number. So the distance is Euclidean, as an integer | Observed | sim-freight |
+| F2 | Freight rate fields | `jobs.py:393-400`: `freight × distance × spending_usd / 100² × 0.5`, with 0.01 when the result is 0 | `decomp:87212-87216`: `product.+0x37 (short) × distance × product.+0xaa (float) / 100 / 100 × 0.5` (`0xaa3a8` = 100, `0xaa3ac` = 0.5), with 0.01 when 0. The constants and the floor match. Not confirmed: that `+0x37` is the FREIGHT factor and `+0xaa` is spending (`techspec:3768` labels `+0x37` as an initial tech requirement) | Unknown (field mapping) | Hold |
+
+## 11. Market demand and market share
+
+| # | Rule | Sim now | Native / reference | Status | Fix PR |
+|---|---|---|---|---|---|
+| K1 | Monthly market share per corp | Not computed. The sector goals use last month's sales revenue (`db:rules scoring.sector_share_window_months`, provisional) | `FUN_0006f944` (`decomp:80899-80944`), monthly per product. For each corp it sums the link quantities from `FUN_0006d5fa` (`decomp:79017-79029`): this month + (31 − day) × last month ÷ 31, with `0xa96b4`. It divides that by the product's total `+0x112`, prorated the same way with `0xa99ed` = 31, rounds (lost to `__CHP`) and stores a byte capped at 100 in `+0xd6[corp]` | Observed (the rounding formula is Unknown, U11) | sim-market-share |
+| K2 | Unmet demand counted in the market total | Nothing. `links.py:170-195` only moves link quantities | `FUN_0004c754` (`decomp:47343-47369`), daily per town item: when `+4 − +8 > 0` it adds the gap × price `+0x72` and the gap to the town item's month buckets (`+0x8e`, `+0xbe`) and to the product's totals (`+0xe2`, `+0x112`). `+0x112` is K1's denominator | Observed (bookings). Inferred (that `+4`/`+8` = demand/supply, so the gap is served by the town itself and dilutes everyone's share) | sim-market-share |
+| K3 | Consumer split between sellers | `links.py:33-40`: demand split by score^2 (`share_exponent`, provisional) | Not traced this pass. The town item is created per product in `FUN_0004c922` (`decomp:47409-47428`) | Unknown | Hold |
+| K4 | Town demand radius | None | No native town demand radius found. The only level + 4 radius is land-value decay (T12) | Unknown (none found) | — |
+
+## 12. AI corporation behavior
+
+| # | Rule | Sim now | Native / reference | Status | Fix PR |
+|---|---|---|---|---|---|
+| A1 | AI cash reset to $1B | `ai.py:220` sets `ai_cash_reset` = $1B every AI day | `corp+0x186 = 0x4e6e6b28` (1e9, f32) is written in four corp methods: `FUN_00030f1c` (`decomp:27629`), `FUN_00030ffc` (`decomp:27691-27693`, after `FUN_00032102` and before `random(1000)`, the 1/1,000 strategy roll), `FUN_00031099` (`decomp:27745`) and `FUN_00031805` (`decomp:28274`) | Observed (the writes). That they run each AI day is Inferred from `ref:1622-1630`. **This answers the Designer's R2**: the native reset is real, so B2's asset-sale branch and C4's starting capital rarely matter | — (sim matches). The Producer decides whether to keep it |
+| A2 | AI build cost estimate | `ai.py:143`: a flat $500,000 | `FUN_0002e19a` uses the firm type's setup cost `+0x1b` (see B2) | Observed | sim-setup-cost |
+| A3 | AI bankruptcy and asset sales | `ai.py:419-433` | `FUN_00030a34` / `FUN_00030ae2` (`decomp:27421`, `techspec:3613-3622`). The body wasn't re-read this pass | Unknown (not compared) | Hold |
+
+## 13. More Unknowns (from sections 7–12)
+
+| # | What | Where | Blocks |
+|---|---|---|---|
+| U9 | Whether the player's Build button is disabled when cash is short | Button-state code around `FUN_0006984e` / `FUN_000698e0`, not traced | B3 |
+| U10 | Town labor factor (`__CHP`) and the global `DAT_000b1b26` | `decomp:70648`, `70652` | W2 |
+| U11 | Market-share rounding | `decomp:80937` (`__CHP`) | K1 |
+| U12 | Freight product fields `+0x37` / `+0xaa` | `decomp:87212` | F2 |
+
+## Not audited yet
+
+Goals, the consumer split (K3) and AI strategy beyond cash and builds.
+The sales, purchasing and manufacturing rate formulas match in form. The
+only gap found there is the capacity base (J1).
 
 ## Reference-doc rows (Game Designer)
 
