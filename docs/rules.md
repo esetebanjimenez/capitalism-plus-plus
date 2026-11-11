@@ -807,3 +807,14 @@ Reference: docs/recipes.md — 1STD.SET METHOD. Speed is a throughput multiplier
 | Restaurant | Purchasing **provisional** | Firm-to-job mapping — Restaurant as Department Store variant; Seaport ImportJob (design.md) |
 | Restaurant | Sales **provisional** | Firm-to-job mapping — Restaurant as Department Store variant; Seaport ImportJob (design.md) |
 | Seaport | Import **provisional** | Firm-to-job mapping — Restaurant as Department Store variant; Seaport ImportJob (design.md) |
+
+## Town footprint (client map only; the sim town stays one tile)
+
+| Town level | Radius (tiles) | Block level | Reference |
+|---|---|---|---|
+| 1 | 0 **p** | 0 **p** | Game Designer, PR #50 (m2-ux-spec.md): visual only, sim town stays one tile; reference draws a town as one tile (gamelogic.md ~4008) |
+| 2 | 0 **p** | 0 **p** | Game Designer, PR #50 (m2-ux-spec.md): visual only, sim town stays one tile; reference draws a town as one tile (gamelogic.md ~4008) |
+| 3 | 1 **p** | 1 **p** | Game Designer, PR #50 (m2-ux-spec.md): visual only, sim town stays one tile; reference draws a town as one tile (gamelogic.md ~4008) |
+| 4 | 1 **p** | 1 **p** | Game Designer, PR #50 (m2-ux-spec.md): visual only, sim town stays one tile; reference draws a town as one tile (gamelogic.md ~4008) |
+| 5 | 2 **p** | 2 **p** | Game Designer, PR #50 (m2-ux-spec.md): visual only, sim town stays one tile; reference draws a town as one tile (gamelogic.md ~4008) |
+| 6 | 2 **p** | 2 **p** | Game Designer, PR #50 (m2-ux-spec.md): visual only, sim town stays one tile; reference draws a town as one tile (gamelogic.md ~4008) |

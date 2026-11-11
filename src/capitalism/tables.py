@@ -215,6 +215,16 @@ class FirmTypeRow(StaticModel):
     provisional: frozenset[str] = frozenset()
 
 
+class TownFootprintRow(StaticModel):
+    """Visual town footprint per town level (client map only; the sim town stays one tile)."""
+
+    level: int = Field(ge=1)
+    radius: int = Field(ge=0)
+    block_level: int = Field(ge=0, le=2)
+    ref: str
+    provisional: frozenset[str] = frozenset()
+
+
 class FirmSectorRow(StaticModel):
     """Sector of a firm type for sector dominance goals (native mapping; names provisional)."""
 
@@ -561,6 +571,18 @@ def load_firm_types() -> dict[int, FirmTypeRow]:
 
 
 @lru_cache(maxsize=1)
+def load_town_footprints() -> dict[int, TownFootprintRow]:
+    out: dict[int, TownFootprintRow] = {}
+    for r in _rows(
+        "SELECT level, radius, block_level, ref, provisional FROM town_footprints ORDER BY level"
+    ):
+        d = dict(r)
+        d["provisional"] = _prov_cols(d["provisional"])
+        out[d["level"]] = TownFootprintRow(**d)
+    return out
+
+
+@lru_cache(maxsize=1)
 def load_firm_sectors() -> dict[int, FirmSectorRow]:
     out: dict[int, FirmSectorRow] = {}
     for r in _rows(
@@ -640,6 +662,7 @@ LINK_RULES: LinkRules = _rules_model(LinkRules, "links")
 PRODUCT_CLASSES: dict[int, ProductClassRow] = load_product_classes()
 FIRM_TYPES: dict[int, FirmTypeRow] = load_firm_types()
 FIRM_SECTORS: dict[int, FirmSectorRow] = load_firm_sectors()
+TOWN_FOOTPRINTS: dict[int, TownFootprintRow] = load_town_footprints()
 JOB_TYPES: dict[int, JobTypeRow] = load_job_types()
 FIRM_JOB_ALLOWED: dict[int, frozenset[int]] = load_firm_job_allowed()
 RATING_THROUGHPUT: dict[int, RatingThroughputRow] = load_rating_throughput()
