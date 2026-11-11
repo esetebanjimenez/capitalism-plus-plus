@@ -71,8 +71,8 @@ class TownGrowth(StaticModel):
 
 class LandValueRules(StaticModel):
     floor: int
-    bonus_cap: int
-    base_mult: float
+    assert_cap: float
+    base_divisor: float
     small_town_factor: float
     small_town_level_max: int
 
@@ -476,8 +476,8 @@ def load_town_growth() -> TownGrowth:
 def load_land_value() -> LandValueRules:
     return LandValueRules(
         floor=int(_rule("world", "land_value_floor")),
-        bonus_cap=int(_rule("world", "land_value_bonus_cap")),
-        base_mult=_rule("world", "land_value_base_mult"),
+        assert_cap=_rule("world", "land_value_assert_cap"),
+        base_divisor=_rule("world", "land_value_base_divisor"),
         small_town_factor=_rule("world", "land_value_small_town_factor"),
         small_town_level_max=int(_rule("world", "land_value_small_town_level_max")),
     )

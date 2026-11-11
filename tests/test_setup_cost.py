@@ -105,7 +105,7 @@ def test_ai_build_checks_land_plus_real_setup_cost():
     sim, town = bread_town()
     eco = sim.economy
     corp = eco.add_corp("AI", CORP_AI)
-    corp.ledger.cash = FIRM_TYPES[DEPT_STORE].setup_cost - 1  # short even before land
+    corp.ledger.cash = FIRM_TYPES[DEPT_STORE].setup_cost * 0.4  # too short even with a loan
     assert ai_build_firm(eco, corp, DEPT_STORE, town, Rng(1)) is None
     assert corp.business_assets == 0
     corp.ledger.cash = 1e9
