@@ -142,6 +142,27 @@ def test_supply_capped_at_demand():
     assert tm.supply_today <= tm.demand_per_day
 
 
+def test_awareness_gain_updates_demand():
+    """FUN_00075aec: demand_per_day increases with awareness gain, capped at 100."""
+    from capitalism.links import Market
+
+    sim, town = bread_town()
+    corp = sim.economy.add_corp("P")
+    _firm, _job, link = _consumer_link(sim, town, corp)
+    tm = link.buyer
+    link.awareness = 0.0
+    tm.demand_per_day = 5.0
+    link.units_month[(link.month_index - 1) % 12] = 10.0
+    Market._awareness_gain(link, tm)
+    assert link.awareness > 0.0
+    assert tm.demand_per_day > 5.0
+    # Cap: set demand near 100, gain should not exceed 100
+    tm.demand_per_day = 99.99
+    link.awareness = 0.0
+    Market._awareness_gain(link, tm)
+    assert tm.demand_per_day <= 100.0
+
+
 def test_weekly_ratings_runs_on_weekday5():
     """Integration: advance sim to weekday 5, verify decay fires."""
     sim, town = bread_town()

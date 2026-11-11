@@ -218,6 +218,7 @@ class Market:
         elif owner.brand_strategy == 1:
             gain *= 0.5
         link.awareness += gain
+        tm.demand_per_day = min(tm.demand_per_day + gain, 100.0)
 
     def weekly_ratings(self) -> None:
         """Weekday 5: decay oversupplied ratings (FUN_00075988).
@@ -242,7 +243,7 @@ class Market:
             if tm.supply_today > 0:
                 s_decay = min(tm.supply_today / 200.0, SUPPLY_DECAY_CAP)
                 tm.supply_today -= s_decay
-            tm.supply_today = min(tm.supply_today, tm.demand_per_day)
+            tm.supply_today = max(-tm.demand_per_day, min(tm.supply_today, tm.demand_per_day))
 
     def monthly(self, month0: int) -> None:
         """Monthly roll (ref): zero the new month's buckets, reset sums, recompute weight."""

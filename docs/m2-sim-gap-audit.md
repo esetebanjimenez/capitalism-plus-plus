@@ -94,7 +94,7 @@ move.
 | # | Rule | Sim now | Native / reference | Status | Fix PR |
 |---|---|---|---|---|---|
 | M1 | Natural resource discovery | `sim.py:140`: only the `natural_resources` hook, no logic | Daily step 9: `FUN_0007433c` on `0xb1c2f` (`techspec:150`, `gameloop.md:229`). It's quiet until day 365 and then adds deposits (`techspec:198` news). `ref:308` agrees | Inferred (body not re-read this pass) | sim-extraction ([#144](https://github.com/esetebanjimenez/capitalism-plus-plus/issues/144)) |
-| M2 | Weekly rating decay | `links.py:Market.weekly_ratings` + `sim.py:137` | Daily step 6: `FUN_00075988` on `0xb1c5c`, weekday 5. Gate `current >= target/200` (target = 30). Importer decay 0.025/0.05/0.1 by brand strategy; local decay `min(0.15, demand/20)`. Also decays demand cell and supply cell. Gain via `FUN_00075aec` on consumer sale (`techspec:152-180`) | **Fixed** | [#145](https://github.com/esetebanjimenez/capitalism-plus-plus/issues/145) |
+| M2 | Weekly rating decay | `links.py:Market.weekly_ratings` + `sim.py:137` | Daily step 6: `FUN_00075988` on `0xb1c5c`, weekday 5. Gate `current >= target/200` (target = 30). Importer decay 0.025/0.05/0.1 by brand strategy; local decay `min(0.15, demand/20)`. Also decays demand cell and supply cell. Gain via `FUN_00075aec` on consumer sale (`techspec:152-190`) | **Fixed** | [#145](https://github.com/esetebanjimenez/capitalism-plus-plus/issues/145) |
 
 ## 6. Unknown (native formula not recovered)
 
