@@ -232,18 +232,10 @@ class Town:
             self.rolling_gnp_growth = 0.0
         self.gnp_level_ring[self.ring_index] = self.per_capita_gnp
 
-        thr = CLIMATE_THRESHOLDS
-        rg = self.rolling_gnp_growth
-        if rg >= thr.boom:
-            self.climate = Climate.BOOM
-        elif rg >= thr.prosperous:
-            self.climate = Climate.PROSPEROUS
-        elif rg >= thr.normal:
-            self.climate = Climate.NORMAL
-        elif rg >= thr.recession:
-            self.climate = Climate.RECESSION
-        else:
-            self.climate = Climate.PANIC
+        # FUN_0004b68e reads this month's town+0x113 entry, the same total-GNP term
+        # FUN_0004b377 stores for pop growth, so compute it before the climate check.
+        self.monthly_stats()
+        self.update_climate(self.gnp_growth_pct[self.ring_index])
 
         drift, swing = UNEMPLOYMENT_DRIFT[int(self.climate)]
         self.unemployment += drift + rng.uniform(-swing, swing)
@@ -274,10 +266,20 @@ class Town:
             new_env.append(max(g.env_lo, min(g.env_hi, f)))
         self.env_factors = (new_env[0], new_env[1], new_env[2])
 
-        self.monthly_stats()
         self.pop_ring[self.ring_index] = self.population
         self.ring_index = (self.ring_index + 1) % 12
         self.last_month_population = prev_pop
+
+    def update_climate(self, gnp_growth: float) -> None:
+        """FUN_0004b68e (decomp:46590-46598): the first DAT_000adad0 threshold that is
+        <= the GNP term sets the climate (0 Boom .. 4 Panic); none matching keeps it."""
+        thr = CLIMATE_THRESHOLDS
+        for climate, limit in enumerate(
+            (thr.boom, thr.prosperous, thr.normal, thr.recession, thr.panic)
+        ):
+            if gnp_growth >= limit:
+                self.climate = Climate(climate)
+                return
 
     def monthly_stats(self) -> None:
         """FUN_0004b377, run for every town in both modes: roll this month's total GNP
