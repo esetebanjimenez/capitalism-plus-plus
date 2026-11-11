@@ -17,7 +17,6 @@ CITY_BORDER = MAP_RULES.city_border
 CITY_MIN_DIST = MAP_RULES.city_min_dist
 MAX_CITIES = MAP_RULES.max_cities
 LAND_VALUE_FLOOR = LAND_VALUE.floor
-LAND_VALUE_BONUS_CAP = LAND_VALUE.bonus_cap
 
 
 class TileCategory(IntEnum):
@@ -104,7 +103,7 @@ class World:
         return self.tiles[y * self.width + x]
 
     def land_value(self, x: int, y: int) -> int:
-        """Proximity land value (design.md). Floor $500k; firms add bonus later."""
+        """Proximity land value (decomp:43397-43447). Floor $500k."""
         if not self.towns:
             return LAND_VALUE_FLOOR
         best: Town | None = None
@@ -119,12 +118,13 @@ class World:
         small = (
             LAND_VALUE.small_town_factor if best.level <= LAND_VALUE.small_town_level_max else 1.0
         )
-        base = best.level * best.per_capita_gnp * LAND_VALUE.base_mult * small
+        base = best.per_capita_gnp * best.population / LAND_VALUE.base_divisor * small
         if best_d >= radius:
             value = 0.0
         else:
             value = base * (1.0 - best_d / radius)
-        return max(LAND_VALUE_FLOOR, int(min(value, LAND_VALUE_BONUS_CAP)))
+        assert value < LAND_VALUE.assert_cap
+        return max(LAND_VALUE_FLOOR, int(value))
 
     def can_build(self, x: int, y: int) -> bool:
         """True when a firm may be placed here. Subclasses override the rule."""

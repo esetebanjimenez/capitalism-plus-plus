@@ -61,10 +61,10 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `city_border` | 5 | tiles | Towns and cities — placement border |
 | `city_min_dist` | 15 | tiles (Chebyshev) | Towns and cities — spacing |
 | `default_cities` | 5 | cities | Towns and cities — default setup |
-| `land_value_base_mult` | 50 **provisional** | $ per (level × $/capita) | Towns and cities — land value base (design.md provisional) |
-| `land_value_bonus_cap` | 50000000 **provisional** | $ | Towns and cities — building bonus cap (design.md provisional) |
+| `land_value_assert_cap` | 1000000000 | $ | decomp:43440-43441 0xa6a46=1e9 native assert |
+| `land_value_base_divisor` | 8000 | divisor | decomp:43436-43437 gnp*pop/8000 |
 | `land_value_floor` | 500000 | $ | Towns and cities — land value floor |
-| `land_value_small_town_factor` | 0.6 **provisional** | multiplier | Towns and cities — small-town factor (design.md provisional) |
+| `land_value_small_town_factor` | 0.5 | multiplier | decomp:43443-43444 0xa6a4e=0.5 |
 | `land_value_small_town_level_max` | 2 **provisional** | level | Towns and cities — small-town factor (design.md provisional) |
 | `map_height` | 198 | tiles | Map and terrain |
 | `map_width` | 240 | tiles | Map and terrain |
