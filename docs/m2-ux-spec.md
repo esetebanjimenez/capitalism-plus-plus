@@ -63,8 +63,9 @@ wheel switches between them. Pan by one-finger drag or mouse drag.
 **Town footprint (visual only).** The sim stores a town as one tile, so the
 footprint is drawn by the client and changes no rule. By `Town.level`:
 levels 1 to 2 draw the town tile only, levels 3 to 4 a 3 × 3 area centred on
-it, levels 5 to 6 a 5 × 5 area. Roads form a plus through the centre (a
-grid at 5 × 5) and city blocks fill the rest; roof style is chosen per tile
+it, levels 5 to 6 a 5 × 5 area. At 3 × 3, roads form a plus through the
+centre. At 5 × 5, roads run along rows and columns 1 and 3 (a # shape)
+and the town's own centre tile is a plaza. City blocks fill the rest; roof style is chosen per tile
 from the town id so a town keeps its look, and the block level steps up at
 levels 3 and 5. The radius per level lives in a small DB table so it can be
 retuned. Firms always win: ring tiles stay buildable, a firm tile never gets
