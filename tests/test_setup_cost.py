@@ -179,4 +179,24 @@ def test_ai_build_sells_assets_then_builds_or_cancels():
     assert corp.ledger.cash >= -FIRM_TYPES[DEPT_STORE].overhead_month
     stock.holdings_corps[corp.id] = 0
     corp.ledger.cash = 0.0
+    corp.liabilities = corp.total_assets(eco.firms)  # no credit left either
     assert ai_build_firm(eco, corp, DEPT_STORE, town, eco.rng) is None
+
+
+def test_ai_raise_cash_borrows_up_to_credit_limit():
+    from capitalism.ai import ai_raise_cash
+
+    sim, _town = bread_town()
+    eco = sim.economy
+    corp = eco.add_corp("AI", CORP_AI)
+    corp.ledger.cash = 1_000_000.0
+    corp.business_assets = 3_000_000.0
+    corp.liabilities = 1_000_000.0
+    # total assets 4M - debt 1M: credit 3M, enough for a 2M target
+    assert ai_raise_cash(eco, corp, 2_000_000.0)
+    assert corp.ledger.cash == pytest.approx(2_000_000.0)
+    assert corp.liabilities == pytest.approx(2_000_000.0)
+    # now credit is 5M - 2M = 3M; a 10M target can only borrow 3M, then cancel
+    assert not ai_raise_cash(eco, corp, 10_000_000.0)
+    assert corp.ledger.cash == pytest.approx(5_000_000.0)
+    assert corp.liabilities == pytest.approx(5_000_000.0)
