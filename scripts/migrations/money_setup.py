@@ -43,6 +43,14 @@ RULES = [
         ),
         1,
     ),
+    (
+        "ai", "ai_cash_reset", 1_000_000_000.0, "dollars",
+        (
+            "Government corp only: FUN_00030ffc decomp:27691-27693, vtable 0x3553c (audit A1). "
+            "Competitors keep real cash; the sim has no Government corp, so this is unused"
+        ),
+        0,
+    ),
 ]
 
 
@@ -73,7 +81,7 @@ def migrate(con: sqlite3.Connection) -> None:
             row,
         )
     con.execute(
-        "DELETE FROM rules WHERE system='ai' AND key IN ('starting_capital_low', 'template_cost_estimate')"
+        "DELETE FROM rules WHERE system='ai' AND key IN ('starting_capital_low', 'template_cost_estimate', 'asset_sale_rounds')"
     )
     con.commit()
     assert con.execute("PRAGMA integrity_check").fetchone()[0] == "ok"

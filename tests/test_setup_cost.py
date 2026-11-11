@@ -2,7 +2,7 @@
 
 import pytest
 
-from capitalism.ai import ai_starting_capital
+from capitalism.ai import ai_build_firm, ai_starting_capital
 from capitalism.economy import CORP_AI
 from capitalism.firms import InsufficientFunds
 from capitalism.rng import Rng
@@ -146,3 +146,37 @@ def test_facade_build_cost_and_refusal():
     (res,) = api.tick(1)["results"]
     assert res["ok"] is False and "with land" in res["error"]
     assert api.player.ledger.cash <= 10.0
+
+
+def _ai_with_shares(sim, cash):
+    eco = sim.economy
+    other = eco.add_corp("Target", CORP_AI)
+    corp = eco.add_corp("AI", CORP_AI)
+    corp.ledger.cash = cash
+    from capitalism.stock import Stock
+
+    stock = Stock(other.id, 1e9, 10.0)  # a $1B company at $10 a share
+    eco.stocks[other.id] = stock
+    stock.holdings_corps[corp.id] = 1_000_000  # about $10M held
+    return eco, corp, stock
+
+
+def test_ai_raise_cash_sells_just_enough_shares():
+    from capitalism.ai import ai_raise_cash
+
+    sim, _town = bread_town()
+    eco, corp, stock = _ai_with_shares(sim, 0.0)
+    assert ai_raise_cash(eco, corp, 50_000.0)
+    assert corp.ledger.cash >= 50_000.0
+    assert 0 < 1_000_000 - stock.holdings_corps[corp.id] < 1_000_000
+
+
+def test_ai_build_sells_assets_then_builds_or_cancels():
+    sim, town = bread_town()
+    eco, corp, stock = _ai_with_shares(sim, 0.0)
+    firm = ai_build_firm(eco, corp, DEPT_STORE, town, eco.rng)
+    assert firm is not None and stock.holdings_corps[corp.id] < 1_000_000
+    assert corp.ledger.cash >= -FIRM_TYPES[DEPT_STORE].overhead_month
+    stock.holdings_corps[corp.id] = 0
+    corp.ledger.cash = 0.0
+    assert ai_build_firm(eco, corp, DEPT_STORE, town, eco.rng) is None
