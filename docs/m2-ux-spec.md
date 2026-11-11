@@ -89,6 +89,9 @@ player can compare spots without reopening the panel.
   handle and three heights: peek (about a quarter of the screen: title, key
   numbers, main actions), half, and full. Full-height reports cover the map
   until dismissed.
+- **Phone menu button**: while a sheet is open at peek or half height, the
+  menu button sits just above the sheet's top edge, still on the right; at
+  full height it hides until the sheet is lowered or closed.
 - **Desktop** (720 points and wider): panels slide in as a right-hand side
   panel 400 points wide over the map; the map does not resize, it only pans
   so the selection stays clear of the panel. Company, Stocks, News and Goals
