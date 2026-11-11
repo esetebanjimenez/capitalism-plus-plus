@@ -371,6 +371,39 @@ SET file stores costs as integers in thousands; loader at `FUN_0006932c`
 | 13 | PUBL | Newspaper Publisher | 10,000 → $10,000,000 | 200 → $200,000 | 0x268 | (media) |
 | 14 | SEA | Seaport | 0 → $0 | 0 → $0 | 0x189 | `of_sea.cpp` |
 
+### Build cost, build panel and demolish
+
+**Booking** — `FUN_00063dd9` (0x00063dd9, line 68425), called from firm
+init (line 68413). It stores `map_land_value` at `firm+0x52`, then
+`group_move_balance(corp, 2, 0, firm, type+0x1b)` (setup cost, Cash →
+Business Assets) and `group_move_balance(corp, 3, 0, firm, land)` (land
+value, Cash → Land & Resource) (lines 68436-68443). There is no cash
+check here.
+
+**Player build panel** — `FUN_000698e0` (0x000698e0, line 76634).
+Lines 76662-76690 draw Construction / Land / Total Cost and set the Build
+button flag `DAT_000b83b4` = 0 when the site can't be built, or when
+`FUN_000354e0()+0x186` (cash) < `record+0x1b` + `map_land_value`;
+otherwise 1. The "Build" button `DAT_000b83b3` is then created (lines
+76687-76689). `FUN_000354e0` is likely the player-corp getter, and flag 0
+likely means a disabled button. Only cash is compared; there is no
+credit line. The rebuild branch (lines 76696-76711) shows "Firm Rebuild
+Cost" and sets the flag to 0 when cash < cost or cost <= 0, with
+"Rebuild" and "Close Down" (`DAT_000b83e9`). "Cannot be built here" is at
+line 76692. `FUN_0006956d` (0x0006956d, line 76493; called from
+`FUN_00027e00` line 20326 and `FUN_000450f0` line 41968) repeats the
+check (lines 76546-76569) and redraws the button (lines 76572-76584).
+The Build handler `FUN_0006a306` (lines 76986-77005) has no check of its
+own. `FUN_0006984e` is reached from `FUN_00027e1d` (line 20345).
+
+**Demolish** — `FUN_00064005` (0x00064005, line 68538), called from
+`FUN_00063f28` (line 68501); the dialog is `FUN_0006a371` (lines
+77013-77030). It runs `group_move_balance(corp, 0, 2, setup)`, then
+`group_post_expense(corp, 7, setup)` (write-off), then
+`group_move_balance(corp, 0, 3, firm+0x52)` (land refunded at the stored
+value) (lines 68548-68560). Both asset accounts are floored at 0
+(`+0x7da`, `+0x7de`).
+
 ### FirmVtable reference
 
 32 slots, 0x80 bytes. Vtable pointer at Firm+0x17d. Defined in
@@ -769,6 +802,15 @@ Category 5: `job float +0x38 × receipt`. `job_add_training`:
 `(receipt × 80) / order_size`. When supplier `type_byte` nonzero →
 `item_sell`. `0x320a6` adds per-corp totals.
 
+Freight rate — `FUN_000785f1` (0x000785f1, line 87197): distance from
+`FUN_00090746` (0x00090746, line 105128) = `isqrt(dx² + dy²)`.
+`FUN_000906f8` (lines 105102-105122) is an integer square root rounded to
+the nearest whole number, so the distance is Euclidean, not Manhattan.
+Rate = `product+0x37 (short) × distance × product+0xaa (float) / 100 /
+100 × 0.5` (`0xaa3a8` = 100, `0xaa3ac` = 0.5), with 0.01 when the result
+is 0 (lines 87210-87216). The mapping of `+0x37` to FREIGHT and `+0xaa`
+to spending is unconfirmed (see the `+0x37` note in the product record).
+
 **Type 12 (Sales)** — `job_sell` (`0x5a1be`), `oj_sale.cpp`:
 Cap: `(short_+0x3e × (2|4) × int_+0x30) / 100`. Multiplier 2 when
 `firm.item_live`, else 4. Posts category 0: `count × link.unit_price`.
@@ -779,6 +821,7 @@ Types 1/2: category 4: `count × link.unit_cost`. Zero cap aborts
 Units: `min(room, (short_+0x3e × short_+0x54 × int_+0x30) / 100)`.
 Reserve draw: `((units / int_+0x30) / short_+0x54) / (float 0xa7bd1)`.
 `0x46fc3` land amount. Category 8. `group_move_balance(corp, 0, 3, amount)`.
+Training: `job_add_training(job, units × 100 / max_units, 1)` (line 56375).
 
 **Types 11 (R&D)/13 (Software R&D)** — `job_rd` (`0x58c2c`), `oj_rd.cpp`:
 Returns 0. `job_add_training(job, 14, 0)`. Duration from short `+0x28`:
@@ -1096,9 +1139,9 @@ item_daily(link):
   │          + (score_in × town_product.short[+0x6c]) / 60
   │
   │    if new score < old score AND firm.item_live:
-  │      slice = (old - new) × quantity / DAT_0xa961e
+  │      slice = (old - new) × quantity / DAT_0xa961e   (= 100.0)
   │      if quantity < slice: quantity = slice
-  │      quantity -= slice
+  │      quantity -= slice           → quantity × (1 - drop/100), floor 0
   │      town_product.float[+8] -= slice
   │
   ┌─ GATE: firm.item_live (firm.byte[+0x2c])
@@ -1112,30 +1155,49 @@ item_daily(link):
   │
   │  2a. Shrink oversupply:
   │      if town_product.float[+4] < float[+8] AND quantity > 0:
-  │        remove = quantity / DAT_0xa9584
+  │        remove = quantity / DAT_0xa9584              (= 50.0)
   │        quantity -= remove
   │        town_product.float[+8] -= remove
   │
   │  2b. Compute weight (0..100):
   │      weight = firm.short[+0x56] × 5
   │      if place_kind NOT in 0x3008..0x300c: weight += 50
-  │      clamp to 100
+  │      clamp to 100       (recomputed every visit, line 78300)
   │
   │  2c. item_reduce_quantity(link, town_product, weight)
-  │      Removes quantity when this link is WORSE than town averages.
-  │      Compares score, unit_price, score_in, and FUN_0x6d67d
-  │      against the town-product reference values (+0x7a, +0x72,
-  │      +0x76, +0x78). Amount is quadratic in the gap and
-  │      proportional to (100 - weight).
+  │      Removes quantity when this link is WORSE than the town-product
+  │      reference levels: score +0x7a, unit_price +0x72, score_in +0x76,
+  │      FUN_0x6d67d (brand) +0x78. These are NOT seller averages; see
+  │      "Town item weights and reference levels" below.
+  │      Runs only if +0x72, +0x76 or +0x78 is nonzero.
+  │        gap = (ref_score - score)/100            [if lower]
+  │            + w_price × ((price - ref_price)/(ref_price + 0.1))/300
+  │            + w_si × (ref_si - si)/30000 + w_brand × (ref_b - b)/30000
+  │        cut = (100 - weight) × q × gap² × (q / tp[+4])² / 100,
+  │              capped at q; taken from q and tp[+8]
+  │      (0xa95f0 = 100, 0xa95f4 = 0.1 f64, 0xa95fc = 300 f64,
+  │       0xa9604 = 30000; lines 78495-78530)
   │
-  │  2d. if projected_quantity_sum < projected_flow × DAT_0xa958c:
+  │  2d. if projected_quantity_sum < projected_flow × DAT_0xa958c (= 2.0):
+  │      projected = prev × (30 - day_of_month)/DAT_0xa9588 (= 30) + this
   │        item_increase_quantity(link, town_product, weight)
-  │          Adds quantity when this link is BETTER than averages.
-  │          Same four-factor comparison, reversed direction.
+  │          f = tp[+4] - tp[+8]; runs only if f >= 0. Same four terms,
+  │          reversed (price: (ref_price - price)/(price + 0.1)).
+  │          add = (100 - weight) × f × gap² × (f / tp[+4])² / 100,
+  │                capped at f; added to q and tp[+8]
+  │          (0xa95cd = 100, 0xa95d1 = 0.1 f64, 0xa95d9 = 300 f64,
+  │           0xa95e1 = 30000; lines 78433-78468)
   │        item_take_quantity(link, town_product, weight)
-  │          Walks the product circle. Steals quantity from other
-  │          same-town links whose score/price/score_in/FUN_0x6d67d
-  │          are worse. Amount is quadratic in the gap.
+  │          Walks the product circle. For each other link o whose
+  │          firm town (firm+6) == link.town_id:
+  │            gap = (score - o.score + 1)/100        [if o.score <= score]
+  │                + w_price × ((o.price - price)/(price + 0.1))/300
+  │                + w_si × (si - o.si)/30000 + w_brand × (b - o.b)/30000
+  │            take = (100 - weight) × (o.q × gap² × (o.q/tp[+4])² × 120
+  │                   / 100) / 100, capped at o.q; moved o → link
+  │          weight is the TAKER's. (0xa95a6 = 100, 0xa95aa = 0.1 f64,
+  │          0xa95b2 = 300 f64, 0xa95ba = 30000, 0xa95be = 120;
+  │          lines 78353-78398)
   │
   ▼
   3. Accumulate
@@ -1154,13 +1216,15 @@ item_daily(link):
   │  if day_serial is even:
   │    item_sum_town(link)
   │      Zeros town_product.float[+8].
-  │      Walks the circular list through next (+0x02).
-  │      For each link in the same town:
+  │      Walks the circular list through next (+0x02), stopping when it
+  │      returns to this link (so this link's own quantity is not added
+  │      in the walk, lines 78604-78615).
+  │      For each other link in the same town:
   │        town_product.float[+8] += their quantity.
   │      Abort after 10000 steps (oitem4.cpp:0x55).
-  │      Swap pairs: if link.field_12 != other.field_0a
-  │        AND link.field_12 == other.field_12
-  │        AND link.field_0a == other.field_12:
+  │      Swap pairs (lines 78616-78618): if other.field_12 != link.field_0a
+  │        AND other.field_12 == link.field_12
+  │        AND link.field_12 == other.field_0a:
   │          copy other.unit_price onto this link.
   │
   └─ return
@@ -1200,12 +1264,16 @@ item_month(link):
   flow          = 0
 
   if firm.item_live:
-    FUN_0x75aec(0xb1c5c, link)
+    FUN_0x75aec(0xb1c5c, link)                    (0x00075aec, line 85363)
       Returns unless product.byte[+0x47] != 0.
-      Looks up rating row for (town, field_12, product).
-      Stores 30.0 at row +6.
-      Adds term from last month_units.
-      Sets cell to 100.0 when sum passes DAT_0xaa0c8.
+      Brand record = FUN_0x6f435(corp +0x12, product) in the town.
+      Looks up rating row FUN_0x75c7a(-town, corp, record).
+      Stores 30.0 at row +6 (0x41f00000, lines 85393-85394).
+      u = last month_units + 1; m = max(u, town_product.float[+4])
+      d = ((DAT_0xaa0c4 (30) - row.float[+0xa]) × u / m) / DAT_0xaa0c8 (100)
+      d ×= 0.25 (0xaa0d0) if corp brand mode +0x50 == 0, 0.5 (0xaa0cc) if 1
+      row.float[+0xa] += d; awareness record.float[+8 + corp × 4] += d,
+      set to 100.0 when it passes DAT_0xaa0c8 (lines 85402-85421).
 ```
 
 `item_publish_highs` (`0x6dfe2`): zeros every product's shorts at
@@ -1217,25 +1285,48 @@ item_month(link):
 ### Call hierarchy
 
 ```
-Corporation daily (0x34e34, day batch)
-  └─ For each corp type 3 (Competitor) corporation:
-       corp vtable +0xc → FUN_00030ffc  (competitor daily)
-         ├─ FUN_00032102  (shared AI daily — all corp types)
-         │    ├─ FUN_00032178  financial posts (interest, debt, salary)
-         │    ├─ FUN_00032966  stock/investment daily
-         │    ├─ FUN_000335c2  float calc → corp+0xc5
-         │    ├─ FUN_0003e8fc  portfolio object daily (corp+0xbf ptr)
-         │    ├─ Every 15 days: FUN_00032700→FUN_00032733
-         │    │    per-city product census (statistics only)
-         │    └─ Corp type 2 (Hired) specific: FUN_00021e63
-         ├─ Reset cash to ~1 billion (0x4e6e6b28 IEEE 754)
-         ├─ 1/1000 chance: FUN_000316b4 (strategy param change)
-         └─ 1/10000 after 3650 days: FUN_00031099 (spawn new corp)
+Corporation daily (0x34e34, day batch; vtable +0xc for every corp, lines 31411-31419)
+  Class by corp type — FUN_00034c88 (0x00034c88, line 31238), lines 31249-31265:
+    types 1-3 → FUN_0002ccd0, vtable 0x2d804 (+8 = 0x2cd05, +0xc = FUN_0002cd2b)
+    type 4 (Government) → FUN_0003555c (0x0003555c, line 31889), vtable 0x3553c
+                          (+4 = 0x354f0, +8 = 0x30f1c, +0xc = 0x30ffc, +0x10 = 0x3108e)
+  └─ corp type 4 (Government): vtable +0xc → FUN_00030ffc  (Government daily, lines 27683-27711)
+          ├─ FUN_00032102  (shared AI daily — all corp types)
+          │    ├─ FUN_00032178  financial posts (interest, debt, salary)
+          │    ├─ FUN_00032966  stock/investment daily
+          │    ├─ FUN_000335c2  float calc → corp+0xc5
+          │    ├─ FUN_0003e8fc  portfolio object daily (corp+0xbf ptr)
+          │    ├─ Every 15 days: FUN_00032700→FUN_00032733
+          │    │    per-city product census (statistics only)
+          │    └─ Corp type 2 (Hired) specific: FUN_00021e63
+          ├─ Reset cash to 1e9 (0x4e6e6b28 IEEE 754, line 27692)
+          ├─ random(1000) == 0: FUN_000316b4(gov, 0) (may call FUN_00031805)
+          └─ DAT_000b1f0f set, random(10000) == 0 and
+             day_serial − _DAT_000b4b24 > 0xe42 (3650):
+             FUN_00031099(gov, 2 or 1) — new Seaport, not a new corp
 ```
 
-### Government daily (FUN_0002cd2b)
+Other 1e9 writes, all in Government methods:
+- FUN_00030f1c (vtable +8, lines 27623-27636): once, from corp init
+  FUN_00031a59 (line 28464) ← FUN_00034be1 (line 31207). Sets cash, then
+  FUN_00030f58 (seaports, lines 27644-27673) and FUN_000315f8 (media per
+  town, lines 28026-28061), and sets _DAT_000b4b24 = day_serial.
+- FUN_00031099 (lines 27732-27759): cash = 1e9, then up to 2000 tries of
+  FUN_0002e19a(gov, 0xe Seaport, …).
+- FUN_00031805 (lines 28264-28286): cash = 1e9, up to 100 tries of
+  FUN_0002dc2c, then FUN_0002e19a(gov, type, …). Callers: FUN_000315f8,
+  FUN_000316b4, and the town spawn FUN_0004db2e (line 48328, corp slot 1,
+  likely the Government).
 
-For corp type 3 (Competitor) corporations. Schedule keyed to
+Competitors (type 3) are never reset. They reach FUN_0002e19a with real
+cash (see Firm creation). `names_sim.csv` rows 98, 100 and 115 label
+these Government methods as competitor methods.
+
+### Competitor daily (FUN_0002cd2b)
+
+vtable 0x2d804 +0xc, shared by corp types 1-3; the schedule below runs
+only when corp type == 3 (Competitor) (line 24189). It is not the
+Government daily (that is FUN_00030ffc above). Schedule keyed to
 `psVar1[0x25]` (corp schedule-offset short):
 
 | Interval | Condition | Function | Role |
@@ -1345,6 +1436,15 @@ Tile check: rural `0x3008..0x300c`, urban `0x3000..0x3007`.
 `map_land_value` → cost check → `FUN_00030ae2` (sell assets) →
 re-check → `FUN_0006763b` → `firm_array_create` + `firm_init`.
 30-day cooldown per build type.
+
+Cost check (lines 25264-25281): `corp+0x186` (cash) < `map_land_value` +
+type `+0x1b` (the real setup cost) → `FUN_00030ae2` → re-check; fail only
+if still short. Competitors call it with real cash (call sites at lines
+24612, 25309, 25422, 25624, 25983, 26115, 26227, 26427, 26480, 26613 and
+26658), so the sell-assets branch fires in normal play. Only the
+Government's placements (`FUN_00031099`, `FUN_00031805`) set cash to 1e9
+first. Firm init then books setup + land (see Build cost, build panel
+and demolish).
 
 ### Product-group binding (FUN_0002b895)
 
@@ -1456,7 +1556,8 @@ Steps tried in order until cash >= target:
 4. Sell stock in other corps via `FUN_00030d97` (up to 10 iterations)
 5. Fire sale at any price via `FUN_00030e55`
 
-Returns true (1) if cash >= target after all attempts.
+Returns true (1) if cash >= target after all attempts. Reached by
+competitor builds through `FUN_0002e19a` (line 27421).
 
 ### Broad fallback location (FUN_0002de97)
 
@@ -2287,22 +2388,34 @@ city placement.
 | 5     | 2,560,000          |
 | 6     | 4,000,000          |
 
-Level determines the painted radius on the map: `level + 4` tiles.
+On level-up `town_pop_growth` calls `FUN_0004c334` (0x0004c334, line
+47128; body lines 47149-47201): each tile within distance <= level of
+the centre gets a 1-in-10 chance to become a town tile. `level + 4` is
+the `map_land_value` decay radius (lines 43438-43439), not the painted
+footprint. No separate town demand radius was found.
 
 ### Population growth (0x0004b4de)
 
+Lines 46516-46543:
 ```
 growth = random(300)
-       + gnp_growth_factor × scale_const
-       + (target_unemployment – unemployment) × balance_const
-       + base_const
+       + town+0x113[month] × 100            (0xa6eb6, f64)
+       + (4 − unemployment +0x47) × 100      (0xa6ea6 = 4, 0xa6eae = 100, f64)
+       − 150                                 (0xa6eba, f64)
 ```
+`town+0x113[month]` is written by `town_month_record` (`FUN_0004b377`,
+lines 46454-46467) as `50 × (sum12(pop × per-capita GNP) − previous
+sum12) / previous sum12` (`0xa6e9e` = 50, f64): yearly relative change in
+total GNP × 50.
+
 Dampened when population is far from a threshold:
-- If growth ≤ 0 and pop < lower_bound: scale down proportionally
-- If growth > 0 and pop > upper_bound: scale down proportionally
+- If growth ≤ 0 and pop < 750,000 (`0xa6ec2`): growth × pop / 750,000
+- If growth > 0 and pop > 1,500,000 (`0xa6ec6`): growth × 1,500,000 / pop
 
 New unemployment is reweighted around the new population.
-Population is floored at 0.
+Population is floored at 0. Level-up: `+0x1e += 1` when the frozen flag
+`+0x1d` == 0 and pop ≥ level × 80000 × level × 2 (lines 46538-46542);
+one level per tick, no cap, never decreases.
 
 ### Town spawning (0x0004d5ee)
 
@@ -2331,24 +2444,32 @@ The 20000 and 100 are float constants at `_DAT_000a6e8e` and
 
 Monthly GNP adjustment (`town_gnp_update`, 0x0004b609):
 `gnp = gnp * (random(10) + 295) / 300.0`
-This gives a random walk of roughly ±1.7% per month. GNP is clamped to
-the minimum for the current tier. If GNP exceeds the tier's max, the
-tier upgrades by one.
+This gives ten discrete steps from 295/300 to 304/300 (`0x127` = 295,
+`0xa6eca` = 300; lines 46562-46564), roughly ±1.7% per month. GNP is
+clamped to the minimum for the current tier. If GNP exceeds the tier's
+max, the tier upgrades by one. Unresolved: lines 46565-46572 compare
+dollar GNP with the raw shorts in `DAT_000adae4` and require GNP <
+`0xa6ece` = 3.0 (f32); read literally, the floor never applies and the
+upgrade never fires. Likely an x87 compare misread by the decompiler.
 
 ### Economic climate thresholds
 
 `town_climate_update` (0x0004b68e) walks the 5-entry float table at
-`DAT_000adad0` comparing the current month's GNP growth percentage.
-First entry whose threshold is ≤ the growth rate wins; index stored at
-+0x39.
+`DAT_000adad0` = {8, 4, −1, −6, −100000} (f32), comparing
+`town+0x113[month]`, the same 50 × yearly total-GNP change that
+`town_pop_growth` reads (lines 46590-46598). It is not a monthly
+percentage. The first entry whose threshold is ≤ the value wins; the
+index is stored at +0x39. If none matches, the climate is unchanged.
 
-| Climate | Threshold | Label (from `PTR_DAT_000adb00`) |
+| Climate | Threshold (GNP term) | Label (from `PTR_DAT_000adb00`) |
 |---------|-----------|------|
-| 0 | >= 8.0% | Boom |
-| 1 | >= 4.0% | Prosperous |
-| 2 | >= -1.0% | Normal |
-| 3 | >= -6.0% | Recession |
-| 4 | < -6.0% | Panic |
+| 0 | >= 8.0 | Boom |
+| 1 | >= 4.0 | Prosperous |
+| 2 | >= -1.0 | Normal |
+| 3 | >= -6.0 | Recession |
+| 4 | >= -100000 | Panic |
+
+Boom at 8 corresponds to roughly a 16% yearly rise in total GNP.
 
 Index 0 = best economy (Boom), index 4 = worst (Panic).
 UI bar = `(5 - climate)`, so Boom shows the tallest bar.
@@ -2396,7 +2517,13 @@ Development" toggle).  When off ('\0'):
 - Economic climate fixed at 2
 - Labor cost, consumer spending, labor quality all fixed at 100.0
 - Unemployment fixed at 2.0
-- Monthly town tick skips all 7 update functions
+- Monthly town tick skips all 7 update functions. `town_month`
+  (0x0004b490, line 46478) still calls `town_pop_growth` (with the level-up
+  check) unconditionally (line 46484); only the 7 calls at lines
+  46486-46492 are gated by `DAT_000b1ee0`. `town_month_record`
+  (`FUN_0004b377`) runs for every town from `FUN_0004daa3` (lines
+  48270-48278) without checking the flag. Whether simple mode sets the
+  frozen flag `+0x1d` is untraced
 - Town browser UI is disabled
 
 ### Town items (demand tracking)
@@ -2874,6 +3001,18 @@ corp holdings at `+0x18`. Deducts/adds wealth for persons or posts
 financial transactions via `group_move_balance` for corps. Creates news
 log entry.
 
+Cash rules (lines 38391-38436): person wealth `+0x2c` −= cost on a buy,
++= proceeds on a sell. A corp trading another corp's stock moves money
+between Cash (0) and Stock Assets (4) with `group_move_balance` (lines
+38407-38417); the target corp's cash is untouched. The public float moves
+opposite to the trade (line 38436), and the control check `FUN_00032a14`
+runs. Trade price = average of the old and new prices × 0.5 (`0xa5e34`),
+with the new price from `FUN_0003f68c` (lines 38342-38343). Own-stock
+buyback (lines 38425-38431): cash −= cost, equity (account 6) drops, and
+`total_shares` −= the shares bought (retired). The equity amount is lost
+to `__CHP`. The share-count rounding (line 38326) is also lost to
+`__CHP`.
+
 ### Price impact — FUN_0003f68c (ostock2.cpp line 38457)
 
 Large trades move the price. Formula dampened by `total_shares`. Buys
@@ -2911,7 +3050,9 @@ When a corporation changes hands (merger/acquisition). Two modes:
 
 Issues new shares. Increases `total_shares`. Dilutes price
 proportionally. Reduces momentum (dampens upward pressure). Generates
-news: "New Shares at $X Per Share."
+news: "New Shares at $X Per Share." Lines 38851-38885: cash and equity
+both rise by shares × price; `total_shares` and the public float rise by
+the new shares.
 
 ### Pre-dividend calculation — FUN_000403f7 (ostock3.cpp line 38898)
 
@@ -3434,7 +3575,10 @@ Processes daily financial obligations:
    daily_salary = person_salary / 365.0
    ```
    Posted via `group_post_expense(corp, 1, ...)`.
-   Also adds to person's wealth.
+   Also adds to person's wealth. Lines 28817-28823: salary is person
+   `+0x3e`, divisor `0xa48a7` = 365 (f32), and the same amount is added to
+   wealth `+0x2c`. Interest constants: `0xa489f` = 2, `0xa48a3` = 100
+   (lines 28805-28815).
 
 Monthly interest for display: `liabilities × rate / 1200.0`
 (line 30136).
@@ -3884,39 +4028,59 @@ occupied slot:
      - Every other day: `item_sum_town` to update town totals
 
 2. `item_move_quantity` (0x0006c3bc, line 78265): demand dispatch
-   - Only for has_demand products, only for retail firm types (0x3000–0x300c)
+   - Only for has_demand products, only for firms whose place kind
+     `+0x4a` is a town tile (0x3000–0x300c)
    - **Oversupply decay**: if town supply > demand and quantity > 0,
      reduce by `quantity / constant`
-   - Compute decay factor: `firm.field_0x56 × 5`, plus 50 if not dept
-     store (types 0x3008–0x300c), capped at 100
-   - `item_reduce_quantity`: shrink if underperforming town averages
-   - Supply check: if projected_supply < projected_demand × threshold →
+   - Compute decay factor: `firm.field_0x56 × 5`, plus 50 unless place
+     kind `+0x4a` is 0x3008–0x300c (the rural / small-town tile range;
+     a tile range, not firm types), capped at 100
+   - `item_reduce_quantity`: shrink if underperforming the town-product
+     reference levels (not seller averages)
+   - Supply check: if projected quantity_sum < projected flow × 2 →
      - `item_increase_quantity`: grow from unfulfilled demand
      - `item_take_quantity`: steal from competitors
 
-3. `item_adjust_score` (0x0006cbb4, line 78665):
-   `score = base_score + (brand_rating × brand_weight / 60) +
-   (quality × quality_weight / 60)`. If score drops, quantity is reduced
-   proportionally: `new_qty = qty × new_score / old_score`.
+3. `item_adjust_score` (0x0006cc92, line 78666; lines 78701-78716):
+   `score = round(base) + (FUN_0006d67d(link,0,1) × tp+0x6e / 60) +
+   (score_in +0x26 × tp+0x6c / 60)`. The base is lost to `__CHP`. If the
+   score drops on a live link:
+   `slice = (old − new) × qty / 100` (`0xa961e` = 100), qty floored at 0,
+   and tp+8 −= slice. This is not `qty × new / old`.
 
 4. `item_take_quantity` (0x0006c525, line 78332): competition model.
-   Iterates all links of the same product in the same town:
-   - Quality advantage: `(my_quality − their_quality + 1) / 100`
-   - Price advantage: `price_weight × (their_price − my_price) /
-     (my_price + constant) / divisor`
-   - Brand score advantage
-   - Transfer: `(100 − decay) × their_qty × factor² × price_ratio²
-     × multiplier / 100`
-   - Quantity moves from competitor to this link
+   Formula and constants in the `item_daily` block above (step 2d).
+   Score term `(my_score − their_score + 1) / 100`, price term
+   `tp+0x70 × (their_price − my_price) / (my_price + 0.1) / 300`,
+   score-in and brand terms `weight × diff / 30000`;
+   `take = (100 − w) × (their_qty × gap² × (their_qty/tp+4)² × 120 / 100) / 100`.
 
-5. `item_increase_quantity` (0x0006c770, line 78415): demand growth.
-   - Factors: quality vs town avg, price vs town avg, brand rating,
-     brand score
-   - Growth: `(100 − decay) × unfulfilled × factor² × ratio² / 100`
+5. `item_increase_quantity` (0x0006c758, line 78415): demand growth
+   against the reference levels;
+   `add = (100 − w) × f × gap² × (f/tp+4)² / 100`, f = tp+4 − tp+8.
 
-6. `item_reduce_quantity` (0x0006c905, line 78477): demand reduction.
-   Reduces quantity when product underperforms town averages in quality
-   and price.
+6. `item_reduce_quantity` (0x0006c8f3, line 78477): demand reduction
+   against the reference levels in all four factors (score, price,
+   score-in, brand); `cut = (100 − w) × q × gap² × (q/tp+4)² / 100`.
+
+Reading tp+4 / tp+8 as town demand / supply is inferred from their use.
+
+#### Town item weights and reference levels
+
+`FUN_0004cca0` (0x0004cca0, line 47569; lines 47582-47597): price weight
+`+0x70` = product `+0x52` + town `+0x2a`, clamped to 20..90; score-in
+weight `+0x6c` = product `+0x54` + town `+0x26`, min 10, capped at
+100 − price weight; brand weight `+0x6e` = 100 − the other two.
+
+Reference levels (`FUN_0004cd5b`, 0x0004cd5b, line 47604; lines
+47618-47670): price `+0x72` seeded from product `+0xaa`, score-in `+0x76`
+= `random(11) + 5`, brand `+0x78` = 0. They random-walk with `0xa714d` =
+0.5, `0xa7151` = 100, `0xa7155` = 20, `0xa7159` = 100 (f64), `0xa7161` =
+20000 (f64); price moves by 1/100 steps, and score-in and brand by ±1.
+The reference score `+0x7a` comes from `FUN_0004cf41` → `FUN_0004cf68`
+(lines 47723-47729): `round(base) + ref_brand × w_brand / 60 + ref_si ×
+w_si / 60`, floored at 0. Caller `FUN_0004c8e7` (line 47378) also zeros
+the month buckets `+0x8e` / `+0xbe`; it is likely monthly.
 
 ### Sales — oitem4.cpp (lines ~78764–78920)
 
@@ -3928,17 +4092,26 @@ occupied slot:
 - If has_demand: update town-product revenue/units at +0x8e/+0xbe
 - Call `FUN_0006d0cd` for brand perception adjustment
 
-`FUN_0006d0cd` (0x0006d0cd, line 78830): brand perception updater.
-- Computes expected score from quality weights:
-  `quality_weight × quality / base_quality_divisor +
-  (100 − quality_weight) × score / score_divisor`
-- Adjusts by brand rating penalties (per-town)
-- Nudges brand perception toward expected value (±0.1 rate, or scaled
-  by brand rating for non-unique brands)
+`FUN_0006d0cd` (0x0006d0cd, line 78830; lines 78849-78918): brand
+perception updater, called with the sold count.
+- Record = `FUN_0006f435(corp, product)` in the town, keyed by corp brand
+  mode `+0x50` (0 corporate, 1 product class `+0x21`, 2 product; see
+  `FUN_0006d67d` lines 79068-79085). Brand cell `+0x38 + corp×4`,
+  awareness A `+8 + corp×4`; returns if A < 1.
+- `raw = (P×2×score_in)/max(50, product+0xa6) + ((100 − 2P)×score)/max(50, product+0xa8)`,
+  P = product `+0x54`.
+- Mode 0 subtracts `(corp+0x68[town] − 1) × 3`; modes 0 and 1 subtract
+  `(corp+0x80[town] − 1) × 3` (as decompiled; the meaning of both arrays
+  is unknown). Floored at 0.
+- `target = A × raw / 50 − A` (`0xa9644` = 50). Step −0.1 if target ≤
+  cell; else +0.1 (mode 2) or `0xa9648` (0.1) / `corp+0x80[town]`.
+  `cell += count × step / max(count, tp+4)`, clamped to ±A.
+- How `FUN_0006d67d` (line 79038) turns the cell into the score term is
+  lost to `__CHP` (lines 79092-79094).
 
 ### Monthly tick — oitem4.cpp (line 78628)
 
-`item_month` (0x0006cb18): zeros current month bucket in each of the
+`item_month` (0x0006cc1a, line 78634): zeros current month bucket in each of the
 three 12-float arrays (revenue, units, margin), then shifts running
 totals for the new month.
 
@@ -3947,7 +4120,14 @@ totals for the new month.
 `FUN_0006f944` (0x0006f944): monthly computation. Iterates all item
 links for a product, sums quantities grouped by corp_id (psVar[9]),
 divides by total demand for market share percentage. Clamped at 100%.
-Stored in product_type+0xd5 (12 bytes, one per corp slot).
+Stored in product_type+0xd6 (12 bytes, one per corp slot; lines
+80935-80943). Per-corp sums come from `FUN_0006d5fa` (lines 79017-79029):
+this month + (31 − day) × last month / 31. The denominator is product
+`+0x112`, prorated the same way (`0xa99ed` = 31). `+0x112` also receives
+unmet demand from `FUN_0004c754` (lines 47343-47369): when tp+4 − tp+8 >
+0, the gap and gap × `+0x72` are added to the town item's month buckets
+and the product totals `+0x112` / `+0xe2`. The rounding is lost to
+`__CHP` (line 80937). This table is not the consumer split.
 
 ### Product score evaluation — oitemtyp.cpp (line 80970)
 
@@ -4909,12 +5089,19 @@ Two-component formula called by firm monthly processing and the sell-land dialog
    - If tile is a firm (< 0x2000): look up the firm's assigned town (firm+0x4a)
    - Otherwise: find nearest town via `FUN_0004dd1c` (iterates all towns, picks closest by Euclidean distance, `FUN_00090746`)
 2. Compute distance to town center
-3. Base value = `(town+0x31 × constant / constant) × (town+0x2d × constant / constant)`
-   (uses town level and population-related fields)
+3. Base value = `(town+0x31 × 100 / 20000) × (town+0x2d × 2.5 / 100)`
+   (`0xa6a36` = 100, `0xa6a3e` = 20000, `0xa6a2e` = 2.5, all f64; lines
+   43436-43437) = per-capita GNP × population / 8000. The town level is
+   not part of the base.
 4. Distance decay: `base - (distance × base) / (town_level + 4)`
    Linear decay — value reaches zero at distance = town_level + 4
-5. Small town discount: multiply by `DAT_000a6a4e` (a float constant)
-6. Floor: $500,000 minimum (if computed value < `DAT_000a6a52`)
+   (lines 43438-43439)
+5. Small town discount: multiply by `DAT_000a6a4e` = 0.5 (f32) (lines
+   43397, 43414, 43443-43444)
+6. `DAT_000a6a46` = 1e9 (f64) is an assert (abort), not a clamp (lines
+   43440-43441)
+7. Floor: $500,000 minimum (if computed value < `DAT_000a6a52`, lines
+   43446-43447)
 
 **Component 2 — Building bonus** — `FUN_00046fc3` (0x00046fc3, line 43491):
 - Only applies if the overlay tile has a building reference

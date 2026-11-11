@@ -155,9 +155,9 @@ def ai_build_firm(
 def ai_raise_cash(eco: Economy, corp: Corporation, target: float) -> bool:
     """Sell assets until cash reaches target (FUN_00030ae2, audit B2/A3).
 
-    Native order (techspec "Asset sale"): own-stock check, own holdings
-    (FUN_00030c6e), subsidiaries (FUN_00037a7e), other corps' stock in up to
-    10 rounds (FUN_00030d97), then a fire sale (FUN_00030e55). The sim has no
+    Native order (techspec:1548-1560, step bodies not re-traced): own-stock
+    issuance check, own holdings (FUN_00030c6e), subsidiaries (FUN_00037a7e),
+    other corps' stock in up to 10 rounds (FUN_00030d97), fire sale (FUN_00030e55). The sim has no
     subsidiaries or firm sales yet, so only the share-sale rounds run: each
     round sells just enough of each holding, at the market's sell price, to
     cover what's left. Returns True once cash >= target.
