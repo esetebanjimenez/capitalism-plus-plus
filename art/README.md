@@ -70,3 +70,15 @@ The tile stays the same size on screen (32 points), so the map shows the same nu
 states, tab line, handle, slot cells, badge, rating chip, 16×16 status icons). JSON x/y/w/h
 are 1x pixels; double them for the 2x sheet. Nine-slice frames list `slice` [l, t, r, b] in
 points. Use the 2x sheet on 2x and 3x screens (3x draws it at 1.5×, nearest).
+
+## Map markers
+
+`python3 art/tools/marks.py` builds `art/atlas/marks_atlas.png/.json` (32 px) and
+`marks_atlas_64.png/.json` (64 px), same frame names and the same 2 px padding rule:
+`sel_tile` (selection), `sel_build_ok` / `sel_build_no` (build panel spot check),
+`construction` (drawn in place of a firm while `build_firm` is pending), `link_sell`
+(orange round) and `link_buy` (blue square) dots for supply-chain lines, spaced every
+12 art units (12 px on the 32 px sheet) by the client, and `pending` (clock badge at the tile's
+top-left, +2/+2 units). Frames that aren't full tiles keep their own w/h in the JSON and
+are drawn at half size in map units on the 64 px sheet, like flags. Preview:
+`docs/art/m2-map-marks-preview.png`.
