@@ -1,0 +1,150 @@
+{
+ "far": {
+  "deep_ocean": "#14234a",
+  "water": "#2a7f9e",
+  "grassland": [
+   "#b6d0a8",
+   "#4d8333",
+   "#5f9e3a",
+   "#58a822",
+   "#3aa05a"
+  ],
+  "forest_hill": [
+   "#306f46",
+   "#20554b",
+   "#2f5e2a",
+   "#2f5e2a",
+   "#1c8457"
+  ],
+  "town": "#b8bcc0",
+  "town_centre": "#22262e",
+  "firm_unowned": "#f6ecd4",
+  "firm_owner": [
+   "#e8742a",
+   "#c8402e",
+   "#3b6db3",
+   "#3aa05a",
+   "#f6ecd4",
+   "#14234a",
+   "#e8d6a0",
+   "#712b19",
+   "#9fd3d8",
+   "#58a822",
+   "#868a84",
+   "#0d5199"
+  ]
+ },
+ "overlays": {
+  "land_value": {
+   "label": "Land value",
+   "steps": [
+    "#f6ecd4",
+    "#f6d9a8",
+    "#d4b27f",
+    "#e0862f",
+    "#c8402e",
+    "#712b19"
+   ],
+   "bins": "see rules.land_value_bins; legend shows bin edges as money"
+  },
+  "soil": {
+   "label": "Soil",
+   "steps": [
+    "#e8d6a0",
+    "#b08451",
+    "#8a5a32",
+    "#53341b"
+   ],
+   "values": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "names": [
+    "Poor",
+    "Fair",
+    "Good",
+    "Rich"
+   ]
+  },
+  "rainfall": {
+   "label": "Rainfall",
+   "steps": [
+    "#e8d6a0",
+    "#9fd3d8",
+    "#3b6db3",
+    "#0d5199",
+    "#122234"
+   ],
+   "values": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "names": [
+    "Dry",
+    "Low",
+    "Medium",
+    "High",
+    "Wet"
+   ]
+  },
+  "climate": {
+   "label": "Climate",
+   "steps": [
+    "#f6ecd4",
+    "#9fd3d8",
+    "#b6d0a8",
+    "#e0862f",
+    "#c8402e"
+   ],
+   "values": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "names": [
+    "Polar",
+    "Cold",
+    "Mild",
+    "Warm",
+    "Tropical"
+   ]
+  },
+  "ownership": {
+   "label": "Ownership",
+   "steps": [
+    "#e8742a",
+    "#c8402e",
+    "#3b6db3",
+    "#3aa05a",
+    "#f6ecd4",
+    "#14234a",
+    "#e8d6a0",
+    "#712b19",
+    "#9fd3d8",
+    "#58a822",
+    "#868a84",
+    "#0d5199"
+   ],
+   "note": "firm tiles only, by owner corp; unowned and other tiles untinted"
+  }
+ },
+ "rules": {
+  "alpha_standard": 0.7,
+  "alpha_far": 1.0,
+  "water_in_overlay_far": {
+   "deep_ocean": "#313944",
+   "water": "#58605a"
+  },
+  "land_value_bins": "step 0 = the floor value; steps 1-5 = equal-count bins over tiles above the floor",
+  "applies_to": "land tiles (grassland, forest/hill, town); water and deep ocean are never tinted",
+  "firms": "firm sprites stay untinted on value overlays so the map stays readable; ownership tints only firm tiles",
+  "legend": "card frame from ui_atlas at the bottom-left above the safe area; one swatch (16 pt, 2 pt ink rim) per step plus live text"
+ }
+}

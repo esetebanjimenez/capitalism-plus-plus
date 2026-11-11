@@ -253,26 +253,62 @@
    "w": 16,
    "h": 16
   },
-  "icon_build": {
+  "icon_ov_none": {
    "x": 2,
    "y": 118,
    "w": 16,
    "h": 16
   },
-  "icon_play_on": {
+  "icon_ov_land": {
    "x": 20,
    "y": 118,
    "w": 16,
    "h": 16
   },
-  "icon_ff_on": {
+  "icon_ov_soil": {
    "x": 38,
    "y": 118,
    "w": 16,
    "h": 16
   },
-  "icon_pause_on": {
+  "icon_ov_rain": {
    "x": 56,
+   "y": 118,
+   "w": 16,
+   "h": 16
+  },
+  "icon_ov_climate": {
+   "x": 74,
+   "y": 118,
+   "w": 16,
+   "h": 16
+  },
+  "icon_ov_owner": {
+   "x": 92,
+   "y": 118,
+   "w": 16,
+   "h": 16
+  },
+  "icon_build": {
+   "x": 110,
+   "y": 118,
+   "w": 16,
+   "h": 16
+  },
+  "icon_play_on": {
+   "x": 128,
+   "y": 118,
+   "w": 16,
+   "h": 16
+  },
+  "icon_ff_on": {
+   "x": 146,
+   "y": 118,
+   "w": 16,
+   "h": 16
+  },
+  "icon_pause_on": {
+   "x": 164,
    "y": 118,
    "w": 16,
    "h": 16
