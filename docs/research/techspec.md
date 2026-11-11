@@ -2857,8 +2857,11 @@ with equal probability (1/6 each).
 
 ### __CHP float values (decompiler artifact)
 
-The Watcom decompiler lost the float input of `__CHP` in these places.
-All are now resolved by context analysis:
+The Watcom C runtime `__CHP` truncates the x87 FPU top-of-stack to an
+integer. The decompiler loses the preceding FPU expression. The table
+below lists every recovered call site. Entries marked **(FPU recovery)**
+were recovered by reading the raw x87 instruction sequences from the
+binary with Ghidra headless analysis (2026-11-11).
 
 | Location | Lost value | Resolution |
 |---|---|---|
@@ -2867,6 +2870,19 @@ All are now resolved by context analysis:
 | Score when product +0x47 == 0 | Score value | Base quality value from `item_adjust_score`, without town-specific brand/quality weights. |
 | `FUN_000528ec` (0x528ec) | Stock int | Rounds updated livestock stock float (job+0x56) to integer at job+0x2c. |
 | `job_rd` (0x58c2c) when +0x28 == 100 | R&D duration | Sentinel value: tech_years == 100 means already complete, duration = 0 months. Normal range uses 7-entry lookup table (see below). |
+| Share trade rounding (0x3f2b5) | Share count | `round(shares)` — rounds the float share-count parameter to int. **(FPU recovery)** |
+| Buyback equity (0x3f54f) | Equity amount | `round(corp+0x7ea / link+0x3 × count)` — total assets ÷ outstanding shares × count. **(FPU recovery)** |
+| Livestock training credit (0x52cd0) | Credit amount | `round(taken × 17.0 / capacity)`. Constant 17.0 at `0xa76bc`. **(FPU recovery)** |
+| Livestock fill rounding (0x52c83) | Dest filled | `round(dest+0x2c + taken)` — adds float transfer to int field. **(FPU recovery)** |
+| Livestock capacity rounding (0x52c92) | Dest capacity | `round(dest+0x58 − taken)` — subtracts float transfer from int field. **(FPU recovery)** |
+| Town education (0x66a6b) | Education int | `round(town_item+0x43)` — the town's education float field. Else `DAT_000b1b28`. **(FPU recovery)** |
+| Market share monthly (0x6fa69) | Share pct | `round(corp_share × 100.0 / total)`, byte capped at 100. Constant 100.0 (f64) at `0xa99f1`. **(FPU recovery)** |
+| Market share lookup (0x6d3d5) | Share pct | `round(corp_share × 100.0 / total)`, clamped 0–100. Constant 100.0 at `0xa9667`. **(FPU recovery)** |
+| Score rebuild, brand path (0x4cfd3) | Price score | `round(price_weight × 2.0 × (base_price − unit_price) / base_price)`. Constants: 2.0 at `0xa716d`. **(FPU recovery)** |
+| Score rebuild, no-brand path (0x4d03f) | Full score | `round((base_price − unit_price) × 100.0 / base_price + quality_score / 2)`. Constant 100.0 at `0xa7169`. **(FPU recovery)** |
+| `item_adjust_score`, brand path (0x6cd2c) | Price score | `round(price_weight × 2.0 × (base_price − link+0x34) / base_price)`. Constant 2.0 at `0xa9622`. **(FPU recovery)** |
+| `item_adjust_score`, no-brand (0x6ce06) | Full score | `round((base_price − link+0x34) × 100.0 / base_price + link+0x26 / 2)`. Constant 100.0 at `0xa961e`. **(FPU recovery)** |
+| `FUN_0006d67d` brand read (0x6d788, 0x6d79b, 0x6d7b5) | Brand int | `round(brand_float_field)` — reads float fields from the brand record by mode (EBP=1: +0x8 and +0x38 summed; EBP=2: +0x8[product]; EBP=3: +0x38[product]). **(FPU recovery)** |
 
 ### Livestock scalars — decoded
 
@@ -3095,9 +3111,10 @@ opposite to the trade (line 38436), and the control check `FUN_00032a14`
 runs. Trade price = average of the old and new prices × 0.5 (`0xa5e34`),
 with the new price from `FUN_0003f68c` (lines 38342-38343). Own-stock
 buyback (lines 38425-38431): cash −= cost, equity (account 6) drops, and
-`total_shares` −= the shares bought (retired). The equity amount is lost
-to `__CHP`. The share-count rounding (line 38326) is also lost to
-`__CHP`.
+`total_shares` −= the shares bought (retired). The equity amount is
+`round(corp.total_assets / link.shares × count)` (FPU recovery at
+0x3f54f). The share-count rounding (line 38326) is `round(shares)` —
+the float parameter truncated to int (FPU recovery at 0x3f2b5).
 
 ### Price impact — FUN_0003f68c (ostock2.cpp line 38457)
 
@@ -4126,9 +4143,17 @@ occupied slot:
      - `item_take_quantity`: steal from competitors
 
 3. `item_adjust_score` (0x0006cc92, line 78666; lines 78701-78716):
-   `score = round(base) + (FUN_0006d67d(link,0,1) × tp+0x6e / 60) +
-   (score_in +0x26 × tp+0x6c / 60)`. The base is lost to `__CHP`. If the
-   score drops on a live link:
+   When product `+0x47` != 0 (brand enabled):
+   `base = round(price_weight × 2.0 × (base_price − unit_price) / base_price)`,
+   `score = base + (FUN_0006d67d(link,0,1) × tp+0x6e / 60) +
+   (link+0x26 × tp+0x6c / 60)` (constants 2.0 at `0xa9622`).
+   When product `+0x47` == 0 (no brand):
+   `score = round((base_price − unit_price) × 100.0 / base_price + link+0x26 / 2)`
+   (constant 100.0 at `0xa961e`). FPU recovery at 0x6cd2c / 0x6ce06.
+   `FUN_0006d67d(link, town, mode)` reads `round(brand_float_field)` from
+   the brand record: mode 1 returns `round(+0x8[product]) + round(+0x38[product])`;
+   mode 2 returns `round(+0x8[product])`; mode 3 returns `round(+0x38[product])`.
+   If the score drops on a live link:
    `slice = (old − new) × qty / 100` (`0xa961e` = 100), qty floored at 0,
    and tp+8 −= slice. This is not `qty × new / old`.
 
@@ -4190,8 +4215,10 @@ perception updater, called with the sold count.
 - `target = A × raw / 50 − A` (`0xa9644` = 50). Step −0.1 if target ≤
   cell; else +0.1 (mode 2) or `0xa9648` (0.1) / `corp+0x80[town]`.
   `cell += count × step / max(count, tp+4)`, clamped to ±A.
-- How `FUN_0006d67d` (line 79038) turns the cell into the score term is
-  lost to `__CHP` (lines 79092-79094).
+- `FUN_0006d67d` (line 79038) reads the cell as `round(brand_float_field)`.
+  Mode 1 (used in `item_adjust_score`): `round(+0x8[product]) + round(+0x38[product])`.
+  Mode 2: `round(+0x8[product])`. Mode 3: `round(+0x38[product])`.
+  FPU recovery at 0x6d788, 0x6d79b, 0x6d7b5.
 
 ### Monthly tick — oitem4.cpp (line 78628)
 
@@ -4210,8 +4237,10 @@ this month + (31 − day) × last month / 31. The denominator is product
 `+0x112`, prorated the same way (`0xa99ed` = 31). `+0x112` also receives
 unmet demand from `FUN_0004c754` (lines 47343-47369): when tp+4 − tp+8 >
 0, the gap and gap × `+0x72` are added to the town item's month buckets
-and the product totals `+0x112` / `+0xe2`. The rounding is lost to
-`__CHP` (line 80937). This table is not the consumer split.
+and the product totals `+0x112` / `+0xe2`. The rounding is
+`round(corp_share × 100.0 / total)`, byte capped at 100 (FPU recovery
+at 0x6fa69; constant 100.0 f64 at `0xa99f1`). This table is not the
+consumer split.
 
 ### Product score evaluation — oitemtyp.cpp (line 80970)
 
