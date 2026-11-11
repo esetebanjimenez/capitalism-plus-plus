@@ -3,18 +3,22 @@ docs/art/m2-terrain-64-preview.png and docs/art/m2-town-64-preview.png. Frame na
 68 px cell with its edge pixels repeated 2 px outward, and the JSON x, y, w, h point at the 64 px art only."""
 import os, sys, json, math
 os.chdir(os.path.dirname(os.path.abspath(__file__))); sys.path.insert(0,'.')
-import terrain64 as T, town64
+import terrain64 as T, town64, firms64
 from PIL import Image, ImageDraw, ImageFont
 N,PAD=64,2; CELL=N+2*PAD
-fr=T.build(); tw=town64.build(); sub={**{n:'terrain' for n in fr},**{n:'town' for n in tw}}; fr.update(tw)
+fr=T.build(); tw=town64.build(); fm=firms64.build()
+sub={**{n:'terrain' for n in fr},**{n:'town' for n in tw},**{n:('flags' if n.startswith('flag_') else 'firms') for n in fm}}
+fr.update(tw); fr.update(fm)
 for d_ in set(sub.values()): os.makedirs(f'../tiles64/{d_}',exist_ok=True)
 for n,im in fr.items():
-    assert im.size==(N,N), n
+    assert im.size==((16,24) if n.startswith('flag_') else (N,N)), n
     assert all(('#%02x%02x%02x'%c[1][:3]) in T.PAL for c in im.getcolors(1<<16) if c[1][3]), n
     im.save(f'../tiles64/{sub[n]}/{n}.png')
 lo=json.load(open('../atlas/terrain_atlas.json'))['frames']
 missing=[n for n in fr if n not in lo]; assert not missing, missing
 def extrude(im):
+    if im.size!=(N,N):  # flags: transparent overlay, own cell, top-left at the padding origin
+        c=Image.new('RGBA',(CELL,CELL)); c.paste(im,(PAD,PAD)); return c
     c=Image.new('RGBA',(CELL,CELL)); c.paste(im,(PAD,PAD))
     for i in range(PAD):
         c.paste(im.crop((0,0,N,1)),(PAD,i)); c.paste(im.crop((0,N-1,N,N)),(PAD,PAD+N+i))
@@ -24,7 +28,7 @@ def extrude(im):
 names=sorted(fr); cols=16
 at=Image.new('RGBA',(cols*CELL,math.ceil(len(names)/cols)*CELL),(0,0,0,0)); meta={}
 for i,n in enumerate(names):
-    x,y=(i%cols)*CELL,(i//cols)*CELL; at.paste(extrude(fr[n]),(x,y)); meta[n]=dict(x=x+PAD,y=y+PAD,w=N,h=N)
+    x,y=(i%cols)*CELL,(i//cols)*CELL; at.paste(extrude(fr[n]),(x,y)); meta[n]=dict(x=x+PAD,y=y+PAD,w=fr[n].width,h=fr[n].height)
 at.save('../atlas/terrain_atlas_64.png')
 json.dump(dict(tile=64,padding=PAD,frames=meta),open('../atlas/terrain_atlas_64.json','w'),indent=1)
 # ---- preview: same terrain map as the 32 px preview, 32 px art at 2x next to 64 px art at 1x ----
@@ -95,3 +99,19 @@ d.text((30,14),'Capitalism++ M2: town tiles, 32 px set at 2x (left) vs native 64
 d.text((30,48),'Same town, same size on screen. Right side is cut from the padded 64 px atlas using its JSON frames.',font=F(16),fill=ink)
 S.paste(t32,(30,80)); S.paste(t64,(60+TW*64,80))
 S.convert('RGB').save('../../docs/art/m2-town-64-preview.png')
+
+# ---- firm sheet: each firm on climate-2 grass with its flag, 32 px at 2x (left) vs 64 px at 1x (right), then 3x ----
+import firms
+lo_f={n:Image.open(f'../tiles/{"flags" if n.startswith("flag_") else "firms"}/{n}.png').convert('RGBA') for n in fm}
+def onground(src,g,n,i,k):
+    t=g.copy(); f=src['firm_'+n]; t.paste(f,(0,0),f)
+    c=Image.new('RGBA',(t.width+k*8,t.height+k*4),(0,0,0,0)); c.paste(t,(0,k*4)); fl=src['flag_%02d'%(i%12)]; c.paste(fl,(k*24,0),fl); return c
+S=Image.new("RGBA",(7*340+20,2*200+70),cream); d=ImageDraw.Draw(S)
+d.text((20,14),'Capitalism++ M2: 14 firms with owner flags. Each pair: 32 px set (left) vs native 64 px set (right), same size, enlarged 2x for viewing',font=F(18),fill=ink)
+FN=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',15)
+for i,n in enumerate(firms.NAMES):
+    a=onground(lo_f,lo_im['grass_c2_%d'%(i%4)],n,i,1).resize((160,144),Image.NEAREST)
+    b=onground(fr,fr['grass_c2_%d'%(i%4)],n,i,2).resize((160,144),Image.NEAREST)
+    x,y=20+(i%7)*340,55+(i//7)*200; S.paste(a,(x,y),a); S.paste(b,(x+166,y),b)
+    d.text((x,y+150),n.replace('_',' ').replace('rnd','R&D').title(),font=FN,fill=ink)
+S.convert('RGB').save('../../docs/art/m2-firms-64-sheet.png')
