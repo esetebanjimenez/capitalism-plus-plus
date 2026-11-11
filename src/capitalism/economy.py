@@ -730,6 +730,8 @@ class Economy:
                 continue
             h.update(struct.pack("<iiiiQ", firm.id, firm.type_id, firm.x, firm.y, firm.links))
             h.update(struct.pack("<id", firm.owner.id if firm.owner else -1, firm.ledger.cash))
+            if hasattr(firm, "reserve"):
+                h.update(struct.pack("<d", firm.reserve))
 
             for job in firm.jobs():
                 if job is None:

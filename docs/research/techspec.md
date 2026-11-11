@@ -853,6 +853,10 @@ Units: `min(room, (short_+0x3e × short_+0x54 × int_+0x30) / 100)`.
 Reserve draw: `((units / int_+0x30) / short_+0x54) / (float 0xa7bd1)`.
 `0x46fc3` land amount. Category 8. `group_move_balance(corp, 0, 3, amount)`.
 Training: `job_add_training(job, units × 100 / max_units, 1)` (line 56375).
+Sim: `Extraction.rate` (from `JOB_RULES.extraction_rate`, provisional 1.0);
+`_ExtractionFirm.reserve` on LoggingCamp/Mine/OilWell; `work()` guards on
+reserve ≤ 0 and depletes by `added / capacity / rate / 100`. Land writedown
+and news event on exhaustion are not yet implemented (data-dependent, see J6).
 
 **Types 11 (R&D)/13 (Software R&D)** — `job_rd` (`0x58c2c`), `oj_rd.cpp`:
 Returns 0. `job_add_training(job, 14, 0)`. Duration from short `+0x28`:
