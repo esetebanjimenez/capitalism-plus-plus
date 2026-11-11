@@ -408,6 +408,27 @@ def test_fixed_and_work_mode_credit_ratios():
     }
 
 
+def test_extraction_and_software_production_training_credit():
+    sim, town = bread_town(1)
+    eco = sim.economy
+    corp = eco.add_corp("E")
+    f = eco.build_firm(FACTORY, corp, *find_site(sim, town), town)
+    coal = eco.catalog["Coal"]
+    ext = Extraction(f, 0, coal)
+    ext.work(eco)
+    assert ext.stock > 0
+    assert ext.train_credits == pytest.approx(100.0)
+    sw = eco.catalog["Software"]
+    sp = SoftwareProduction(f, 1, sw)
+    sp.has_master = True
+    corp.add_technology(sw)
+    sp.quality = 50.0
+    sp.work(eco)
+    assert sp.stock > 0
+    nominal = sp.efficiency * sp.capacity
+    assert sp.train_credits == pytest.approx(sp.stock * 100.0 / nominal)
+
+
 def test_weekly_training_strict_threshold_one_staff_step():
     sim, town = bread_town(1)
     f = sim.economy.build_firm(FACTORY, sim.economy.add_corp("T"), *find_site(sim, town), town)
@@ -471,7 +492,6 @@ def test_no_passive_credit_for_inventory_advertising_or_uncertain_ratios():
         Inventory(f, 0, eco.catalog["Bread"]),
         Advertising(f, 0, eco.catalog["Bread"]),
         SoftwareProduction(f, 0, eco.catalog["Software"]),
-        Extraction(f, 0, eco.catalog["Coal"]),
         LivestockProcessing(farm, 0, chicken),
         PrivateLabelling(f, 0, eco.catalog["Bread"]),  # credit only on_moved, not idle work
     ):
