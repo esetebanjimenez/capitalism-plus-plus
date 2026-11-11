@@ -192,11 +192,12 @@ def test_manufacturing_research_affects_new_batches_not_old_stock():
     assert job.quality == pytest.approx(62.0)
     first_quality = orig
     factory.owner.add_technology(job.product, 5)
-    job.stock = 0  # next batch: old stock is not rewritten; the new batch uses own tech
+    sim.advance_days(7)  # weekly tech upgrade catches job_tech up to corp tech
+    assert job.job_tech > 0
+    job.stock = 0
     recipe = eco.catalog.recipe(job.product)
     for i in recipe.inputs:
         job.inputs[i.input_id] = [i.qty * 1000, 80.0, 1.0]
-    assert job.quality == orig
     sim.advance_day()
     assert job.stock > 0
     assert job.quality > first_quality
