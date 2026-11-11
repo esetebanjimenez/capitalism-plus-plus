@@ -94,6 +94,9 @@ player can compare spots without reopening the panel.
   so the selection stays clear of the panel. Company, Stocks, News and Goals
   open as a centred window up to 960 points wide, closed with Esc or its
   close button. The panel edge can be dragged wider.
+- **Desktop menu button**: while the side panel is open, the menu button
+  moves to sit just left of the panel's edge, still at the bottom, so the
+  panel never covers it (approved with the UI concept, PR #65).
 
 ### Tiles visible
 
