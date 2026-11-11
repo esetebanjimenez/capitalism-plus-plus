@@ -144,7 +144,7 @@ def test_supply_capped_at_demand():
 
 def test_awareness_gain_updates_demand():
     """FUN_00075aec: demand_per_day increases with awareness gain, capped at 100."""
-    from capitalism.links import RATING_TARGET, Market
+    from capitalism.links import Market
 
     sim, town = bread_town()
     corp = sim.economy.add_corp("P")
