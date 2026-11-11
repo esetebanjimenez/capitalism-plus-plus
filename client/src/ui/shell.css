@@ -1,0 +1,49 @@
+/* Clear-map layout (docs/m2-ux-spec.md, docs/art/visual-direction.md "UI for the clear-map layout").
+   Cream #f6ecd4, ink #22262e, signal orange #e8742a. Frames come from ui_atlas via .ui-* classes. */
+.shell { position: fixed; inset: 0; pointer-events: none; font: 600 15px/1.3 system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #22262e; image-rendering: pixelated; -webkit-user-select: none; user-select: none; }
+.shell > * { pointer-events: auto; }
+.shell button { font: inherit; color: inherit; cursor: pointer; padding: 0; background-color: transparent; }
+.shell [hidden] { display: none !important; }
+
+.pill { position: absolute; left: max(8px, env(safe-area-inset-left)); top: max(8px, env(safe-area-inset-top)); height: 40px;
+  box-sizing: border-box; display: flex; align-items: center; gap: 6px; padding: 0 4px 0 10px; font-weight: 700; font-size: 16px; }
+.pill-date { margin-right: 6px; padding-right: 8px; border-right: 1px solid rgba(34, 38, 46, 0.25); }
+.pill-cash { font-variant-numeric: tabular-nums; margin-right: 4px; }
+.pill-speed { position: relative; width: 44px; height: 32px; display: grid; place-items: center; }
+/* Tap area reaches 44x44 pt past the 32 pt-tall art (spec: tap targets at least 44 pt). */
+.pill-speed::before { content: ""; position: absolute; left: 0; right: 0; top: -6px; bottom: -6px; }
+
+.menu-btn { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom));
+  width: 48px; height: 48px; display: grid; place-items: center; }
+.shell.desktop.panel-open .menu-btn { right: 412px; }
+/* Phone: the menu button rides just above the sheet at peek and half, hidden at full. */
+.shell:not(.desktop).panel-open .menu-btn { bottom: calc(var(--sheet-h, 0px) + 12px); }
+.shell:not(.desktop).sheet-full .menu-btn { display: none; }
+.badge { position: absolute; right: -7px; top: -7px; min-width: 18px; height: 18px; box-sizing: border-box; padding: 0 4px;
+  display: grid; place-items: center; color: #fff; font-size: 11px; font-weight: 800; background-size: 100% 100%; }
+
+.toasts { position: absolute; left: max(8px, env(safe-area-inset-left)); top: calc(max(8px, env(safe-area-inset-top)) + 48px);
+  display: flex; flex-direction: column; gap: 6px; pointer-events: none; max-width: calc(100% - 16px); }
+.toast { padding: 8px 12px; font-weight: 600; animation: toast-in 0.15s ease-out; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-4px); } }
+
+.panel { position: absolute; left: 0; right: 0; bottom: 0; box-sizing: border-box; display: flex; flex-direction: column;
+  padding: 0 16px max(12px, env(safe-area-inset-bottom)); transition: height 0.18s ease-out; overflow: hidden; }
+.shell.desktop .panel { left: auto; top: 0; width: 400px; height: auto !important; padding-top: 12px; }
+.handle-zone { height: 20px; flex: none; display: grid; place-items: center; touch-action: none; cursor: grab; }
+.shell.desktop .handle-zone { display: none; }
+.panel-head { display: flex; align-items: center; gap: 12px; flex: none; }
+.panel-title { flex: 1; margin: 0; font-size: 22px; font-weight: 800; }
+.close { width: 44px; height: 44px; display: grid; place-items: center; }
+.panel-body { flex: 1; overflow: auto; min-height: 0; }
+.panel-actions { flex: none; display: flex; gap: 12px; padding-top: 10px; }
+.btn { flex: 1; min-height: 44px; font-weight: 800; font-size: 16px; }
+.btn[data-kind="primary"] { color: #fff; }
+
+.sub { color: #6b6a64; font-weight: 600; margin: 2px 0 8px; }
+.note { color: #6b6a64; font-weight: 500; }
+.rows { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin: 0; }
+.rows dt { color: #6b6a64; font-weight: 600; }
+.rows dd { margin: 0; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.menu-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 4px; }

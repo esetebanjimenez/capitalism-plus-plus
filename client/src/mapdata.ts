@@ -17,6 +17,22 @@ export interface MapData {
   towns: TownInfo[];
   /** Per tile: index into `towns` whose drawn footprint covers it, or -1 (see townFootprint). */
   townAt: Int16Array;
+  /** Sim values for the panels, from the TINF section (until the client runs the sim). */
+  info?: TileInfo;
+}
+
+export interface TileInfo {
+  year: number;
+  month: number;
+  day: number;
+  /** Player corporation cash in dollars. */
+  cash: number;
+  /** Per tile, row-major: Tile.soil (0-3), Tile.rainfall (0-4), World.can_build (0/1). */
+  soil: Uint8Array;
+  rainfall: Uint8Array;
+  buildable: Uint8Array;
+  /** World.land_value per tile, in dollars. */
+  landValue: Uint32Array;
 }
 
 export interface TownInfo {
@@ -76,7 +92,9 @@ export function parseMap(buf: ArrayBuffer): MapData {
   const count = view.getUint16(fo, true);
   const to = fo + 2 + 6 * count;
   const nTowns = view.getUint16(to, true);
-  if (buf.byteLength !== to + 2 + 8 * nTowns) throw new Error("CPPM map size mismatch");
+  const io = to + 2 + 8 * nTowns;
+  const hasInfo = buf.byteLength === io + 16 + 7 * n;
+  if (buf.byteLength !== io && !hasInfo) throw new Error("CPPM map size mismatch");
   const firms: FirmInfo[] = [];
   for (let i = 0, o = fo + 2; i < count; i++, o += 6) {
     const owner = view.getUint8(o + 5);
@@ -99,7 +117,24 @@ export function parseMap(buf: ArrayBuffer): MapData {
     });
   }
   const kind = new Uint8Array(buf, 8, n);
+  let info: TileInfo | undefined;
+  if (hasInfo) {
+    if (String.fromCharCode(...new Uint8Array(buf, io, 4)) !== "TINF") throw new Error("bad TINF section");
+    const t = io + 16;
+    const lv = buf.slice(t + 3 * n, t + 7 * n); // copy: Uint32Array needs 4-byte alignment
+    info = {
+      year: view.getUint16(io + 4, true),
+      month: view.getUint8(io + 6),
+      day: view.getUint8(io + 7),
+      cash: view.getFloat64(io + 8, true),
+      soil: new Uint8Array(buf, t, n),
+      rainfall: new Uint8Array(buf, t + n, n),
+      buildable: new Uint8Array(buf, t + 2 * n, n),
+      landValue: new Uint32Array(lv),
+    };
+  }
   return {
+    info,
     width,
     height,
     kind,

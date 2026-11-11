@@ -20,6 +20,24 @@ export const FIRM_SPRITES: Record<number, string> = {
   14: "firm_seaport",
 };
 
+/** Display names, firm_types.name per id (DB); the capitalism.api facade will supply them. */
+export const FIRM_NAMES: Record<number, string> = {
+  1: "Department Store",
+  2: "Factory",
+  3: "R&D Center",
+  4: "Farm",
+  5: "Logging Camp",
+  6: "Mine",
+  7: "Oil Well",
+  8: "Software Developer",
+  9: "Software Publisher",
+  10: "Restaurant",
+  11: "Television Station",
+  12: "Radio Station",
+  13: "Newspaper Publisher",
+  14: "Seaport",
+};
+
 /** Owner flag offset from the tile's top-left (art/README.md): it pokes 4 px above the tile. */
 export const FLAG_DX = 24;
 export const FLAG_DY = -4;

@@ -5,6 +5,9 @@ TileCategory, width*height bytes of climate (0 = poles .. 4 = equator), then u16
 count and per firm u16 x, u16 y, u8 firm type id, u8 owner corp id (255 = no owner),
 then u16 town count and per town u16 x, u16 y, u8 town id, u8 level, u8 footprint radius,
 u8 block level (radius and block level from the town_footprints table).
+Then a b"TINF" section for the panels until the client runs the sim: u16 year, u8 month,
+u8 day, f64 player cash, then per tile (row-major) width*height bytes each of soil,
+rainfall and World.can_build (0/1), and width*height u32 World.land_value in dollars.
 The firms are the player's bread chain plus one of every other firm type, split between
 the player and two AI corporations, so every firm sprite and a few flags show. The
 second town is raised to level 5 so the sample shows a 5x5 footprint as well as 3x3.
@@ -24,6 +27,20 @@ from capitalism.tables import TOWN_FOOTPRINTS
 from capitalism.town import population_for_level
 
 SEED = 1
+
+
+def tile_info(sim, player) -> bytes:
+    world = sim.world
+    cal = sim.calendar
+    xy = [(x, y) for y in range(world.height) for x in range(world.width)]
+    return (
+        b"TINF"
+        + struct.pack("<HBBd", cal.year, cal.month, cal.day, player.ledger.cash)
+        + bytes(t.soil for t in world.tiles)
+        + bytes(t.rainfall for t in world.tiles)
+        + bytes(int(world.can_build(x, y)) for x, y in xy)
+        + struct.pack(f"<{len(xy)}I", *(world.land_value(x, y) for x, y in xy))
+    )
 
 
 def main() -> None:
@@ -67,6 +84,7 @@ def main() -> None:
             )
             for t in sim.towns
         )
+        + tile_info(sim, corps[0])
     )
     print(f"wrote {out} ({world.width}x{world.height}, seed {SEED}, {len(firms)} firms)")
     for t in sim.towns:

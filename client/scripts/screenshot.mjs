@@ -17,6 +17,10 @@ const shots = [
   { name: "m2-map-phone.png", w: 390, h: 844, dpr: 3, q: "x=183&y=68" },
   { name: "m2-map-phone-64-direct.png", w: 390, h: 844, dpr: 2, q: "x=176&y=62" },
   { name: "m2-map-phone-firms.png", w: 390, h: 844, dpr: 3, q: "x=201&y=140" },
+  // Panel shell: a tap (CSS px) opens the tile card or firm panel.
+  { name: "m2-ui-phone-tile.png", w: 390, h: 844, dpr: 3, q: "x=201&y=140", tap: [80, 560] },
+  { name: "m2-ui-phone-firm.png", w: 390, h: 844, dpr: 3, q: "x=201&y=140", tap: [144, 272] },
+  { name: "m2-ui-desktop-firm.png", w: 1280, h: 800, dpr: 1, q: "x=190&y=138", tap: [496, 336] },
 ];
 const stats = {};
 try {
@@ -27,6 +31,10 @@ try {
     await page.goto(`http://localhost:4173/?${s.q}`);
     await page.waitForFunction(() => /ready|failed/.test(document.title), { timeout: 30000 });
     await new Promise((r) => setTimeout(r, 500));
+    if (s.tap) {
+      await page.evaluate(([x, y]) => window.__tap(x, y), s.tap);
+      await new Promise((r) => setTimeout(r, 600));
+    }
     stats[s.name] = await page.evaluate(() => window.__cppStats);
     writeFileSync(new URL(s.name, out), await page.screenshot());
     await page.close();
