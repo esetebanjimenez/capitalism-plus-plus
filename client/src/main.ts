@@ -1,12 +1,20 @@
-import { Application, Assets, Container, Rectangle, Texture } from "pixi.js";
+import { Application, Assets, Container, Rectangle, Sprite, Texture } from "pixi.js";
 import atlasUrl from "../../art/atlas/terrain_atlas.png?url";
 import atlasJson from "../../art/atlas/terrain_atlas.json";
 import atlas64Url from "../../art/atlas/terrain_atlas_64.png?url";
 import atlas64Json from "../../art/atlas/terrain_atlas_64.json";
+import marksUrl from "../../art/atlas/marks_atlas.png?url";
+import marksJson from "../../art/atlas/marks_atlas.json";
+import marks64Url from "../../art/atlas/marks_atlas_64.png?url";
+import marks64Json from "../../art/atlas/marks_atlas_64.json";
 import { ChunkCache, TerrainOptions } from "./chunks";
 import { FirmLayer } from "./firms";
 import { CHUNK_TILES, STANDARD_STEP, TILE_PX, View, clampView, makeView, sheetFor } from "./chunkmath";
 import { parseMap } from "./mapdata";
+import { loadUiAtlas } from "./ui/atlas";
+import { firmCard, menuPanel, tileCard, townCard } from "./ui/cards";
+import { Pick, panToShow, pickAt, visibleMapRect } from "./ui/layout";
+import { Shell } from "./ui/shell";
 
 interface AtlasJson {
   tile: number;
@@ -52,16 +60,21 @@ async function boot() {
   };
   const frames32: Record<string, Texture> = {};
   await loadAtlas(atlasUrl, atlasJson as AtlasJson, frames32);
+  await loadAtlas(marksUrl, marksJson as AtlasJson, frames32);
   const frames64: Record<string, Texture> = { ...frames32 };
   const source64 = await loadAtlas(atlas64Url, atlas64Json as AtlasJson, frames64);
-  const texels = (t: Texture) => (t.source === source64 ? 2 : 1);
+  const marks64 = await loadAtlas(marks64Url, marks64Json as AtlasJson, frames64);
+  const texels = (t: Texture) => (t.source === source64 || t.source === marks64 ? 2 : 1);
   const sheets = { 32: frames32, 64: frames64 } as const;
 
   const map = parseMap(await (await fetch("./sample-map.bin")).arrayBuffer());
   const chunks = new ChunkCache(app.renderer, map, frames32, terrain);
   const firms = new FirmLayer(map.firms, frames32, texels);
   const world = new Container();
-  world.addChild(chunks.layer, firms.layer);
+  // Selection outline (marks atlas `sel_tile`, art PR #70) on the chosen tile.
+  const selection = new Sprite(frames32.sel_tile);
+  selection.visible = false;
+  world.addChild(chunks.layer, firms.layer, selection);
   app.stage.addChild(world);
 
   const screen = () => ({ w: app.screen.width * resolution, h: app.screen.height * resolution });
@@ -76,6 +89,7 @@ async function boot() {
   let art: 32 | 64 = 32;
 
   const hud = document.getElementById("hud")!;
+  hud.hidden = params.get("hud") !== "1"; // renderer stats, for device checks: ?hud=1
   const hudInfo = document.createElement("span");
   const hudPerf = document.createElement("span");
   hud.replaceChildren(hudInfo, document.createElement("br"), hudPerf);
@@ -104,6 +118,8 @@ async function boot() {
     firms.setFrames(sheets[art], texels);
     chunks.update(view);
     firms.update(view);
+    selection.texture = sheets[art].sel_tile;
+    selection.scale.set(1 / texels(selection.texture));
     const s = view.zoom / resolution;
     world.scale.set(s);
     world.position.set(-view.x * s, -view.y * s);
@@ -124,24 +140,71 @@ async function boot() {
     (window as unknown as { __cppStats: typeof stats }).__cppStats = stats;
   };
 
-  // Pan with one pointer or the mouse. There is one map view (32 pt tiles), so no zoom input.
-  let drag: { id: number; x: number; y: number } | null = null;
+  // Panels (docs/m2-ux-spec.md): status pill, menu button, one panel at a time.
+  await loadUiAtlas(resolution);
+  const shell = new Shell(document.body);
+  if (map.info) shell.setStatus(map.info.year, map.info.month, map.info.day, map.info.cash);
+  shell.onSpeed = () => shell.toast("The sim starts running in the browser with the next PR.");
+  shell.onMenu = () => shell.open(menuPanel((name) => (shell.close(), shell.toast(`${name} comes in a later PR.`))));
+  let selected: { x: number; y: number } | null = null;
+  const ptPerWorld = () => view.zoom / resolution;
+  const showSelection = () => {
+    const open = shell.current && selected && !shell.current.key.startsWith("menu");
+    selection.visible = Boolean(open);
+    if (open) selection.position.set(selected!.x * TILE_PX, selected!.y * TILE_PX);
+  };
+  shell.onLayout = (h) => {
+    if (h && selected && shell.current?.key !== "menu") {
+      const rect = visibleMapRect(window.innerWidth, window.innerHeight, h);
+      const [dx, dy] = panToShow(view, selected.x, selected.y, rect, ptPerWorld());
+      if (dx || dy) view = { ...view, x: view.x + dx, y: view.y + dy };
+    }
+    if (!h) selected = null;
+    showSelection();
+    apply();
+  };
+  const select = (p: Pick) => {
+    if (p.kind === "none") return shell.close();
+    if (p.kind === "firm") {
+      selected = { x: p.firm.x, y: p.firm.y };
+      shell.open(firmCard(p.firm));
+    } else if (p.kind === "town") {
+      selected = { x: p.town.x, y: p.town.y };
+      shell.open(townCard(p.town));
+    } else {
+      selected = { x: p.x, y: p.y };
+      shell.open(tileCard(map, p.x, p.y, () => shell.toast("The build menu comes with the sim facade.")));
+    }
+  };
+
+  // Pan with one pointer or the mouse; a short press that barely moves is a tap.
+  let drag: { id: number; x: number; y: number; x0: number; y0: number; t0: number } | null = null;
   app.canvas.addEventListener("pointerdown", (e) => {
     if (drag) return;
     app.canvas.setPointerCapture(e.pointerId);
-    drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, t0: performance.now() };
   });
   app.canvas.addEventListener("pointermove", (e) => {
     if (!drag || drag.id !== e.pointerId) return;
     view = { ...view, x: view.x - ((e.clientX - drag.x) * resolution) / view.zoom, y: view.y - ((e.clientY - drag.y) * resolution) / view.zoom };
-    drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    drag = { ...drag, x: e.clientX, y: e.clientY };
     apply();
   });
   const up = (e: PointerEvent) => {
-    if (drag?.id === e.pointerId) drag = null;
+    if (drag?.id !== e.pointerId) return;
+    const tap = Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 8 && performance.now() - drag.t0 < 500;
+    drag = null;
+    if (tap && e.type === "pointerup") {
+      const s = resolution / view.zoom;
+      select(pickAt(map, view.x + e.clientX * s, view.y + e.clientY * s, ptPerWorld()));
+    }
   };
   app.canvas.addEventListener("pointerup", up);
   app.canvas.addEventListener("pointercancel", up);
+  (window as unknown as { __tap: (x: number, y: number) => void }).__tap = (x, y) => {
+    const s = resolution / view.zoom;
+    select(pickAt(map, view.x + x * s, view.y + y * s, ptPerWorld()));
+  };
   window.addEventListener("resize", apply);
   apply();
 
