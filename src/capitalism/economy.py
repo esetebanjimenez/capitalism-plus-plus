@@ -770,6 +770,6 @@ class Economy:
                 continue
             h.update(
                 struct.pack(
-                    "<idddd", link.id, link.quantity, link.score, link.brand, sum(link.money_month)
+                    "<iddddd", link.id, link.quantity, link.score, link.brand, link.awareness, sum(link.money_month)
                 )
             )

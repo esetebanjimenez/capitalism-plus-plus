@@ -151,21 +151,43 @@ reach idle. In order:
 
 ### Weekly ratings (FUN_00075988, weekday 5)
 
-Iterates a ratings array. Each entry has a firm reference (`short +0`),
-product class index (`short +2`), product type index (`short +4`),
-`target` (`float +6`), and `current` (`float +0xa`).
+Iterates a ratings array (dynamic array at `0xb1c5c`). Each entry has
+firm reference (`short +0`), product class index (`short +2`),
+product type index (`short +4`), `target` (`float +6`, always 30.0),
+and `current` (`float +0xa`).
 
-Gate: `current >= target / 200`.
+Gate: `current >= target / 200` (i.e. `current >= 0.15`).
 
-For negative firm reference (importer):
-- Base decrement = 0.1
+Resolve town: negative firm_ref → town = abs(firm_ref) (importer);
+positive → town = firm.town.
+
+Look up the town-product demand cell (`pfVar7`, at `class_idx × 4 + 8`
+inside the town-product row) and supply cell (`pfVar5`, at `class_idx × 4 + 0x38`).
+
+**Importer** (firm_ref < 1):
+- Default decrement = 0.1 (unique brand)
 - `brand_strategy == 0` (corporate): 0.025
 - `brand_strategy == 1` (range): 0.05
 
-For positive firm reference: decrement = min(`current`, `town_cell / DAT_000aa0e3`).
+**Local producer** (firm_ref ≥ 1):
+decrement = min(`target / 200`, `demand_cell / 20.0`).
+(`DAT_000aa0e3` = 20.0, extracted from binary at file offset `0xc9ce3`.)
 
-Subtracts decrement from `current` and from the town-product demand cell.
-Also decays the town-product supply cell (capped at 0.05 per tick).
+Apply: `current -= decrement`; `demand_cell -= decrement` (floor 0).
+
+**Supply decay** (per entry, if `supply_cell > 0`):
+`supply_decay = min(supply_cell / 200, 0.05)` (`DAT_000aa0e7` = 0.05 double).
+`supply_cell -= supply_decay`.
+Clamp: `supply_cell = clamp(supply_cell, −demand_cell, demand_cell)`.
+
+### Rating gain (FUN_00075aec, called on consumer sale)
+
+Target is always set to 30.0 (`0x41f00000`).
+Gain = `(30.0 − current) × (prev_month_units + 1) / ref / 100.0`,
+where ref = max(prev_month_units + 1, town-product reference at +4).
+Gain is multiplied by brand strategy factor:
+corporate (`0`) × 0.25, range (`1`) × 0.5, unique (≥ 2) × 1.0.
+`current += gain`; `demand_cell = min(demand_cell + gain, 100)`.
 
 ### Random events (FUN_00022a47)
 

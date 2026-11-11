@@ -134,6 +134,7 @@ class Sim:
         )
         if self.calendar.weekday == 5:
             self._hook("weekly_ratings")
+            self.economy.market.weekly_ratings()
         self._hook("random_events")
         self.economy.events_daily(self.calendar.day_serial)
         self._hook("products")
