@@ -7,7 +7,7 @@ DepartmentStore and Seaport. Media, research, software, restaurant and import su
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .jobs import (
     CAT_LAND_VALUE,
@@ -314,17 +314,27 @@ class Farm(Firm):
         return True
 
 
-class LoggingCamp(Firm):
+class _ExtractionFirm(Firm):
+    """Firm sitting on a natural-resource deposit with a finite reserve."""
+
+    __slots__ = ("reserve",)
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.reserve: float = 0.0
+
+
+class LoggingCamp(_ExtractionFirm):
     type_id = 5
     __slots__ = ()
 
 
-class Mine(Firm):
+class Mine(_ExtractionFirm):
     type_id = 6
     __slots__ = ()
 
 
-class OilWell(Firm):
+class OilWell(_ExtractionFirm):
     type_id = 7
     __slots__ = ()
 

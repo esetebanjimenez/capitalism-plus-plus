@@ -905,16 +905,17 @@ and no supply chain pull.
 
 ### Extraction (Logging / Mining / Oil)
 
-Shared across all three. While stock is below capacity, adds
-`min(remaining-room, rate × efficiency × capacity / 100)` units. The
-reserve draw is
-`(units / capacity / efficiency) / reserve-scalar`,
-capped by the remaining reserve. The reserve decreases. A portion of
-land value is extracted as category 8 (Consumption of Raw Material
-Reserve), with a balance transfer that replaces the cash effect. When
-the reserve reaches zero, a news item is posted. Returns true when
-stock reaches capacity. Each visit adds a training credit of
-`units × 100 / maximum units`.
+Shared across all three. LoggingCamp, Mine and OilWell inherit from
+`_ExtractionFirm`, which carries a finite `reserve` (float, starts at 0).
+If the reserve is ≤ 0 (or no product), `work()` returns false immediately.
+Otherwise it adds `min(room, efficiency × rate × capacity / 100)` units.
+The reserve draw is `added / capacity / rate / 100`, capped by the
+remaining reserve. When the reserve reaches zero it is clamped to 0.0 and
+`work()` returns true (exhaustion signal). In the native binary, a portion
+of land value is extracted as category 8 (Consumption of Raw Material
+Reserve), with a balance transfer, and a news item is posted on exhaustion;
+these are not yet implemented in the sim (data-dependent). Each visit adds
+a training credit of `units × 100 / maximum units`.
 
 ### Inventory
 

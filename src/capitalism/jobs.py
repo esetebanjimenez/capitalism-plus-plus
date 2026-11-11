@@ -251,16 +251,30 @@ class LivestockRaising(Job):
 
 class Extraction(Job):
     type_id = 8
-    __slots__ = ()
+    __slots__ = ("rate",)
+
+    def __init__(self, firm: Firm, slot: int, product: Product | None, rating: int = 1) -> None:
+        super().__init__(firm, slot, product, rating)
+        self.rate: float = JOB_RULES.extraction_rate
 
     def work(self, eco: Economy) -> bool:
         if self.product is None:
             return False
-        step = JOB_RULES.extraction_rate * self.efficiency * self.capacity / 100
+        firm = self.firm
+        if hasattr(firm, "reserve") and firm.reserve <= 0:
+            return False
+        step = self.efficiency * self.rate * self.capacity / 100
         added = min(self.room, step)
         if added > 0 and step > 0:
             self._credit(added * 100.0 / step)
         self.receive(added, self.produced_quality(), self.product.row.base_cost)
+        if hasattr(firm, "reserve") and firm.reserve > 0 and added > 0:
+            draw = added / self.capacity / self.rate / 100.0
+            draw = min(draw, firm.reserve)
+            firm.reserve -= draw
+            if firm.reserve <= 0:
+                firm.reserve = 0.0
+                return True
         return self.stock >= self.ceiling
 
 
