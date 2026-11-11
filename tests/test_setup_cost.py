@@ -4,6 +4,7 @@ import pytest
 
 from capitalism.ai import ai_starting_capital
 from capitalism.economy import CORP_AI
+from capitalism.firms import InsufficientFunds
 from capitalism.rng import Rng
 from capitalism.scenario import bread_town, find_site
 from capitalism.sim import Sim
@@ -54,15 +55,25 @@ def test_build_moves_setup_and_land_into_assets():
     assert corp.total_assets(eco.firms) == pytest.approx(assets_before + firm.ledger.cash)
 
 
-def test_player_build_goes_negative_instead_of_refusing():
+def test_build_refused_below_setup_plus_land():
     sim, town = bread_town()
     eco = sim.economy
     corp = eco.add_corp("P")
-    corp.ledger.cash = 10.0
     x, y = find_site(sim, town)
+    cost = FIRM_TYPES[DEPT_STORE].setup_cost + sim.world.land_value(x, y)
+    corp.ledger.cash = cost - 1
+    n = len(eco.firms)
+    with pytest.raises(InsufficientFunds):
+        eco.build_firm(DEPT_STORE, corp, x, y, town)
+    assert corp.ledger.cash == cost - 1 and corp.business_assets == 0
+    assert len(eco.firms) == n
+    assert sim.world.tile_at(x, y).kind != TileCategory.FIRM
+    corp.liabilities = -1e9  # a huge credit line doesn't help: cash only
+    with pytest.raises(InsufficientFunds):
+        eco.build_firm(DEPT_STORE, corp, x, y, town)
+    corp.ledger.cash = cost
     eco.build_firm(DEPT_STORE, corp, x, y, town)
-    assert corp.ledger.cash < 10.0 - FIRM_TYPES[DEPT_STORE].setup_cost
-    assert sim.world.tile_at(x, y).kind == TileCategory.FIRM
+    assert corp.ledger.cash < 0.0  # only the first partial month of overhead
 
 
 def test_add_job_moves_setup_into_business_assets():
@@ -116,7 +127,7 @@ def test_ai_starting_capital_by_setting(setting, lo, hi):
     assert max(values) == hi == (2 * half - 1) * 600_000
 
 
-def test_facade_build_cost_and_negative_cash():
+def test_facade_build_cost_and_refusal():
     from capitalism.api import Api
 
     api = Api.new_game("Me", seed=1, detailed_cities=False)
@@ -133,5 +144,5 @@ def test_facade_build_cost_and_negative_cash():
     assert opt["affordable"] is False and opt["shortfall"] == opt["build_cost"] - 10.0
     api.command("build_firm", {"firm_type": DEPT_STORE, "x": x, "y": y})
     (res,) = api.tick(1)["results"]
-    assert res["ok"] is True
-    assert api.player.ledger.cash < 0
+    assert res["ok"] is False and "with land" in res["error"]
+    assert api.player.ledger.cash <= 10.0

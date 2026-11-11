@@ -230,7 +230,7 @@ class Api:
             row = FIRM_TYPES[tid]
             if row.government:
                 continue
-            cost = row.setup_cost + land  # B1: setup + land; the player may go negative (B3)
+            cost = row.setup_cost + land  # B1/B3: setup + land; short cash refuses the build
             rows.append(
                 {
                     "type_id": tid,

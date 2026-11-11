@@ -68,12 +68,16 @@ def decode_links(mask: int) -> list[tuple[int, int]]:
 
 
 
+class InsufficientFunds(ValueError):
+    """A build the owner can't pay for in cash (audit B3)."""
+
+
 def book_asset(owner: Corporation | None, setup: float, land: float = 0.0) -> None:
     """Move a build's price from Cash into Business Assets and Land (gap audit B1).
 
     FUN_00063dd9 (decomp:68436-68443): group_move_balance(corp, 2, 0, setup) then
-    group_move_balance(corp, 3, 0, land). There's no cash check, so cash can go
-    negative (B3); overdraft interest handles it. Not a P&L posting.
+    group_move_balance(corp, 3, 0, land). The cash check happens before this, in
+    build_firm (B3). Not a P&L posting.
     """
     if owner is None:
         return

@@ -17,6 +17,7 @@ from .firms import (
     N_CATEGORIES,
     OPERATING_CATEGORIES,
     Firm,
+    InsufficientFunds,
     Ledger,
     MediaFirm,
     book_asset,
@@ -346,6 +347,16 @@ class Economy:
             raise NotImplementedError(f"firm type {firm_type} lands in systems 4b")
         if not self.world.can_build(x, y):
             raise ValueError(f"tile ({x},{y}) is not free land")
+        row = FIRM_TYPES[firm_type]
+        if owner is not None and not row.government:
+            # FUN_000698e0 (decomp:76662-76690): Build is disabled when cash is below
+            # setup cost + land value; no credit line (audit B3, corrected in #87).
+            cost = row.setup_cost + self.world.land_value(x, y)
+            if owner.ledger.cash < cost:
+                raise InsufficientFunds(
+                    f"{row.name} costs ${cost:,.0f} with land; {owner.name} has "
+                    f"${owner.ledger.cash:,.0f}"
+                )
         tile = self.world.tile_at(x, y)
         slot = next((i for i, f in enumerate(self.firms) if f is None), len(self.firms))
         firm = FIRM_CLASSES[firm_type](
