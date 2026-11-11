@@ -47,3 +47,15 @@ on a corner, use the side mask. A combined piece can follow later if it shows.
 Firms are 32 px with transparent margins: draw the terrain tile first, then the firm on top, then the flag
 at (+24, −4) from the tile's top-left (it pokes 4 px above the tile, so draw flags after the row above).
 The seaport sprite carries its own quay and water and should sit on a coast tile.
+
+## High-density 64 px set
+
+Screens at 2x density or more use a second sheet drawn natively at 64 px; ordinary screens keep the 32 px set.
+The tile stays the same size on screen (32 points), so the map shows the same number of tiles.
+
+- `tools/terrain64.py` draws the 64 px terrain and coast tiles, same palette and the same frame names as `terrain.py`.
+- `tools/build64.py` writes `tiles64/terrain/*.png`, `atlas/terrain_atlas_64.png` + `.json` and `docs/art/m2-terrain-64-preview.png`.
+  It fails if a 64 px frame has no 32 px frame of the same name.
+- Each frame sits in a 68 px cell with its edge pixels repeated 2 px outward, so drawing straight from the
+  atlas never picks up a neighbour's pixels. The JSON `x, y, w, h` give the 64 x 64 art only, not the padding.
+- So far the 64 px sheet has terrain and coast (159 frames). Town, firms and flags follow in separate PRs.
