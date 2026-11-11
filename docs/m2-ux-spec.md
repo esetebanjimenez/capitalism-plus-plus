@@ -15,19 +15,6 @@ tile and icon sizes, the cream card panels) follow the Artist's
 
 ## Shared rules
 
-- **Two layouts, one set of screens.** Phone (narrow, under 720 px wide):
-  the map fills the screen and panels open as a bottom sheet with three
-  heights (peek, half, full). Desktop (720 px and wider): the map stays
-  visible and panels open in a right-hand side panel about 400 px wide;
-  reports open as a wider centered window.
-- **Dock.** A persistent bar (bottom on phone, left on desktop) with five
-  entries: Map, Company (financial reports), Stocks, News, Goals. A badge on
-  News counts unread important items. Firm detail has no dock entry; it
-  opens from the map or from any list that names a firm.
-- **Top bar.** Date (`calendar.year/month/day`), player cash
-  (`Corporation.ledger.cash`), and the speed control: pause, 1, 2, 3, max.
-  Speed is a target days per second owned by the worker. Tapping the date
-  pauses and resumes.
 - **Targets.** Every tappable thing is at least 44 × 44 CSS px. On the map
   at any zoom a tap snaps to the nearest firm or town within 24 px, since a 32 px firm tile is below the 44 px minimum.
 - **Mouse equivalents.** Tap is left click, long-press is right click, the
@@ -43,6 +30,88 @@ tile and icon sizes, the cream card panels) follow the Artist's
 - **Pending commands.** A queued command shows a small clock badge on the
   thing it changes until `cmd_result` arrives. An error result shows a
   toast with the sim's message and rolls the badge back.
+
+## Screen layout: the map stays clear
+
+Esteban's call (2026-11-11): no extra zoom level; instead nothing covers the
+map permanently. The map always fills the whole screen, and panels appear
+only while they are needed. Dismissing a panel returns the full map.
+
+### Default state: minimal HUD
+
+With nothing selected, only two small floating controls sit over the map.
+Both are translucent cream with an ink border and do not reserve a strip of
+screen.
+
+- **Status pill**, top left, 40 points tall: date
+  (`calendar.year/month/day`), player cash (`Corporation.ledger.cash`) and
+  one speed button showing the current speed. Tapping the speed button
+  pauses and resumes; long-press (or click its arrow on desktop) opens a
+  small picker: pause, 1, 2, 3, max. Speed is a target days per second
+  owned by the worker.
+- **Menu button**, bottom right, 48 × 48 points. It opens the menu panel
+  with Company, Stocks, News and Goals. A badge on it counts unread
+  important news items.
+
+Toasts (important news, command errors) slide in under the status pill for
+4 seconds and never block taps on the map.
+
+### Panels and what opens and closes them
+
+Only one panel is open at a time; opening another replaces it. Every panel
+closes on swipe down (phone), its close button, Esc, or a tap on empty map
+outside it, except the build panel, which a map tap does not close (see
+below).
+
+| Panel | Opens when | Closes when | Phone height |
+|---|---|---|---|
+| Tile card | Tap empty land | Any of the above; Build swaps it for the build panel | Peek |
+| Build panel | Build on the tile card, or long-press / right click on empty land | Build confirmed (then firm detail opens on the new firm), Cancel, Esc | Half |
+| Town card | Tap a town | Any of the above | Peek, drag to half |
+| Firm detail | Tap a firm, or a firm name in any list | Any of the above; tapping another firm swaps it in place | Peek, drag to half or full |
+| Menu | Menu button | Picking an entry, or any of the above | Small, just the four entries |
+| Company, Stocks, News, Goals | Picked from the menu (desktop also C, S, N, G) | Any of the above | Full |
+
+While a peek or half panel is open, the rest of the map stays live: pan,
+pinch and tap work as normal, and tapping another firm or town swaps the
+panel's contents. When a selection opens a panel, the map pans so the
+selected tile sits in the visible area above (phone) or beside (desktop)
+the panel. Jumping to a firm from a full report closes the report, centres
+the map on the firm and opens its firm detail at peek.
+
+While the build panel is open, the chosen tile stays outlined and a map
+tap moves that outline to the tapped tile if it is buildable, so the
+player can compare spots without reopening the panel.
+
+### Phone versus desktop
+
+- **Phone** (under 720 points wide): panels are a bottom sheet with a drag
+  handle and three heights: peek (about a quarter of the screen: title, key
+  numbers, main actions), half, and full. Full-height reports cover the map
+  until dismissed.
+- **Desktop** (720 points and wider): panels slide in as a right-hand side
+  panel 400 points wide over the map; the map does not resize, it only pans
+  so the selection stays clear of the panel. Company, Stocks, News and Goals
+  open as a centred window up to 960 points wide, closed with Esc or its
+  close button. The panel edge can be dragged wider.
+
+### Tiles visible
+
+Tiles are 32 points on screen at standard zoom on every device (the 64 px
+art for high-density screens draws in the same 32 points, so counts do not
+change). Counts are whole tiles, rounded down. Floating HUD controls sit over the map and are not subtracted.
+Reference viewports: phone 390 × 844 points portrait, desktop browser
+viewport 1920 × 960.
+
+| View | No panel | Peek panel | Half panel | Full panel / report |
+|---|---|---|---|---|
+| Phone, portrait | 12 × 26 | 12 × 19 | 12 × 13 | Map hidden |
+| Phone, landscape | 26 × 12 | 26 × 9 | Not offered | Map hidden |
+| Desktop | 60 × 30 | 47 × 30 (side panel) | Same as peek | Report window over the map |
+
+Phone landscape has only peek and full, since a half sheet would leave six
+rows of map. The optional zoomed-out "survey" step discussed on 2026-11-11
+is out of scope for M2; the far overview zoom below stays as specified.
 
 ## 1. Map view
 
@@ -107,7 +176,7 @@ price, quality, brand and share, from the town market's live links.
 
 ## 2. Firm detail
 
-Opens from the map or any firm name. Phone: bottom sheet. Desktop: side
+Opens from the map or any firm name (see the panel table above). Phone: bottom sheet. Desktop: side
 panel. Three tabs: Layout, Firm, Links.
 
 ### Layout tab: the 9-slot job grid
@@ -217,7 +286,7 @@ A feed plus filters, after the reference "News Report panel".
 (`NewsItem.day_serial`), a category icon (Normal, Financial, Technology,
 Special from `NewsItem.category`), the corporation if any (`corp_id`) and a
 one-line headline built from `news_type` and `details`. Important items
-(`NewsItem.important`) are bold and drive the dock badge.
+(`NewsItem.important`) are bold and drive the badge on the menu button.
 
 **Filters.** Corporation (all or one), category (all or one) and time
 (this month, this year, all). On phone the filters are chips above the
