@@ -18,6 +18,14 @@ if TYPE_CHECKING:
 
 MONTHS = 12
 
+# Weekly ratings constants (FUN_00075988, observed from binary)
+RATING_TARGET = 30.0
+RATING_GATE = RATING_TARGET / 200.0  # 0.15
+DEMAND_DIVISOR = 20.0  # DAT_000aa0e3
+SUPPLY_DECAY_CAP = 0.05  # DAT_000aa0e7 (double)
+_IMPORTER_DECAY = {0: 0.025, 1: 0.05}  # corporate, range
+_IMPORTER_DECAY_DEFAULT = 0.1  # unique / other
+
 
 def link_score(
     product: Product, price: float, quality: float, brand: float, jitter: int = 0
@@ -42,6 +50,7 @@ def score_shares(demand: float, scores: list[float]) -> list[float]:
 
 class Link:
     __slots__ = (
+        "awareness",
         "brand",
         "buyer",
         "id",
@@ -69,6 +78,7 @@ class Link:
         self.price = seller.price if price is None else price
         self.quantity = 0.0
         self.quantity_sum = 0.0
+        self.awareness = 0.0
         self.brand = LINK_RULES.brand_start
         self.score = 0.0
         self.prev_score = 0.0
@@ -190,7 +200,50 @@ class Market:
             if sold > 0:
                 seller.sell_to(sold, x)  # type: ignore[attr-defined]
                 x.nudge_brand()
+                self._awareness_gain(x, tm)
         tm.supply_today = sum(x.quantity for x in live)
+
+    @staticmethod
+    def _awareness_gain(link: Link, tm: TownMarket) -> None:
+        """FUN_00075aec: increment awareness after a consumer sale."""
+        owner = link.seller.firm.owner
+        if owner is None:
+            return
+        prev = link.units_month[(Link.month_index - 1) % MONTHS]
+        units = prev + 1.0
+        ref = max(units, tm.demand_per_day * 30.0)
+        gain = (RATING_TARGET - link.awareness) * units / ref / 100.0
+        if owner.brand_strategy == 0:
+            gain *= 0.25
+        elif owner.brand_strategy == 1:
+            gain *= 0.5
+        link.awareness += gain
+
+    def weekly_ratings(self) -> None:
+        """Weekday 5: decay oversupplied ratings (FUN_00075988).
+
+        Each consumer link with awareness >= RATING_GATE is decayed.
+        Importers (seller town != buyer town) lose a fixed amount by brand
+        strategy; local producers lose min(RATING_GATE, demand / 20).
+        Demand and supply cells also decay.
+        """
+        for tm in self.towns.values():
+            for link in tm.links:
+                if link.awareness < RATING_GATE:
+                    continue
+                owner = link.seller.firm.owner
+                if link.seller.firm.town.id != tm.town.id:
+                    strategy = owner.brand_strategy if owner else 0
+                    decay = _IMPORTER_DECAY.get(strategy, _IMPORTER_DECAY_DEFAULT)
+                else:
+                    decay = min(RATING_GATE, tm.demand_per_day / DEMAND_DIVISOR)
+                link.awareness -= decay
+                tm.demand_per_day = max(0.0, tm.demand_per_day - decay)
+            if tm.supply_today > 0:
+                s_decay = min(tm.supply_today / 200.0, SUPPLY_DECAY_CAP)
+                tm.supply_today -= s_decay
+            if tm.demand_per_day < tm.supply_today:
+                tm.supply_today = tm.demand_per_day
 
     def monthly(self, month0: int) -> None:
         """Monthly roll (ref): zero the new month's buckets, reset sums, recompute weight."""

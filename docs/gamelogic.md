@@ -289,14 +289,19 @@ advances. The daily batch runs in this order:
 5. **Goals.** With no goal set and multiplayer off, this does nothing.
    With a goal, player goals are checked every 2 days; AI goals every
    7 days (untimed games only). Timed games check annually instead.
-6. **Weekly ratings** (weekday 5 only). Each rating entry tracks a
-   firm's share of a product in a town. If the rating is still at or
-   above target / 200, it is reduced. The reduction amount depends on
-   whether the firm is an importer or a local producer: importers lose
-   0.025 (corporate brand), 0.05 (range brand), or 0.1 (unique brand)
-   per tick, while local producers lose up to their proportional share
-   of the town-product demand cell. The matching town-product supply
-   cell also decays (capped at 0.05 per tick).
+6. **Weekly ratings** (weekday 5 only). A ratings array tracks each
+   firm's brand awareness for a product class in a town (target is
+   always 30.0). If the current awareness ≥ target / 200 (= 0.15), it
+   decays. Importers (seller not in the town) lose a fixed amount by
+   brand strategy: 0.025 (corporate), 0.05 (range), 0.1 (unique).
+   Local producers lose min(target / 200, demand_cell / 20). The
+   decrement is subtracted from both the awareness and the town's
+   demand cell (floored at 0). The town-product supply cell also decays
+   each entry by min(supply / 200, 0.05), then is clamped to
+   [−demand, demand]. Awareness grows during daily consumer sales via a
+   gain formula that scales with (30 − current) × recent sales / 100,
+   multiplied by a brand strategy factor (corporate × 0.25, range × 0.5,
+   unique × 1.0).
 7. **Random events.** Skipped when the frequency setting is 0 (the
    default for new games). Otherwise, each day has a probability of
    triggering based on the frequency — lower frequency means rarer
