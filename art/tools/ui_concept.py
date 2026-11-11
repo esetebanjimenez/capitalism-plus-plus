@@ -251,16 +251,20 @@ def sheet_firm(s=2):
             text(d, (x + 56, y + 16), str(rt), 13, s, 'CREAM', anchor='mm')
             d.rectangle([(x + 8) * s, (y + 58) * s, (x + 64) * s - 1, (y + 64) * s - 1], C['INK'])
             d.rectangle([(x + 9) * s, (y + 59) * s, (x + 9 + 54 * st_) * s - 1, (y + 63) * s - 1], C['GREEN'])
-    def arrow(a, b, col):
+    def link(a, b, col, dashed=False):
+        """Slot links have no direction (brief PR #77): plain line, no arrowhead; dashed = can't move anything."""
         (x1, y1), (x2, y2) = pos(a), pos(b)
         x1 += cw / 2; y1 += cw / 2; x2 += cw / 2; y2 += cw / 2
         import math
         L = math.hypot(x2 - x1, y2 - y1); ux, uy = (x2 - x1) / L, (y2 - y1) / L
-        sx, sy = x1 + ux * 38, y1 + uy * 38; ex, ey = x2 - ux * 40, y2 - uy * 40
-        d.line([sx * s, sy * s, ex * s, ey * s], C[col], width=3 * s)
-        hx, hy = ex + ux * 4, ey + uy * 4
-        d.polygon([(hx * s, hy * s), ((ex - ux * 6 - uy * 6) * s, (ey - uy * 6 + ux * 6) * s), ((ex - ux * 6 + uy * 6) * s, (ey - uy * 6 - ux * 6) * s)], C[col])
-    arrow(0, 1, 'INK'); arrow(1, 2, 'ORANGE'); arrow(0, 4, 'INK'); arrow(4, 5, 'INK'); arrow(2, 5, 'INK')
+        sx, sy = x1 + ux * 38, y1 + uy * 38; ex, ey = x2 - ux * 38, y2 - uy * 38
+        if not dashed:
+            d.line([sx * s, sy * s, ex * s, ey * s], C[col], width=3 * s); return
+        n = math.hypot(ex - sx, ey - sy); t = 0
+        while t < n:
+            t2 = min(t + 4, n)
+            d.line([(sx + ux * t) * s, (sy + uy * t) * s, (sx + ux * t2) * s, (sy + uy * t2) * s], C[col], width=3 * s); t += 7
+    link(0, 1, 'INK'); link(1, 2, 'ORANGE'); link(0, 4, 'INK'); link(4, 5, 'INK'); link(2, 5, 'INK', dashed=True)
     by = gy + 3 * cw + 2 * gap + 18
     paste(base, button(170, 44, 'secondary'), 16, by, s); text(d, (101, by + 12), 'Plans', 16, s, anchor='ma')
     paste(base, button(170, 44, 'primary'), W - 186, by, s); text(d, (W - 101, by + 12), 'Slot details', 16, s, anchor='ma')
