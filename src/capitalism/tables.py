@@ -789,7 +789,6 @@ class AIRules(StaticModel):
     competitor_cap: int
     max_competitors: int
     capital_unit: float
-    asset_sale_rounds: float
     random_build_chance: float
     bankruptcy_age_threshold: float
     bankruptcy_value_threshold: float
