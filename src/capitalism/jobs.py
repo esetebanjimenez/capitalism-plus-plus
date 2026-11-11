@@ -86,9 +86,13 @@ class Job:
         return self.product.row.base_capacity * self.firm.size * self.row.cap_mult
 
     @property
+    def ceiling(self) -> float:
+        """Storage ceiling = capacity × storage_mult (decomp:61852-61856)."""
+        return self.capacity * RATING_THROUGHPUT[max(1, min(9, self.rating))].storage_mult
+
+    @property
     def room(self) -> float:
-        """4a stock ceiling. Slice 5 replaces this with the three-day buffer."""
-        return max(0.0, self.capacity - self.stock)
+        return max(0.0, self.ceiling - self.stock)
 
     @property
     def efficiency(self) -> float:
@@ -185,6 +189,12 @@ class Job:
     def monthly(self, eco: Economy) -> None:
         if self.product is not None and self.product.decays and self.stock > 0:
             self.quality *= self.product.cls.quality_decay_base
+        # J2: write-off when ceiling shrinks below stock (decomp:61857-61861)
+        ceil = self.ceiling
+        if self.stock > ceil and ceil >= 0:
+            excess = self.stock - ceil
+            self.firm.post(CAT_WRITEOFFS, excess * self.unit_cost)
+            self.stock = ceil
 
 
 class CropGrowing(Job):
@@ -221,7 +231,7 @@ class CropGrowing(Job):
         if added > 0:
             self.fixed_visit_credit()
         self.receive(added, self.produced_quality(), p.row.base_cost)
-        return self.stock >= self.capacity
+        return self.stock >= self.ceiling
 
 
 class LivestockRaising(Job):
@@ -249,7 +259,7 @@ class Extraction(Job):
         step = JOB_RULES.extraction_rate * self.efficiency * self.capacity / 100
         added = min(self.room, step)
         self.receive(added, self.produced_quality(), self.product.row.base_cost)
-        return self.stock >= self.capacity
+        return self.stock >= self.ceiling
 
 
 class Logging(Extraction):
@@ -417,7 +427,7 @@ class Purchasing(Job):
             self.product is None
             or link is None
             or self.slot % r.purchase_every_days != eco.calendar.day_serial % r.purchase_every_days
-            or self.stock >= self.capacity
+            or self.stock >= self.ceiling
         ):
             return False
         order = self.efficiency * self.capacity * r.purchase_order_mult / 100
@@ -504,7 +514,7 @@ class Sales(Job):
         if self.product is None:
             return True
         self.sell_left = self.daily_cap()
-        return self.stock < self.capacity
+        return self.stock < self.ceiling
 
     def sell_to(self, qty: float, link: Link) -> None:
         qty = self.take(qty)
@@ -678,7 +688,7 @@ class SoftwareProduction(Job):
             self.production_started_serial = eco.calendar.day_serial
         added = min(self.room, self.efficiency * self.capacity)
         self.receive(added, self.quality, self.product.row.base_cost)
-        return self.stock < self.capacity
+        return self.stock < self.ceiling
 
     def pull(self, eco: Economy) -> None:
         for job in self.firm.linked_jobs(self.slot):
