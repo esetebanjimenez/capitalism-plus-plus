@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from .jobs import (
+    CAT_LAND_VALUE,
     CAT_OVERHEAD,
     CAT_SALARIES,
     CAT_SALES,
@@ -274,7 +275,16 @@ class Firm:
     def monthly(self, eco: Economy) -> None:
         self.ledger.roll_month()
         self.post_overhead()
-        self.land_value = eco.world.land_value(self.x, self.y)
+        # R1/O2: land revaluation — post delta to CAT_LAND_VALUE without
+        # touching cash (native: group_post_revenue + group_move_balance).
+        new_lv = eco.world.land_value(self.x, self.y)
+        delta = new_lv - self.land_value
+        if delta != 0.0 and self.owner is not None:
+            for arr in (self.owner.ledger.month, self.owner.ledger.year,
+                        self.owner.ledger.total):
+                arr[CAT_LAND_VALUE] += delta
+            self.owner.land_assets += delta
+        self.land_value = new_lv
         for job in self.slots:
             if job is not None:
                 job.monthly(eco)
