@@ -1,17 +1,17 @@
-"""Build the 64 px high-density sheet: art/tiles64/terrain/*.png, art/atlas/terrain_atlas_64.png + .json,
-and docs/art/m2-terrain-64-preview.png. Frame names match the 32 px atlas; each 64 px frame sits in a
+"""Build the 64 px high-density sheet: art/tiles64/{terrain,town}/*.png, art/atlas/terrain_atlas_64.png + .json,
+docs/art/m2-terrain-64-preview.png and docs/art/m2-town-64-preview.png. Frame names match the 32 px atlas; each 64 px frame sits in a
 68 px cell with its edge pixels repeated 2 px outward, and the JSON x, y, w, h point at the 64 px art only."""
 import os, sys, json, math
 os.chdir(os.path.dirname(os.path.abspath(__file__))); sys.path.insert(0,'.')
-import terrain64 as T
+import terrain64 as T, town64
 from PIL import Image, ImageDraw, ImageFont
 N,PAD=64,2; CELL=N+2*PAD
-fr=T.build()
-os.makedirs('../tiles64/terrain',exist_ok=True)
+fr=T.build(); tw=town64.build(); sub={**{n:'terrain' for n in fr},**{n:'town' for n in tw}}; fr.update(tw)
+for d_ in set(sub.values()): os.makedirs(f'../tiles64/{d_}',exist_ok=True)
 for n,im in fr.items():
     assert im.size==(N,N), n
     assert all(('#%02x%02x%02x'%c[1][:3]) in T.PAL for c in im.getcolors(1<<16) if c[1][3]), n
-    im.save(f'../tiles64/terrain/{n}.png')
+    im.save(f'../tiles64/{sub[n]}/{n}.png')
 lo=json.load(open('../atlas/terrain_atlas.json'))['frames']
 missing=[n for n in fr if n not in lo]; assert not missing, missing
 def extrude(im):
@@ -35,7 +35,7 @@ def hv(x,y):
 G=[[hv(x,y) for x in range(W)] for y in range(Hh)]
 land=lambda x,y: 0<=x<W and 0<=y<Hh and G[y][x]=='L'
 clim=lambda y: max(0,min(4,1+y*4//(Hh-1)))
-lo_im={n:Image.open(f'../tiles/terrain/{n}.png').convert('RGBA') for n in fr}
+lo_im={n:Image.open(f'../tiles/{sub[n]}/{n}.png').convert('RGBA') for n in fr}
 def pick(x,y):
     a=clim(y); b=clim(y+1) if y+1<Hh else a; sfx=f'c{a}' if a==b else f'c{a}c{b}'; c=G[y][x]; v=x*7+y*13
     if c=='L':
@@ -68,3 +68,30 @@ y0=Hh*64+100; d.text((30,y0),'Close-up, enlarged 3x for viewing: coast corner an
 bx=(4*64,1*64,8*64,3*64)
 S.paste(a32.crop(bx).resize((768,384),Image.NEAREST),(30,y0+30)); S.paste(a64.crop(bx).resize((768,384),Image.NEAREST),(60+W*64,y0+30))
 S.convert('RGB').save('../../docs/art/m2-terrain-64-preview.png'); print(len(names),'frames',at.size)
+
+# ---- town preview: a 7 x 5 town (# layout roads) on grass, 32 px at 2x vs 64 px at 1x ----
+TW,TH=9,7; TX,TY=1,1
+inT=lambda x,y: TX<=x<TX+7 and TY<=y<TY+5
+isroad=lambda x,y: inT(x,y) and ((x-TX)%3==0 or (y-TY)%2==0)
+def tpick(x,y):
+    if not inT(x,y): return f'grass_c2_{(x*7+y*13)%4}'
+    if isroad(x,y): return 'road_%02d'%sum(b for b,(dx,dy) in ((1,(0,-1)),(2,(1,0)),(4,(0,1)),(8,(-1,0))) if isroad(x+dx,y+dy))
+    if (x,y)==(TX+4,TY+1): return 'plaza'
+    if (x,y)==(TX+5,TY+3): return 'park_1'
+    dist=max(abs(x-(TX+3)),abs(y-(TY+2))); lv=2 if dist<=1 else (1 if dist<=2 else 0)
+    return f'block_s{(x*7+y*13)%4}_l{lv}'
+def trender(n,atlas=None):
+    mp=Image.new('RGBA',(TW*n,TH*n))
+    for y in range(TH):
+        for x in range(TW):
+            k=tpick(x,y)
+            if atlas: f=meta[k]; t=atlas.crop((f['x'],f['y'],f['x']+f['w'],f['y']+f['h']))
+            else: t=lo_im[k]
+            mp.paste(t,(x*n,y*n))
+    return mp
+t32=trender(32).resize((TW*64,TH*64),Image.NEAREST); t64=trender(64,at)
+S=Image.new('RGBA',(TW*64*2+90,TH*64+110),cream); d=ImageDraw.Draw(S)
+d.text((30,14),'Capitalism++ M2: town tiles, 32 px set at 2x (left) vs native 64 px high-density set at 1x (right)',font=F(22),fill=ink)
+d.text((30,48),'Same town, same size on screen. Right side is cut from the padded 64 px atlas using its JSON frames.',font=F(16),fill=ink)
+S.paste(t32,(30,80)); S.paste(t64,(60+TW*64,80))
+S.convert('RGB').save('../../docs/art/m2-town-64-preview.png')
