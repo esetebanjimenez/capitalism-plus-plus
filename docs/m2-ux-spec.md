@@ -348,7 +348,9 @@ final score, with New game and Keep playing where the rules allow it.
 
 ## Data the facade must expose
 
-The `query` kinds this spec needs, for `capitalism.api`:
+The full contract, with inputs and return fields for every query and
+command, is `docs/m2-facade-contract.md`. In short, the `query` kinds
+this spec needs, for `capitalism.api`:
 
 | Query | Reads |
 |---|---|
