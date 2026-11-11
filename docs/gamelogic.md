@@ -1627,17 +1627,27 @@ based on aggressiveness (the most aggressive CEOs cycle back fastest).
 ### Asset sale (cash shortfall)
 
 When the AI needs cash for a build but doesn't have enough, it tries
-an escalating sequence of asset sales:
+an escalating sequence to raise it. Some steps depend on a setting on
+the corporation's chairman whose meaning is not known.
 
-1. Check whether the corporation can issue new stock
-2. Sell the corporation's own stock holdings
-3. Sell subsidiary companies
-4. Sell stock held in other corporations (up to 10 rounds)
-5. Fire sale — sell remaining holdings at any price
+1. Sell shares it holds in other corporations, apparently the cheapest
+   stock first (only if the chairman setting is on, and only when stock
+   investment is allowed in the game).
+2. Take a bank loan of at least $100,000, limited by the credit limit.
+3. If it is still short, the chairman setting is off and its cash is
+   still positive, it gives up here.
+4. Issue new shares of its own stock (only for a listed corporation,
+   and only if at least 10,000 shares can be issued).
+5. Sell holdings in other corporations again.
+6. Issue new shares again, up to 10 more times.
+7. Only if cash is still below zero, close firms one at a time: an
+   R&D Center, apparently the least profitable, unless one of its firms
+   carries a flag (meaning not known) that sends it first. Whether a
+   closed firm returns any cash is not known.
 
 The process stops as soon as the corporation has enough cash for the
-planned build. If all steps fail, the build is cancelled. This path is
-live in normal play, because competitors build with their real cash.
+planned build. If it is still short, the build is cancelled. This path
+is live in normal play, because competitors build with their real cash.
 Only the Government corporation skips it: its cash is reset to $1
 billion just before each of its own placements (see Cash management).
 
