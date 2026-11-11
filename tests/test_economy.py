@@ -543,10 +543,10 @@ def _run_chain(seed: int = 1, days: int = 120):
     return sim, chain
 
 
-def test_bread_chain_end_to_end_seed_1():  # updated 4b hash also includes the Software catalog row
+def test_bread_chain_end_to_end_seed_1():  # hash moved with $10M initial capital + setup costs
     sim, chain = _run_chain()
     link = chain.store_link
-    assert sim.state_hash() == ("a8528c8511bf2b3199db5ba031d60e3de5fc9def7ef8277399f1d8bcca465efc")
+    assert sim.state_hash() == ("b29dcb0ed3b9bfd4dd3630e89f492a289783fa7ae207bdbedcba5234e7b69e25")
     assert sum(link.money_month) == pytest.approx(1003817.0716583957, abs=1e-3)
     assert chain.store_sales.unit_cost == pytest.approx(1.5)
     assert link.brand == pytest.approx(11.0, abs=1e-6)

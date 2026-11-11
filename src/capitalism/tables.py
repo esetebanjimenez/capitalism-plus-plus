@@ -215,6 +215,16 @@ class FirmTypeRow(StaticModel):
     provisional: frozenset[str] = frozenset()
 
 
+class CompetitorCapitalRow(StaticModel):
+    """AI starting-capital factor v per Competitor Capital setting (FUN_0007916c)."""
+
+    setting: int = Field(ge=0)
+    name: str
+    v: int = Field(gt=0)
+    ref: str
+    provisional: frozenset[str] = frozenset()
+
+
 class TownFootprintRow(StaticModel):
     """Visual town footprint per town level (client map only; the sim town stays one tile)."""
 
@@ -328,7 +338,9 @@ class SetupOptions(BaseModel):
     year_limit: int = Field(default=0, ge=0)
     goal_score_bonus: int = Field(default=0, ge=0, le=500)
     competitors: int = Field(default=3, ge=0, le=10)
-    competitor_capital: int = Field(default=0, ge=0, le=5)
+    competitor_capital: int = Field(default=0, ge=0, le=4)
+    # None: corporations.player_initial_capital from the DB.
+    initial_capital: float | None = Field(default=None, ge=0)
     competence_level: int = Field(default=0, ge=0, le=5)
     expertise_level: int = Field(default=0, ge=0, le=5)
     show_trade_secrets: bool = True
@@ -583,6 +595,18 @@ def load_town_footprints() -> dict[int, TownFootprintRow]:
 
 
 @lru_cache(maxsize=1)
+def load_competitor_capital() -> dict[int, CompetitorCapitalRow]:
+    out: dict[int, CompetitorCapitalRow] = {}
+    for r in _rows(
+        "SELECT setting, name, v, ref, provisional FROM competitor_capital ORDER BY setting"
+    ):
+        d = dict(r)
+        d["provisional"] = _prov_cols(d["provisional"])
+        out[d["setting"]] = CompetitorCapitalRow(**d)
+    return out
+
+
+@lru_cache(maxsize=1)
 def load_firm_sectors() -> dict[int, FirmSectorRow]:
     out: dict[int, FirmSectorRow] = {}
     for r in _rows(
@@ -663,6 +687,7 @@ PRODUCT_CLASSES: dict[int, ProductClassRow] = load_product_classes()
 FIRM_TYPES: dict[int, FirmTypeRow] = load_firm_types()
 FIRM_SECTORS: dict[int, FirmSectorRow] = load_firm_sectors()
 TOWN_FOOTPRINTS: dict[int, TownFootprintRow] = load_town_footprints()
+COMPETITOR_CAPITAL: dict[int, CompetitorCapitalRow] = load_competitor_capital()
 JOB_TYPES: dict[int, JobTypeRow] = load_job_types()
 FIRM_JOB_ALLOWED: dict[int, frozenset[int]] = load_firm_job_allowed()
 RATING_THROUGHPUT: dict[int, RatingThroughputRow] = load_rating_throughput()
@@ -760,7 +785,7 @@ class AIRules(StaticModel):
     dormant_chance: float
     competitor_cap: int
     max_competitors: int
-    starting_capital_low: float
+    capital_unit: float
     random_build_chance: float
     bankruptcy_age_threshold: float
     bankruptcy_value_threshold: float
@@ -841,6 +866,7 @@ class CorporationRules(StaticModel):
     interest_rate_step: float
     overdraft_spread: float
     weak_gnp_threshold: float
+    player_initial_capital: float
     interest_rise_chance: float
     interest_fall_chance: float
 

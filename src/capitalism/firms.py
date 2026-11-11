@@ -19,7 +19,14 @@ from .jobs import (
     SoftwareProduction,
     job_wage_day,
 )
-from .tables import ADVERTISING_RULES, FIRM_JOB_ALLOWED, FIRM_RULES, FIRM_TYPES, FirmTypeRow
+from .tables import (
+    ADVERTISING_RULES,
+    FIRM_JOB_ALLOWED,
+    FIRM_RULES,
+    FIRM_TYPES,
+    JOB_TYPES,
+    FirmTypeRow,
+)
 
 if TYPE_CHECKING:
     from .catalog import Product
@@ -59,6 +66,25 @@ def encode_links(edges: list[tuple[int, int]]) -> int:
 def decode_links(mask: int) -> list[tuple[int, int]]:
     return [e for i, e in enumerate(SLOT_EDGES) if mask >> i & 1]
 
+
+
+class InsufficientFunds(ValueError):
+    """The owner can't pay a one-time setup cost in cash (gap audit C1/C2)."""
+
+
+def charge_setup(owner: Corporation | None, cost: float, what: str) -> None:
+    """Take a one-time setup cost from the owner's cash, or refuse.
+
+    ref:403 calls setup "a one-time cash payment"; ref:1515-1524 has the AI
+    cancel a build it can't pay for. It is a cash payment, not a P&L category.
+    """
+    if owner is None or cost <= 0:
+        return
+    if owner.ledger.cash < cost:
+        raise InsufficientFunds(
+            f"{what} costs ${cost:,.0f}; {owner.name} has ${owner.ledger.cash:,.0f}"
+        )
+    owner.ledger.cash -= cost
 
 class Ledger:
     """12 posting categories (ref). Revenue is category 0; everything else is a cost."""
@@ -165,6 +191,7 @@ class Firm:
             self.slots.extend([None] * (slot - len(self.slots) + 1))
         if self.slots[slot] is not None:
             raise ValueError(f"slot {slot} unavailable")
+        charge_setup(self.owner, JOB_TYPES[job_type].setup_cost, JOB_TYPES[job_type].name)
         job = JOB_CLASSES[job_type](self, slot, product)
         self.slots[slot] = job
         return job

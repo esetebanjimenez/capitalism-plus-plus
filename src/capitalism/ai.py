@@ -10,7 +10,7 @@ from .person import (
     ROLE_INDEPENDENT,
     STATE_ACTIVE,
 )
-from .tables import AI_RULES
+from .tables import AI_RULES, COMPETITOR_CAPITAL
 
 if TYPE_CHECKING:
     from .economy import Corporation, Economy
@@ -150,6 +150,17 @@ def ai_build_firm(
 
 # --- NPC spawning -----------------------------------------------------------
 
+def ai_starting_capital(setting: int, rng: Rng) -> float:
+    """AI starting money for a Competitor Capital setting (gap audit C4).
+
+    FUN_0007916c: (v/2 + random(v/2)) * 6,000,000 / 10 with integer v/2 and
+    random(n) in 0..n-1. Native credits the CEO's wealth; the hand-off to corp
+    cash is not traced, so the sim puts it in corp cash.
+    """
+    half = COMPETITOR_CAPITAL[setting].v // 2
+    return (half + rng.randint(0, half - 1)) * _AR.capital_unit
+
+
 def try_spawn_competitor(eco: Economy, day_serial: int) -> Corporation | None:
     """Try to spawn a new AI competitor (gamelogic.md NPC corporation spawning)."""
     rng = eco.rng
@@ -179,9 +190,7 @@ def try_spawn_competitor(eco: Economy, day_serial: int) -> Corporation | None:
     person.link_to_corp(corp.id, as_ceo=True)
 
     # Starting capital
-    base = _AR.starting_capital_low
-    half = base / 2.0
-    corp.ledger.cash = half + rng.uniform(0, half) * 600_000.0 / base
+    corp.ledger.cash = ai_starting_capital(eco.competitor_capital, rng)
 
     # Determine strategy mode
     game_years = day_serial / 365.0

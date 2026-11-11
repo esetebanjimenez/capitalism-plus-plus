@@ -253,6 +253,7 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `interest_rate_step` | 0.5 | percentage points | gamelogic.md Interest rates |
 | `interest_rise_chance` | 10 | 1-in-N per month | gamelogic.md Interest rates |
 | `overdraft_spread` | 2 | percentage points | gamelogic.md Cash flow and daily finance |
+| `player_initial_capital` | 10000000 **provisional** | dollars | g_app+0x196 default 0x4b189680 (decomp:4518), setup dialog decomp:7758; ref:19. Credited as corp cash on creation (native hand-off not traced) |
 | `weak_gnp_threshold` | 5 | gnp / 1000 | gamelogic.md Interest rates |
 
 ## 8 — Persons
@@ -283,6 +284,7 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `bankruptcy_age_threshold` | 10 | years | gamelogic.md Bankruptcy check |
 | `bankruptcy_value_threshold` | 100000 | dollars | gamelogic.md Bankruptcy check |
 | `build_cooldown` | 30 | days | gamelogic.md Firm creation |
+| `capital_unit` | 600000 **provisional** | dollars per v | FUN_0007916c decomp:87774-87776: (v/2 + random(v/2)) * 6,000,000 / 10. Native credits the CEO's wealth; sim credits corp cash (hand-off not traced) |
 | `competitor_cap` | 10 | count | gamelogic.md NPC corporation spawning |
 | `dormant_chance` | 0.5 | probability | gamelogic.md NPC corporation spawning |
 | `dormant_year_threshold` | 10 | years | gamelogic.md NPC corporation spawning |
@@ -293,7 +295,6 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `random_build_chance` | 0.001 | probability | gamelogic.md Strategy parameter change |
 | `spawn_chance` | 0.333 | probability | gamelogic.md NPC corporation spawning |
 | `spawn_first_day_gate` | 0.01 | probability | gamelogic.md NPC corporation spawning |
-| `starting_capital_low` | 3000000 | dollars | gamelogic.md NPC corporation spawning |
 | `strategy_interval` | 15 | days | gamelogic.md Decision schedule |
 | `survey_interval` | 30 | days | gamelogic.md Decision schedule |
 | `template_cost_estimate` | 500000 | dollars | gamelogic.md Firm creation |
@@ -818,3 +819,13 @@ Reference: docs/recipes.md — 1STD.SET METHOD. Speed is a throughput multiplier
 | 4 | 1 **p** | 1 **p** | Game Designer, PR #50 (m2-ux-spec.md): visual only, sim town stays one tile; reference draws a town as one tile (gamelogic.md ~4008) |
 | 5 | 2 **p** | 2 **p** | Game Designer, PR #50 (m2-ux-spec.md): visual only, sim town stays one tile; reference draws a town as one tile (gamelogic.md ~4008) |
 | 6 | 2 **p** | 2 **p** | Game Designer, PR #50 (m2-ux-spec.md): visual only, sim town stays one tile; reference draws a town as one tile (gamelogic.md ~4008) |
+
+## Competitor capital (AI starting money = (v/2 + random(v/2)) * ai.capital_unit)
+
+| Setting | Name | v | Reference |
+|---|---|---|---|
+| 0 | Low | 10 | FUN_0007916c decomp:87774-87776, v table 0xae090 (setting DAT_000b1ecd); ref:199-210 |
+| 1 | Moderate | 15 | FUN_0007916c decomp:87774-87776, v table 0xae090 (setting DAT_000b1ecd); ref:199-210 |
+| 2 | High | 20 | FUN_0007916c decomp:87774-87776, v table 0xae090 (setting DAT_000b1ecd); ref:199-210 |
+| 3 | Very High | 30 | FUN_0007916c decomp:87774-87776, v table 0xae090 (setting DAT_000b1ecd); ref:199-210 |
+| 4 | Extremely High | 60 | FUN_0007916c decomp:87774-87776, v table 0xae090 (setting DAT_000b1ecd); ref:199-210 |

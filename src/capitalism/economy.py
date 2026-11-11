@@ -12,7 +12,15 @@ import struct
 from typing import TYPE_CHECKING
 
 from .catalog import Catalog, Product, TownMarket
-from .firms import FIRM_CLASSES, N_CATEGORIES, OPERATING_CATEGORIES, Firm, Ledger, MediaFirm
+from .firms import (
+    FIRM_CLASSES,
+    N_CATEGORIES,
+    OPERATING_CATEGORIES,
+    Firm,
+    Ledger,
+    MediaFirm,
+    charge_setup,
+)
 from .jobs import CAT_LOAN_INTEREST, CAT_SALES
 from .links import Market
 from .news import NewsLog, random_events_daily
@@ -22,7 +30,14 @@ from .person import (
 )
 from .rng import Rng
 from .stock import MAX_CORPS, Stock, daily_price_update, stock_monthly, stock_yearly
-from .tables import CORPORATION_RULES, JOB_RULES, PERSON_RULES, PRODUCT_RULES, STOCK_RULES
+from .tables import (
+    CORPORATION_RULES,
+    FIRM_TYPES,
+    JOB_RULES,
+    PERSON_RULES,
+    PRODUCT_RULES,
+    STOCK_RULES,
+)
 from .world import TileCategory
 
 if TYPE_CHECKING:
@@ -254,6 +269,9 @@ class Economy:
         self.stock_enabled = True
         self.news_log = NewsLog()
         self.event_frequency = 0
+        # Setup options (Sim.reset copies them from SetupOptions).
+        self.initial_capital = _CR.player_initial_capital
+        self.competitor_capital = 0
         self.firms: list[Firm | None] = []
         self.market = Market()
         self.interest_rate = _CR.interest_rate_default
@@ -308,6 +326,9 @@ class Economy:
     def add_corp(self, name: str, corp_type: int = CORP_PLAYER) -> Corporation:
         corp = Corporation(len(self.corps), name, corp_type)
         self.corps.append(corp)
+        if corp_type == CORP_PLAYER:
+            # Initial Capital of Your Corporation (C3); native hand-off not traced.
+            corp.ledger.cash = self.initial_capital
         if corp_type != CORP_GOVERNMENT and self.stock_enabled:
             initial_value = max(1.0, corp.ledger.cash)
             stock = Stock(corp.id, initial_value, STOCK_RULES.initial_price_per_share)
@@ -322,6 +343,9 @@ class Economy:
             raise NotImplementedError(f"firm type {firm_type} lands in systems 4b")
         if not self.world.can_build(x, y):
             raise ValueError(f"tile ({x},{y}) is not free land")
+        row = FIRM_TYPES[firm_type]
+        if not row.government:
+            charge_setup(owner, row.setup_cost, row.name)
         tile = self.world.tile_at(x, y)
         slot = next((i for i, f in enumerate(self.firms) if f is None), len(self.firms))
         firm = FIRM_CLASSES[firm_type](

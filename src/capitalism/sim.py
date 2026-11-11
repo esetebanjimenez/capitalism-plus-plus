@@ -69,6 +69,9 @@ class Sim:
         )
         self.economy = Economy(self.calendar, self.world, self.rng)
         self.economy.event_frequency = self.setup.event_frequency
+        self.economy.competitor_capital = self.setup.competitor_capital
+        if self.setup.initial_capital is not None:
+            self.economy.initial_capital = self.setup.initial_capital
         self.gnp_index = 1.0
         self.gnp_history = []
         self.avg_gnp_growth_12m = 0.0
