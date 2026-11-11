@@ -51,3 +51,37 @@ def test_level_never_drops():
     t = town(1_000.0, 5)
     t.monthly_tick(Rng(1), detailed=False)
     assert t.level == 5
+
+
+@pytest.mark.parametrize(
+    ("term", "climate"),
+    [(8.0, 0), (7.99, 1), (4.0, 1), (0.0, 2), (-1.0, 2), (-1.01, 3), (-6.0, 3), (-6.01, 4),
+     (-100_000.0, 4)],
+)
+def test_climate_thresholds_on_gnp_term(term, climate):
+    from capitalism.town import Climate
+
+    t = town(1_000_000.0, 7)
+    t.climate = Climate.NORMAL
+    t.update_climate(term)
+    assert int(t.climate) == climate
+
+
+def test_climate_kept_below_last_threshold():
+    from capitalism.town import Climate
+
+    t = town(1_000_000.0, 7)
+    t.climate = Climate.BOOM
+    t.update_climate(-200_000.0)  # no DAT_000adad0 entry matches
+    assert t.climate == Climate.BOOM
+
+
+def test_climate_reads_this_months_gnp_term():
+    t = town(1_000_000.0, 7)
+    rng = Rng(3)
+    for _ in range(24):
+        t.monthly_tick(rng, detailed=True)
+        m = (t.ring_index - 1) % 12  # ring advanced at the end of the month
+        expect = town(1.0, 1)
+        expect.update_climate(t.gnp_growth_pct[m])
+        assert t.climate == expect.climate

@@ -77,10 +77,11 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 
 | Key | Value | Units | Reference |
 |---|---|---|---|
-| `climate_boom` | 0.08 | fraction / 12 months | Towns and cities — climate table |
-| `climate_normal` | -0.01 | fraction / 12 months | Towns and cities — climate table |
-| `climate_prosperous` | 0.04 | fraction / 12 months | Towns and cities — climate table |
-| `climate_recession` | -0.06 | fraction / 12 months | Towns and cities — climate table |
+| `climate_boom` | 8 | GNP growth term (FUN_0004b377 units) | FUN_0004b68e decomp:46590-46598, DAT_000adad0 {8,4,-1,-6,-100000} (f32); compared with town+0x113 (gnp_growth_scale x 12-month total GNP change) |
+| `climate_normal` | -1 | GNP growth term (FUN_0004b377 units) | FUN_0004b68e decomp:46590-46598, DAT_000adad0 {8,4,-1,-6,-100000} (f32); compared with town+0x113 (gnp_growth_scale x 12-month total GNP change) |
+| `climate_panic` | -100000 | GNP growth term (FUN_0004b377 units) | FUN_0004b68e decomp:46590-46598, DAT_000adad0 {8,4,-1,-6,-100000} (f32); compared with town+0x113 (gnp_growth_scale x 12-month total GNP change) |
+| `climate_prosperous` | 4 | GNP growth term (FUN_0004b377 units) | FUN_0004b68e decomp:46590-46598, DAT_000adad0 {8,4,-1,-6,-100000} (f32); compared with town+0x113 (gnp_growth_scale x 12-month total GNP change) |
+| `climate_recession` | -6 | GNP growth term (FUN_0004b377 units) | FUN_0004b68e decomp:46590-46598, DAT_000adad0 {8,4,-1,-6,-100000} (f32); compared with town+0x113 (gnp_growth_scale x 12-month total GNP change) |
 | `env_chance` | 0.1 **provisional** | probability / month | Towns and cities — environmental factors (design.md provisional) |
 | `env_hi` | 3 | index | Towns and cities — environmental factors |
 | `env_lo` | -3 | index | Towns and cities — environmental factors |
