@@ -32,7 +32,7 @@ def test_rate_field_from_rules():
 def test_throughput_formula():
     """J4: step = efficiency × rate × capacity / 100."""
     sim, town = bread_town()
-    mine, job = _mine_with_reserve(sim, town, reserve=100.0)
+    _mine, job = _mine_with_reserve(sim, town, reserve=100.0)
     expected_step = job.efficiency * job.rate * job.capacity / 100
     job.work(sim.economy)
     assert job.stock == pytest.approx(min(expected_step, job.room))
@@ -61,7 +61,7 @@ def test_reserve_depletion_formula():
 def test_exhaustion_stops_extraction():
     """J5: when reserve hits 0, work returns False (no output)."""
     sim, town = bread_town()
-    mine, job = _mine_with_reserve(sim, town, reserve=0.0)
+    _mine, job = _mine_with_reserve(sim, town, reserve=0.0)
     result = job.work(sim.economy)
     assert result is False
     assert job.stock == 0.0
