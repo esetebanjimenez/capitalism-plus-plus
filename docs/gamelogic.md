@@ -1324,8 +1324,9 @@ from how they are used).
    w is the taker's weight, not the rival's.
 
 Moves 2 and 3 only run when the projected quantity-sum is below 2 ×
-the projected flow (see Link daily cycle, step 2d). Before any move, an
-oversupplied town (D < S) trims each link by `q / 50`.
+the projected flow (see Link daily cycle, step 2d); flow projection
+gate is not yet implemented. Before any move, an oversupplied town
+(D < S) trims each link by `q / 50`.
 
 The transfer amounts are **quadratic in the gap** and in the share term,
 so links that are far from the reference or a rival move much more

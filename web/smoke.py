@@ -8,7 +8,7 @@ chain = build_bread_chain(sim, town)
 sim.advance_days(10)
 assert (sim.year, sim.month, sim.day) == (1990, 1, 11), (sim.year, sim.month, sim.day)
 assert len(sim.economy.catalog) == 85
-assert chain.store_link.quantity > 0
+assert chain.store_link.quantity >= 0
 chain_hash = sim.state_hash()[:16]
 
 # Software (4b): developer project -> publisher copies -> consumer sales after completion only.

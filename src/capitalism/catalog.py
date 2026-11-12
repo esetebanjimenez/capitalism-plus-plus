@@ -176,7 +176,22 @@ def daily_demand(product: Product, town: Town) -> float:
 class TownMarket:
     """One per (town, consumer product): demand and the consumer links selling there."""
 
-    __slots__ = ("demand_per_day", "links", "max_score_in", "product", "supply_today", "town")
+    __slots__ = (
+        "brand_weight",
+        "demand_per_day",
+        "links",
+        "max_score_in",
+        "price_weight",
+        "product",
+        "ref_brand",
+        "ref_price",
+        "ref_score",
+        "ref_score_in",
+        "score_in_weight",
+        "supply_today",
+        "town",
+        "unmet_demand_sum",
+    )
 
     def __init__(self, town: Town, product: Product) -> None:
         self.town = town
@@ -185,9 +200,57 @@ class TownMarket:
         self.links: list[Link] = []
         self.max_score_in = 0.0
         self.supply_today = 0.0
+        self.price_weight = 0
+        self.score_in_weight = 0
+        self.brand_weight = 0
+        self.ref_price = product.row.base_price
+        self.ref_score_in = 0
+        self.ref_brand = 0
+        self.ref_score = 0.0
+        self.unmet_demand_sum = 0.0
 
     def recompute(self) -> None:
         self.demand_per_day = daily_demand(self.product, self.town)
+
+    def init_weights(self, rng: Rng) -> None:
+        """Weights from product row (FUN_0004cca0); town adjustments are 0 (provisional)."""
+        row = self.product.row
+        pw = max(20, min(90, row.w_price))
+        sw = max(10, min(100 - pw, row.w_quality))
+        self.price_weight = pw
+        self.score_in_weight = sw
+        self.brand_weight = 100 - pw - sw
+        self.ref_price = row.base_price
+        self.ref_score_in = rng.randint(5, 15)
+        self.ref_brand = 0
+        self.rebuild_ref_score()
+
+    def random_walk_refs(self, rng: Rng) -> None:
+        """Monthly random walk (FUN_0004cd5b; constants 0.5, 100, ±1)."""
+        bp = self.product.row.base_price
+        self.ref_price += (rng.random() - 0.5) * bp / 100.0
+        self.ref_price = max(0.0, self.ref_price)
+        self.ref_score_in = max(0, min(100, self.ref_score_in + rng.randint(-1, 1)))
+        self.ref_brand = max(0, min(100, self.ref_brand + rng.randint(-1, 1)))
+        self.rebuild_ref_score()
+
+    def rebuild_ref_score(self) -> None:
+        """Rebuild ref_score from components (N2, FPU recovery FUN_0004cf68)."""
+        row = self.product.row
+        if row.w_brand > 0:
+            base = round(self.price_weight * 2.0 * (row.base_price - self.ref_price) / row.base_price)
+            self.ref_score = max(
+                0.0,
+                base
+                + self.ref_brand * self.brand_weight / 60.0
+                + self.ref_score_in * self.score_in_weight / 60.0,
+            )
+        else:
+            self.ref_score = max(
+                0.0,
+                round((row.base_price - self.ref_price) * 100.0 / row.base_price)
+                + self.ref_score_in / 2.0,
+            )
 
 
 class Catalog:

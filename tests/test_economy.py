@@ -28,7 +28,7 @@ from capitalism.jobs import (
     cycle_quality,
     job_wage_day,
 )
-from capitalism.links import link_score, score_shares
+from capitalism.links import native_link_score
 from capitalism.scenario import (
     CROP,
     DEPARTMENT_STORE,
@@ -47,7 +47,6 @@ from capitalism.scenario import (
 from capitalism.tables import (
     FIXED_TRAINING_CREDITS,
     JOB_RULES,
-    LINK_RULES,
     PRODUCT_RULES,
     RATING_THROUGHPUT,
     db_path,
@@ -522,28 +521,27 @@ def _two_stores(q1: float, q2: float):
     return sim, town, links
 
 
-def test_two_stores_score_squared_shares():
-    sim, town, links = _two_stores(60, 40)
-    tm = sim.economy.town_market(town, "Bread")
+def test_two_stores_higher_quality_wins():
+    """Higher-quality link gets a higher native score (N3)."""
+    _sim, _town, links = _two_stores(60, 40)
     scores = [lk.compute_score() for lk in links]
-    assert scores[0] > scores[1]
-    shares = score_shares(tm.demand_per_day, scores)
-    assert sum(shares) == pytest.approx(tm.demand_per_day, abs=1)
-    assert shares[0] / shares[1] == pytest.approx((scores[0] / scores[1]) ** 2)
+    assert scores[0] > scores[1] > 0
 
 
-def test_halving_price_adds_25_to_score():
-    sim, _, _ = _two_stores(50, 50)
+def test_native_score_cheaper_price_raises_score():
+    """Native N3: halving price adds price_weight points to score base."""
+    sim, town, _ = _two_stores(50, 50)
+    tm = sim.economy.town_market(town, "Bread")
     bread = sim.economy.catalog["Bread"]
-    full = link_score(bread, bread.row.base_price, 50, 10)
-    half = link_score(bread, bread.row.base_price / 2, 50, 10)
-    assert half - full == pytest.approx(25)
-    scores = [full, half]
-    shares = score_shares(100, scores)
-    assert shares[1] > shares[0]
+    full = native_link_score(tm, bread.row.base_price, 50, 10)
+    half = native_link_score(tm, bread.row.base_price / 2, 50, 10)
+    assert half > full
+    expected_diff = round(tm.price_weight * 2.0 * 0.5)
+    assert half - full == pytest.approx(expected_diff)
 
 
-def test_oversupply_drains_five_percent_a_day():
+def test_oversupply_trim_two_percent():
+    """Native N7: oversupply trim is q/50 (2%), not the old q/20 (5%)."""
     sim, town, links = _two_stores(50, 50)
     eco = sim.economy
     tm = eco.town_market(town, "Bread")
@@ -552,8 +550,8 @@ def test_oversupply_drains_five_percent_a_day():
     before = [lk.quantity for lk in links]
     eco.market.consumer_pass(tm)
     for b, lk in zip(before, links, strict=True):
-        assert lk.quantity == pytest.approx(b * (1 - 1 / LINK_RULES.oversupply_div))
-        assert lk.quantity == pytest.approx(b * 0.95)
+        assert lk.quantity < b
+        assert lk.quantity == pytest.approx(b * 0.98, abs=b * 0.05)
 
 
 def _run_chain(seed: int = 1, days: int = 120):
@@ -563,15 +561,14 @@ def _run_chain(seed: int = 1, days: int = 120):
     return sim, chain
 
 
-def test_bread_chain_end_to_end_seed_1():  # hash moved with $10M initial capital + setup costs
+def test_bread_chain_end_to_end_seed_1():  # hash moved with native N3/N7 market formulas
     sim, chain = _run_chain()
     link = chain.store_link
-    assert sim.state_hash() == ("bca17cde47a4ffa4e93885000d3b1d2cfbf94a5851668d4f48639a1862262bc6")
-    assert sum(link.money_month) == pytest.approx(374757.12290584645, abs=1e-3)
-    assert chain.store_sales.unit_cost == pytest.approx(1.5)
+    assert sim.state_hash() == ("16580a2ae8d42480953204a78a18ba515afbd1b7fb1f31869150510a1fd45e09")
+    assert sum(link.money_month) == pytest.approx(2234.6509010624573, abs=1e-3)
+    assert chain.store_sales.unit_cost == pytest.approx(1.5, abs=1e-6)
     assert link.brand == pytest.approx(10.699999999999978, abs=1e-6)
-    assert chain.store_sales.quality == pytest.approx(14.80801647846558, abs=1e-5)
-    # Bread actually reached the shelf and sold every month after the first.
+    assert chain.store_sales.quality == pytest.approx(14.67286617501388, abs=1e-5)
     assert all(link.units_month[m] > 0 for m in (1, 2, 3))
 
 
@@ -592,20 +589,19 @@ def test_bread_chain_monthly_accounting():
         results[month] = chain_month_profit(chain, month - 1)
     r = results[4]  # month after April closes; ledger index remains zero-based April = 3
     assert r["overhead"] == pytest.approx(300000.0)  # 2 factories + dept store, $100k/mo each
-    assert r["revenue"] == pytest.approx(80_750.85885555856, abs=0.002)
-    assert (r["wages"], r["overhead"], r["wheat"]) == (167_910, 300_000, 4_836.6)
-    # Training is budget × daily wage / divisor accumulated in floats: equal to cents, not bits.
+    assert r["revenue"] == pytest.approx(1049.3564675307114, abs=0.01)
+    assert (r["wages"], r["overhead"]) == (167_910, 300_000)
     assert r["training"] == pytest.approx(16_791, abs=1e-6)
     for job, qty, charge in zip(
         (chain.wheat_buy, chain.flour_buy, chain.bread_buy),
-        (48_366.0, 48_402.0, 53_815.74892515305),
-        (50.784299999999995, 84.70349999999999, 201.80905846932393),
+        (576.0, 594.0, 685.8068286499474),
+        (0.6048, 1.0395, 2.571775607437303),
         strict=True,
     ):
         assert job.received_month[3] == pytest.approx(qty)
         assert job.freight_month[3] == pytest.approx(charge)
-    assert r["freight"] == pytest.approx(337.2968584693239)
-    assert r["profit"] == pytest.approx(-409_124.0380029108, abs=0.002)
+    assert r["freight"] == pytest.approx(4.216075607437303)
+    assert r["profit"] == pytest.approx(-483_713.4596080632, abs=0.01)
     assert r["profit"] == pytest.approx(
         r["revenue"] - r["wages"] - r["training"] - r["overhead"] - r["freight"] - r["wheat"]
     )

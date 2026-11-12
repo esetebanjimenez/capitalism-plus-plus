@@ -89,6 +89,7 @@ class Corporation:
         "ledger",
         "liabilities",
         "manufacturing_skill",
+        "market_share",
         "month_history",
         "name",
         "peak_revenue",
@@ -116,6 +117,7 @@ class Corporation:
         self.dividend_ratio = 0
         self.dividend_auto = True
         self.peak_revenue = 0.0
+        self.market_share: dict[int, int] = {}
         self.month_history: dict[str, list[float]] = {
             "revenue": [],
             "operating_profit": [],
@@ -309,6 +311,7 @@ class Economy:
                 if p.is_consumer and key not in self.market.towns:
                     tm = TownMarket(town, p)
                     tm.recompute()
+                    tm.init_weights(self.rng)
                     self.market.towns[key] = tm
 
     def town_market(self, town: Town, product_name: str) -> TownMarket:
@@ -606,13 +609,43 @@ class Economy:
         for firm in self.firms:
             if firm is not None:
                 firm.monthly(self)
+        self._compute_market_shares()
         self.market.monthly(self.calendar.month - 1)
+        for tm in self.market.towns.values():
+            tm.random_walk_refs(self.rng)
+            tm.unmet_demand_sum = 0.0
         best: dict[int, float] = {}
         for link in self.market.live_links():
             pid = link.product.id
             best[pid] = max(best.get(pid, 0.0), link.score)
         for p in self.catalog.products:
             p.state.max_score_in = best.get(p.id, 0.0)
+
+    def _compute_market_shares(self) -> None:
+        """K1: monthly market share = round(corp_sum × 100 / total), capped 0–100."""
+        corp_sums: dict[int, dict[int, float]] = {}
+        product_totals: dict[int, float] = {}
+        for link in self.market.live_links():
+            if not link.consumer:
+                continue
+            pid = link.product.id
+            owner = link.seller.firm.owner
+            if owner is None:
+                continue
+            cid = owner.id
+            corp_sums.setdefault(cid, {})
+            corp_sums[cid][pid] = corp_sums[cid].get(pid, 0.0) + link.quantity_sum
+            product_totals[pid] = product_totals.get(pid, 0.0) + link.quantity_sum
+        for tm in self.market.towns.values():
+            pid = tm.product.id
+            product_totals[pid] = product_totals.get(pid, 0.0) + tm.unmet_demand_sum
+        for corp in self.corps:
+            corp.market_share.clear()
+            sums = corp_sums.get(corp.id, {})
+            for pid, corp_sum in sums.items():
+                total = product_totals.get(pid, 0.0)
+                if total > 0:
+                    corp.market_share[pid] = min(100, round(corp_sum * 100.0 / total))
 
     def stocks_monthly(self) -> None:
         if not self.stock_enabled:
