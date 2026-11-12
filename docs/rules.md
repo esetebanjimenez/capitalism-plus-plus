@@ -171,9 +171,7 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `sales_mult_other` | 4 | multiplier | Sales — multiplier |
 | `sales_mult_store` | 2 | multiplier | Sales — live-inventory multiplier |
 | `train_weekday` | 2 | weekday | Job daily cycle — train on weekday 2 |
-| `training_credit_budget_divisor` | 10 **provisional** | budget-value / divisor; budget10 neutral | docs/design.md slice 4 call 6 (PR22 d012404) — provisional neutral credit scaling |
-| `training_credit_education` | 100 **provisional** | global fallback education; no native field recovered | docs/design.md slice 4 call 6 (PR22 d012404) — provisional neutral credit scaling |
-| `training_credit_education_divisor` | 100 **provisional** | education / divisor; fallback100 neutral | docs/design.md slice 4 call 6 (PR22 d012404) — provisional neutral credit scaling |
+| `training_education_default` | 100 | town-default education (decomp:46330, 0x42c80000=100.0); non-town firms natively get 0 (DAT_000b1b28 BSS) | decomp:60780 — job_add_training scales by budget/100 × education/100 |
 | `training_expense_divisor` | 100 | USD divisor | decompiled training review (2026-11-06) |
 | `wage_per_worker_month` | 2000 | usd / worker / month at labor cost 100 | Job daily cycle — post wages ((staff × 2000) / days-in-month × labor) / 100; design.md slice 4 call 5 |
 
@@ -571,13 +569,13 @@ Reference: Product catalog and demand — complete product catalog.
 | 8 | TIMBER **p** | Timber | 0.12 **p** | 300000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 0.2 **p** | — | — | — | — |
 | 9 | RUBBERPL **p** | Rubber Plant | 0.18 **p** | 200000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 0.3 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
 | 10 | SUGARCAN **p** | Sugar Cane | 0.18 **p** | 200000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 0.3 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
-| 11 | BARLEY **p** | Barley | 0.06 **p** | 600000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 0.3 | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
-| 12 | COCOA **p** | Cocoa | 0.3 **p** | 120000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 1 | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
-| 13 | COTTON **p** | Cotton | 0.3 **p** | 120000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 10 | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
-| 14 | GRAPES **p** | Grapes | 0.3 **p** | 120000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 2 | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
-| 15 | RUBBER **p** | Rubber | 0.24 **p** | 150000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 0.5 | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
-| 16 | SUGAR **p** | Sugar | 0.12 **p** | 300000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 0.5 | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
-| 17 | TOBACCO **p** | Tobacco | 0.6 **p** | 60000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 1.4 | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
+| 11 | BARLEY **p** | Barley | 0.06 **p** | 600000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 0.3 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
+| 12 | COCOA **p** | Cocoa | 0.3 **p** | 120000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 1 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
+| 13 | COTTON **p** | Cotton | 0.3 **p** | 120000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 10 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
+| 14 | GRAPES **p** | Grapes | 0.3 **p** | 120000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 2 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
+| 15 | RUBBER **p** | Rubber | 0.24 **p** | 150000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 0.5 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
+| 16 | SUGAR **p** | Sugar | 0.12 **p** | 300000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 0.5 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
+| 17 | TOBACCO **p** | Tobacco | 0.6 **p** | 60000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 1.4 **p** | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
 | 18 | WHEAT **p** | Wheat | 0.06 **p** | 600000 **p** | 3 **p** | 0 **p** | 0 **p** | 70 | 0.3 | 3 **p** | 5 **p** | 2 **p** | 50 **p** |
 | 19 | CATTLE **p** | Cattle | 300 **p** | 120 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 500 **p** | — | — | — | — |
 | 20 | CHICKEN **p** | Chicken | 3 **p** | 12000 **p** | 3 **p** | 0 **p** | 0 **p** | 0 **p** | 5 **p** | — | — | — | — |

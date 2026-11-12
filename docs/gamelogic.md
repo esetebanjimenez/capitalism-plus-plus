@@ -794,12 +794,16 @@ output as a percentage of maximum capacity. If a factory produced 60
 of a possible 100 units, it earns 60 credits. No rating multiplier
 applies.
 
-All credits are then scaled by two factors:
-- **Training budget** (player-adjustable, default 10%): the same
+All credits are then scaled by two factors at credit time
+(`credit × budget / 100 × education / 100`):
+- **Training budget** (player-adjustable, default 10): the same
   setting that controls Training & Equipment expense. Higher budget
   means faster skill gain but higher costs.
-- **City education level**: location-dependent modifier. Retail-type
-  firms use the town's education stat; other firms use a global default.
+- **City education level**: firms on town tiles use the town's
+  education level (starts at 100, varies over time between 1 and 100).
+  Firms outside town limits (typically resource extraction on map
+  deposits) get education 0 — they never accumulate training credits.
+  The sim uses 100 for all firms since it does not model map tiles.
 
 #### Weekly upgrade check
 

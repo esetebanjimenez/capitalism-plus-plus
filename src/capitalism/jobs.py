@@ -141,7 +141,16 @@ class Job:
             self.train()
 
     def _credit(self, raw: float) -> None:
-        self.train_credits += max(0.0, raw)
+        """Scale raw points by budget/100 × education/100, then accumulate (decomp:60780)."""
+        if raw <= 0.0:
+            return
+        budget = (
+            JOB_RULES.corp_training_budget_default
+            if self.firm.owner is None
+            else self.firm.owner.training_budget
+        )
+        education = JOB_RULES.training_education_default
+        self.train_credits += (raw * budget // 100) * education // 100
 
     def fixed_visit_credit(self) -> None:
         """Only database-listed fixed-credit job types enter here."""
@@ -152,19 +161,7 @@ class Job:
     def train(self) -> None:
         """Weekday 2: one staff-count step on strict credits > rating×900; clear to 0."""
         r = JOB_RULES
-        budget = (
-            r.corp_training_budget_default
-            if self.firm.owner is None
-            else self.firm.owner.training_budget
-        )
-        # Provisional neutral mapping at budget10 / education100 (PR #22).
-        scaled = (
-            self.train_credits
-            * budget
-            / r.training_credit_budget_divisor
-            * (r.training_credit_education / r.training_credit_education_divisor)
-        )
-        if scaled > max(1, self.rating) * 900.0:
+        if self.train_credits > max(1, self.rating) * 900:
             self.train_credits = 0.0
             self.train_progress += 1
             if self.train_progress >= self.staff:
