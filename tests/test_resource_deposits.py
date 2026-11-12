@@ -1,10 +1,8 @@
 """J6 + M1: Resource deposits, extraction rate from deposit, discovery."""
 
-import pytest
-
 from capitalism.rng import Rng
 from capitalism.tables import RAW_RESOURCE_TYPES
-from capitalism.world import TileCategory, Tile, World
+from capitalism.world import Tile, TileCategory, World
 
 
 def _flat_world(rng, *, kind=TileCategory.GRASSLAND, width=20, height=20):
