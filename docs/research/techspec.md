@@ -1407,6 +1407,10 @@ global counters at `DAT_000b1a1d[]`.
 
 ### Strategy dispatcher (FUN_0002cf3b)
 
+**Implemented** in `ai.py:MODE_FIRM_TYPES` (R19), `FIRM_TYPE_SKILL` (R20),
+`_skill_based_pick`, `_random_firm_type`, `RETRY_COOLDOWN` (R21), and
+`RANDOM_BUILD_CAP` (R23).
+
 Firm-type preference table at `DAT_000ad7f0` (10 bytes/mode: short
 count + int ptr + short min + short max). Decoded from binary:
 
@@ -1499,6 +1503,14 @@ first. Firm init then books setup + land (see Build cost, build panel
 and demolish).
 
 ### Product-group binding (FUN_0002b895)
+
+**Implemented** in `ai.py:_configure_new_firm`. The native copies a plan
+template into the firm's 9 slots; the sim picks products from the catalog
+and adds the minimum jobs per firm type (stores: Purchasing+Sales;
+factories: Purchasing×N+Manufacturing+Sales; farms: CropGrowing or
+LivestockRaising+Processing+Sales; extraction: job+Sales; R&D: Research;
+software: dev or pub jobs). Supply chain linking (FUN_0002f59c) not yet
+modelled.
 
 Copies job template `+0x21` into firm `+0x33`. Per slot:
 delete existing → `job_array_new` → configure by type:

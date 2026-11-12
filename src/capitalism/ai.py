@@ -8,6 +8,11 @@ from .person import (
     CHAR_CONSERVATIVE,
     CHAR_VERY_AGGRESSIVE,
     ROLE_INDEPENDENT,
+    SKILL_FARMING,
+    SKILL_MANUFACTURING,
+    SKILL_RAW_MATERIAL,
+    SKILL_RETAILING,
+    SKILL_RND,
     STATE_ACTIVE,
 )
 from .tables import AI_RULES, COMPETITOR_CAPITAL, FIRM_TYPES
@@ -32,6 +37,33 @@ PROFITABILITY_THRESHOLDS = (0.80, 0.60, 0.45, 0.30)
 # Dominance check intervals by character type (gamelogic.md Market dominance)
 DOMINANCE_INTERVALS = (160, 120, 80, 40)
 
+# Firm-type preference lists by strategy mode (techspec DAT_000ad7f0, decoded)
+MODE_FIRM_TYPES: dict[int, tuple[int, ...]] = {
+    MODE_ESTABLISH: (1, 2, 3, 4, 5, 6, 7, 10, 8, 9),
+    MODE_MANUFACTURE: (2, 3, 4, 10, 8, 9),
+    MODE_RETAIL: (1, 10),
+    MODE_DORMANT: (),
+}
+
+# CEO skill used to score each firm type (techspec FUN_0007a2e4, cross-wired)
+FIRM_TYPE_SKILL: dict[int, int] = {
+    1: SKILL_MANUFACTURING,   # Store → manufacturing (cross-wired)
+    2: SKILL_RETAILING,       # Factory → retailing (cross-wired)
+    3: SKILL_RND,             # R&D Center → R&D
+    4: SKILL_FARMING,         # Farm → farming
+    5: SKILL_RAW_MATERIAL,    # Logging Camp → raw material
+    6: SKILL_RAW_MATERIAL,    # Mine → raw material
+    7: SKILL_RAW_MATERIAL,    # Oil Well → raw material
+    8: SKILL_RND,             # Software Developer → R&D
+    9: SKILL_RND,             # Software Publisher → R&D
+    10: SKILL_MANUFACTURING,  # Restaurant → manufacturing (store category)
+}
+
+RETRY_COOLDOWN = 20
+
+# Max businesses per type in random build, by town level (techspec FUN_000316b4)
+RANDOM_BUILD_CAP = {0: 2, 1: 2, 2: 3, 3: 3, 4: 4, 5: 4}
+
 
 class AIState:
     """Per-corporation AI decision state."""
@@ -52,6 +84,7 @@ class AIState:
         "mode",
         "mode_start_day",
         "pending_build",
+        "retry_cooldowns",
         "schedule_offset",
     )
 
@@ -64,6 +97,7 @@ class AIState:
         self.expansion_intensity = 0
         self.pending_build: int | None = None
         self.build_cooldowns: dict[int, int] = {}
+        self.retry_cooldowns: dict[int, int] = {}
         # Decision timers
         self.last_strategy_day = day_serial
         self.last_link_day = day_serial
@@ -264,6 +298,9 @@ def ai_daily(eco: Economy, corp: Corporation, day_serial: int) -> None:
     expired = [k for k, v in ai.build_cooldowns.items() if v <= day_serial]
     for k in expired:
         del ai.build_cooldowns[k]
+    expired = [k for k, v in ai.retry_cooldowns.items() if v <= day_serial]
+    for k in expired:
+        del ai.retry_cooldowns[k]
 
     # No cash reset here: native resets cash to $1B only for the Government corp
     # (FUN_00030ffc, vtable 0x3553c; audit A1). Competitors spend real cash.
@@ -359,6 +396,9 @@ def _strategy_dispatch(
     firm = ai_build_firm(eco, corp, firm_type, town, rng, rural=firm_type in (4, 5, 6, 7))
     if firm is not None:
         ai.build_cooldowns[firm_type] = day_serial + int(_AR.build_cooldown)
+        _configure_new_firm(eco, corp, firm, rng)
+    else:
+        ai.retry_cooldowns[firm_type] = day_serial + RETRY_COOLDOWN
 
 
 def _dormant_check(
@@ -386,20 +426,16 @@ def _pick_town(eco: Economy, corp: Corporation) -> Town | None:
 def _skill_based_pick(
     eco: Economy, corp: Corporation, ceo: Person, ai: AIState
 ) -> int | None:
-    """Pick a firm type based on CEO's expertise skills (gamelogic.md cross-wired mapping)."""
-    from .person import SKILL_FARMING, SKILL_MANUFACTURING, SKILL_RETAILING
-
+    """Pick a firm type based on CEO's expertise skills (techspec FUN_0007a2e4)."""
+    type_list = MODE_FIRM_TYPES.get(ai.mode, ())
     candidates: list[tuple[float, int]] = []
-    # Factory (type 2) uses retailing skill
-    if 2 not in ai.build_cooldowns:
-        candidates.append((ceo.skills[SKILL_RETAILING], 2))
-    # Store (type 1) uses manufacturing skill
-    if 1 not in ai.build_cooldowns:
-        candidates.append((ceo.skills[SKILL_MANUFACTURING], 1))
-    # Farm (type 4) uses farming skill
-    if 4 not in ai.build_cooldowns:
-        candidates.append((ceo.skills[SKILL_FARMING], 4))
-
+    for ft in type_list:
+        if ft in ai.build_cooldowns or ft in ai.retry_cooldowns:
+            continue
+        skill_idx = FIRM_TYPE_SKILL.get(ft)
+        if skill_idx is None:
+            continue
+        candidates.append((ceo.skills[skill_idx], ft))
     if not candidates:
         return None
     candidates.sort(key=lambda x: x[0], reverse=True)
@@ -408,8 +444,8 @@ def _skill_based_pick(
 
 def _random_firm_type(rng: Rng, ai: AIState) -> int | None:
     """Pick a random firm type from the mode's available types."""
-    options = [1, 2, 4]  # store, factory, farm
-    available = [t for t in options if t not in ai.build_cooldowns]
+    type_list = MODE_FIRM_TYPES.get(ai.mode, ())
+    available = [t for t in type_list if t not in ai.build_cooldowns and t not in ai.retry_cooldowns]
     if not available:
         return None
     return rng.choice(available)
@@ -484,12 +520,162 @@ def _check_bankruptcy(
 def _random_build(
     eco: Economy, corp: Corporation, ai: AIState, day_serial: int
 ) -> None:
-    """1/1000 random build in a random town (gamelogic.md Strategy parameter change)."""
+    """1/1000 random build in a random town (techspec FUN_000316b4).
+
+    Native builds type 0xb (TV) or 0xd (Newspaper) from the Government
+    corp. The sim has no Government corp, so this runs for competitors
+    building a Department Store, capped by town level.
+    """
     rng = eco.rng
     towns = eco.world.towns
     if not towns:
         return
     town = rng.choice(towns)
-    firm = ai_build_firm(eco, corp, 1, town, rng)  # department store
+    firm_type = 1  # Department Store
+    cap = RANDOM_BUILD_CAP.get(town.level, 2)
+    count = sum(
+        1 for f in eco.firms
+        if f is not None and f.type_id == firm_type and f.town is town
+    )
+    if count >= cap:
+        return
+    firm = ai_build_firm(eco, corp, firm_type, town, rng)
     if firm is not None:
-        ai.build_cooldowns[1] = day_serial + int(_AR.build_cooldown)
+        ai.build_cooldowns[firm_type] = day_serial + int(_AR.build_cooldown)
+        _configure_new_firm(eco, corp, firm, rng)
+
+
+# --- AI firm configuration (R18) -------------------------------------------
+
+_PURCHASE_SLOTS = (3, 1, 7, 0, 2, 6, 8)
+_MFG_SLOT = 4
+_SALES_SLOT = 5
+_EXTRACT_JOB = {5: 4, 6: 8, 7: 9}
+_EXTRACT_PRODUCTS: dict[int, tuple[int, ...]] = {
+    5: (8,),
+    6: (1, 2, 3, 4, 5, 7),
+    7: (6,),
+}
+_DEFAULT_RESERVE = 100.0
+
+
+def _grant_tech(corp: Corporation, product: object) -> None:
+    if not corp.has_technology(product):
+        corp.add_technology(product, product.state.tech_level)
+
+
+def _configure_new_firm(
+    eco: Economy, corp: Corporation, firm: object, rng: Rng
+) -> None:
+    """Configure a newly built AI firm with jobs (R18, techspec FUN_0002b895).
+
+    The native AI selects a product group from the plan library and copies
+    its 9-slot template into the new firm, then wires supplier links.  The
+    sim's plan library starts empty, so this picks products directly from
+    the catalog and adds the minimum set of jobs that make the firm
+    functional.  Supply chain linking is not yet modelled (R22).
+    """
+    from .catalog import ConsumerProduct, Crop, Livestock
+    from .tables import LIVESTOCK_YIELDS
+
+    cat = eco.catalog
+    ft = firm.type_id
+
+    if ft in (1, 10):
+        candidates = [
+            p for p in cat.products
+            if isinstance(p, ConsumerProduct) and p.state.available
+            and p.row.demand_per_1000 > 0
+        ]
+        if not candidates:
+            return
+        product = rng.choice(candidates)
+        _grant_tech(corp, product)
+        firm.add_job(0, 10, product)
+        firm.add_job(1, 12, product)
+        firm.link_slots(0, 1)
+
+    elif ft == 2:
+        recipes = [
+            (cat.by_id[pid], rec)
+            for pid, rec in cat.recipes.items()
+            if isinstance(cat.by_id[pid], ConsumerProduct)
+            and cat.by_id[pid].state.available
+        ]
+        if not recipes:
+            return
+        product, recipe = rng.choice(recipes)
+        _grant_tech(corp, product)
+        for i, inp in enumerate(recipe.inputs):
+            if i >= len(_PURCHASE_SLOTS):
+                break
+            inp_p = cat.by_id[inp.input_id]
+            _grant_tech(corp, inp_p)
+            firm.add_job(_PURCHASE_SLOTS[i], 10, inp_p)
+            firm.link_slots(_PURCHASE_SLOTS[i], _MFG_SLOT)
+        firm.add_job(_MFG_SLOT, 7, product)
+        firm.add_job(_SALES_SLOT, 12, product)
+        firm.link_slots(_MFG_SLOT, _SALES_SLOT)
+
+    elif ft == 3:
+        candidates = [
+            p for p in cat.products
+            if p.state.available and not corp.has_technology(p)
+        ]
+        if not candidates:
+            candidates = [p for p in cat.products if p.state.available]
+        if not candidates:
+            return
+        firm.add_job(0, 11, rng.choice(candidates))
+
+    elif ft == 4:
+        candidates = [
+            p for p in cat.products
+            if isinstance(p, (Crop, Livestock)) and p.state.available
+        ]
+        if not candidates:
+            return
+        product = rng.choice(candidates)
+        _grant_tech(corp, product)
+        if isinstance(product, Crop):
+            firm.add_job(0, 1, product)
+            firm.add_job(1, 12, product)
+            firm.link_slots(0, 1)
+        else:
+            firm.add_job(0, 2, product)
+            yield_row = LIVESTOCK_YIELDS.get(product.id)
+            if yield_row is not None:
+                out = cat.by_id[yield_row.product_id]
+                _grant_tech(corp, out)
+                firm.add_job(1, 3, out)
+                firm.add_job(2, 12, out)
+                firm.link_slots(0, 1)
+                firm.link_slots(1, 2)
+            else:
+                firm.add_job(1, 12, product)
+                firm.link_slots(0, 1)
+
+    elif ft in _EXTRACT_JOB:
+        products = _EXTRACT_PRODUCTS[ft]
+        pid = rng.choice(products) if len(products) > 1 else products[0]
+        product = cat.by_id[pid]
+        _grant_tech(corp, product)
+        firm.add_job(0, _EXTRACT_JOB[ft], product)
+        firm.add_job(1, 12, product)
+        firm.link_slots(0, 1)
+        firm.reserve = _DEFAULT_RESERVE
+
+    elif ft == 8:
+        product = cat.by_id.get(85)
+        if product is None:
+            return
+        firm.add_job(0, 13, product)
+
+    elif ft == 9:
+        product = cat.by_id.get(85)
+        if product is None:
+            return
+        _grant_tech(corp, product)
+        firm.add_job(0, 14, product)
+        firm.add_job(1, 12, product)
+        firm.link_slots(0, 1)

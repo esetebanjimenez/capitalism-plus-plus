@@ -1564,6 +1564,12 @@ Each build type has a **30-day cooldown** to prevent spam-building.
 
 ### Supply chain linking
 
+> **Sim status:** `_configure_new_firm` (R18) adds the minimum job set per
+> firm type (purchasing+sales for stores, inputs+manufacturing+sales for
+> factories, etc.) and grants technology.  The two-phase supply chain
+> linking below is not yet modelled — firms operate independently without
+> cross-firm supplier wiring (R22).
+
 After building a firm, the AI configures what it produces and sets up
 the supply chain. This happens in two phases:
 
