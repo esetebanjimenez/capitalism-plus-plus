@@ -196,18 +196,23 @@ exist:
    - Very Low: skill level 40 in one area.
    - Low through High: assigns random product-class expertise from a
      fixed table of three product classes, with increasing skill levels.
-7. **Starting capital**: determined by the Competitor Capital setting:
+7. **Starting capital**: determined by the Competitor Capital setting and
+   strategy mode. The native formula (FUN_00079750) is:
+   `round_2sig((value + 10) × (3×setting + 1) × 5,000,000)` where
+   value is drawn from the strategy-mode capital table. Ranges for
+   Establish mode (widest spread):
 
    | Setting | Capital range |
    |---|---|
-   | Low | $3M – $6M |
-   | Moderate | $4.2M – $8.4M |
-   | High | $6M – $12M |
-   | Very High | $9M – $18M |
-   | Extremely High | $18M – $36M |
+   | Low | $55M – $100M |
+   | Moderate | $220M – $400M |
+   | High | $390M – $700M |
+   | Very High | $550M – $1B |
+   | Extremely High | $710M – $1.3B |
 
-   The exact amount is random within the range: half the base value
-   plus a random portion of the other half, multiplied by 600,000.
+   Retail mode narrows the range (e.g. Low: $55M – $65M). The old
+   $3M – $36M ranges were the person-wealth formula (FUN_0007916c),
+   which sets CEO personal wealth, not corp cash.
 
 8. The corporation is created as type Competitor.
 
