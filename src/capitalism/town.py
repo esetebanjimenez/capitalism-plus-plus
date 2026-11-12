@@ -179,10 +179,14 @@ class Town:
             env_factors=env,
         )
 
-    def monthly_tick(self, rng: Rng, *, detailed: bool) -> None:
-        """City monthly tick — pop always, rest only when detailed."""
+    def monthly_tick(self, rng: Rng, *, detailed: bool) -> bool:
+        """City monthly tick — pop always, rest only when detailed.
+
+        Returns True when the town levelled up this tick.
+        """
         g = TOWN_GROWTH
         prev_pop = self.population
+        levelled_up = False
 
         # --- Population growth (always runs, even simple-mode) ---
         growth = (
@@ -204,13 +208,14 @@ class Town:
         # Native: +1 level per tick once pop >= level_pop_per_sq x L^2; never down, no cap.
         if self.population >= level_up_population(self.level):
             self.level += 1
+            levelled_up = True
 
         if not detailed:
             self.monthly_stats()
             self.pop_ring[self.ring_index] = self.population
             self.ring_index = (self.ring_index + 1) % 12
             self.last_month_population = prev_pop
-            return
+            return levelled_up
 
         # --- GNP update (detailed only) ---
         prev_gnp = self.per_capita_gnp
@@ -269,6 +274,7 @@ class Town:
         self.pop_ring[self.ring_index] = self.population
         self.ring_index = (self.ring_index + 1) % 12
         self.last_month_population = prev_pop
+        return levelled_up
 
     def update_climate(self, gnp_growth: float) -> None:
         """FUN_0004b68e (decomp:46590-46598): the first DAT_000adad0 threshold that is

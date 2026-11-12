@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from enum import IntEnum
-from math import floor
+from math import floor, isqrt
 
 from .rng import Rng
 from .tables import CITY_NAME_POOL, LAND_VALUE, MAP_RULES
@@ -131,6 +131,30 @@ class World:
         if not (0 <= x < self.width and 0 <= y < self.height):
             return False
         return self.tile_at(x, y).kind in (TileCategory.GRASSLAND, TileCategory.FOREST_HILL)
+
+    def spread_town(self, town: Town, rng: Rng) -> None:
+        """Paint town tiles on level-up (native FUN_0004c334, decomp:47149-47201).
+
+        Each tile within Euclidean distance < level of the centre becomes a
+        TOWN tile unconditionally; tiles in the Chebyshev-only fringe (where
+        Chebyshev distance <= level but Euclidean >= level) get a 1-in-10
+        chance.  TOWN and FIRM tiles are never overwritten.
+        """
+        cx, cy, lv = town.x, town.y, town.level
+        x0 = max(0, cx - lv)
+        x1 = min(self.width - 1, cx + lv)
+        y0 = max(0, cy - lv)
+        y1 = min(self.height - 1, cy + lv)
+        for y in range(y0, y1 + 1):
+            for x in range(x0, x1 + 1):
+                tile = self.tile_at(x, y)
+                if tile.kind in (TileCategory.TOWN, TileCategory.FIRM):
+                    continue
+                dx, dy = abs(x - cx), abs(y - cy)
+                dist = isqrt(dx * dx + dy * dy)
+                if dist < lv or rng.chance(0.1):
+                    tile.kind = TileCategory.TOWN
+                    tile.ref = town.id
 
     @classmethod
     def generate(
