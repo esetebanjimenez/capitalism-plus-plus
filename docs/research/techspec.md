@@ -4191,6 +4191,15 @@ The reference score `+0x7a` comes from `FUN_0004cf41` → `FUN_0004cf68`
 w_si / 60`, floored at 0. Caller `FUN_0004c8e7` (line 47378) also zeros
 the month buckets `+0x8e` / `+0xbe`; it is likely monthly.
 
+**Sim implementation** (Group 9, PR #199): `TownMarket.init_weights(rng)` in
+`catalog.py` seeds weights and reference levels at market creation; the
+monthly random walk is `TownMarket.random_walk_refs(rng)`. Town adjustments
+(`town+0x2a`, `town+0x26`) are provisionally 0. The reference score is
+rebuilt by `TownMarket.rebuild_ref_score()` using the FPU-recovered N2
+formula. K1 market share is `Economy._compute_market_shares()`, K2 unmet
+demand is accumulated in `consumer_pass`, and K3 consumer split is the N4-N7
+transfer system replacing the old score² split.
+
 ### Sales — oitem4.cpp (lines ~78764–78920)
 
 `item_sell` (0x0006cf10, line 78764):

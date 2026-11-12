@@ -30,7 +30,7 @@ _IMPORTER_DECAY_DEFAULT = 0.1  # unique / other
 def link_score(
     product: Product, price: float, quality: float, brand: float, jitter: int = 0
 ) -> float:
-    """`base + brand × w_brand / 60 + quality × w_quality / 60` with a price base."""
+    """Legacy score used for B2B links (consumer links use native_link_score)."""
     r = LINK_RULES
     row = product.row
     base = max(0.0, r.price_base - r.price_slope * price / row.base_price)
@@ -38,14 +38,19 @@ def link_score(
     return max(0.0, s)
 
 
-def score_shares(demand: float, scores: list[float]) -> list[float]:
-    """Split `demand` by score^exponent (design.md slice 5 call 5)."""
-    e = LINK_RULES.share_exponent
-    powered = [max(0.0, s) ** e for s in scores]
-    total = sum(powered)
-    if total <= 0:
-        return [0.0] * len(scores)
-    return [demand * p / total for p in powered]
+def native_link_score(tm: TownMarket, price: float, quality: float, brand: float) -> float:
+    """Native score formula (N3, FPU recovery FUN_0006cc92).
+
+    Brand path: round(pw × 2 × (base − price) / base) + brand × bw / 60 + quality × sw / 60
+    No-brand path: round((base − price) × 100 / base + quality / 2)
+    """
+    row = tm.product.row
+    if row.w_brand > 0:
+        base = round(tm.price_weight * 2.0 * (row.base_price - price) / row.base_price)
+        s = base + brand * tm.brand_weight / 60.0 + quality * tm.score_in_weight / 60.0
+    else:
+        s = round((row.base_price - price) * 100.0 / row.base_price + quality / 2.0)
+    return max(0.0, float(s))
 
 
 class Link:
@@ -104,6 +109,8 @@ class Link:
         )
 
     def compute_score(self) -> float:
+        if self.consumer:
+            return native_link_score(self.buyer, self.price, self.seller.quality, self.brand)
         return link_score(
             self.product,
             self.price,
@@ -127,10 +134,11 @@ class Link:
     month_index = 0  # set per day by the market (class-level default)
 
     def adjust_score(self) -> None:
-        """Daily step 1: recompute; a drop scales quantity by new/old on live links."""
+        """Daily step 1: recompute; a drop penalises quantity (N11: qty × (1 − drop/100))."""
         new = self.compute_score()
-        if self.live and new < self.score and self.score > 0:
-            self.quantity *= new / self.score
+        if self.live and new < self.score:
+            drop = self.score - new
+            self.quantity *= max(0.0, 1.0 - drop / 100.0)
         self.prev_score = self.score
         self.score = new
 
@@ -142,6 +150,33 @@ class Link:
         elif self.brand > target:
             self.brand = max(target, self.brand - r.brand_nudge)
         self.brand = max(0.0, min(r.brand_max, self.brand))
+
+
+def _reduce_gap(link: Link, tm: TownMarket) -> float:
+    """N4: how far below reference this link is (positive → gets reduced)."""
+    score_term = (tm.ref_score - link.score) / 100.0
+    price_term = tm.price_weight * (link.price - tm.ref_price) / (link.price + 0.1) / 300.0
+    quality_term = tm.score_in_weight * (tm.ref_score_in - link.seller.quality) / 30000.0
+    brand_term = tm.brand_weight * (tm.ref_brand - link.brand) / 30000.0
+    return max(0.0, score_term + price_term + quality_term + brand_term)
+
+
+def _increase_gap(link: Link, tm: TownMarket) -> float:
+    """N5: how far above reference this link is (positive → gets to grow)."""
+    score_term = (link.score - tm.ref_score) / 100.0
+    price_term = tm.price_weight * (tm.ref_price - link.price) / (link.price + 0.1) / 300.0
+    quality_term = tm.score_in_weight * (link.seller.quality - tm.ref_score_in) / 30000.0
+    brand_term = tm.brand_weight * (link.brand - tm.ref_brand) / 30000.0
+    return max(0.0, score_term + price_term + quality_term + brand_term)
+
+
+def _take_gap(me: Link, them: Link, tm: TownMarket) -> float:
+    """N6: advantage of `me` over `them` (positive → me takes from them)."""
+    score_term = (me.score - them.score + 1) / 100.0
+    price_term = tm.price_weight * (them.price - me.price) / (me.price + 0.1) / 300.0
+    quality_term = tm.score_in_weight * (me.seller.quality - them.seller.quality) / 30000.0
+    brand_term = tm.brand_weight * (me.brand - them.brand) / 30000.0
+    return max(0.0, score_term + price_term + quality_term + brand_term)
 
 
 class Market:
@@ -178,20 +213,47 @@ class Market:
                 self.consumer_pass(tm)
 
     def consumer_pass(self, tm: TownMarket) -> None:
-        """design.md slice 5 calls 5 and 6, then sales and brand."""
-        r = LINK_RULES
+        """Native N7 transfer system: oversupply trim, reduce (N4), increase (N5), take (N6)."""
         live = [x for x in tm.links if x.live]
         if not live:
             return
         demand = tm.demand_per_day
+        if demand <= 0:
+            return
+        for x in live:
+            x.quantity -= x.quantity / 50.0
+        for x in live:
+            gap = _reduce_gap(x, tm)
+            if gap > 0 and demand > 0:
+                cut = (100.0 - x.weight) * x.quantity * gap * gap * (x.quantity / demand) ** 2 / 100.0
+                x.quantity = max(0.0, x.quantity - cut)
         supply = sum(x.quantity for x in live)
-        if supply > demand:
+        free = max(0.0, demand - supply)
+        if free > 0:
             for x in live:
-                x.quantity -= x.quantity / r.oversupply_div
-        else:
-            shares = score_shares(demand, [x.score for x in live])
-            for x, share in zip(live, shares, strict=True):
-                x.quantity += (share - x.quantity) * (r.weight_max - x.weight) / r.weight_max
+                gap = _increase_gap(x, tm)
+                if gap > 0:
+                    add = (100.0 - x.weight) * free * gap * gap * (free / demand) ** 2 / 100.0
+                    x.quantity += add
+            for i, me in enumerate(live):
+                for j, them in enumerate(live):
+                    if i == j:
+                        continue
+                    gap = _take_gap(me, them, tm)
+                    if gap > 0:
+                        take = (
+                            (100.0 - me.weight)
+                            * them.quantity
+                            * gap
+                            * gap
+                            * (them.quantity / demand) ** 2
+                            * 120.0
+                            / 100.0
+                            / 100.0
+                        )
+                        take = min(take, them.quantity)
+                        me.quantity += take
+                        them.quantity -= take
         for x in live:
             x.quantity_sum += x.quantity
             seller = x.seller
@@ -201,7 +263,10 @@ class Market:
                 seller.sell_to(sold, x)  # type: ignore[attr-defined]
                 x.nudge_brand()
                 self._awareness_gain(x, tm)
-        tm.supply_today = sum(x.quantity for x in live)
+        supply_after = sum(x.quantity for x in live)
+        tm.supply_today = supply_after
+        unmet = max(0.0, demand - supply_after)
+        tm.unmet_demand_sum += unmet
 
     @staticmethod
     def _awareness_gain(link: Link, tm: TownMarket) -> None:
