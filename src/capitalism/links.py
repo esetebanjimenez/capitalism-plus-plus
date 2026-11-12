@@ -58,6 +58,7 @@ class Link:
         "awareness",
         "brand",
         "buyer",
+        "flow_prev",
         "id",
         "margin_month",
         "money_month",
@@ -65,6 +66,7 @@ class Link:
         "price",
         "product",
         "quantity",
+        "quantity_prev",
         "quantity_sum",
         "score",
         "seller",
@@ -82,7 +84,9 @@ class Link:
         self.product: Product = seller.product
         self.price = seller.price if price is None else price
         self.quantity = 0.0
+        self.quantity_prev = 0.0
         self.quantity_sum = 0.0
+        self.flow_prev = 0.0
         self.awareness = 0.0
         self.brand = LINK_RULES.brand_start
         self.score = 0.0
@@ -153,30 +157,30 @@ class Link:
 
 
 def _reduce_gap(link: Link, tm: TownMarket) -> float:
-    """N4: how far below reference this link is (positive → gets reduced)."""
-    score_term = (tm.ref_score - link.score) / 100.0
-    price_term = tm.price_weight * (link.price - tm.ref_price) / (link.price + 0.1) / 300.0
-    quality_term = tm.score_in_weight * (tm.ref_score_in - link.seller.quality) / 30000.0
-    brand_term = tm.brand_weight * (tm.ref_brand - link.brand) / 30000.0
-    return max(0.0, score_term + price_term + quality_term + brand_term)
+    """N4: how far below reference (positive → gets reduced). Per-factor clamping."""
+    score_term = max(0.0, (tm.ref_score - link.score) / 100.0)
+    price_term = max(0.0, tm.price_weight * (link.price - tm.ref_price) / (tm.ref_price + 0.1) / 300.0)
+    quality_term = max(0.0, tm.score_in_weight * (tm.ref_score_in - link.seller.quality) / 30000.0)
+    brand_term = max(0.0, tm.brand_weight * (tm.ref_brand - link.brand) / 30000.0)
+    return score_term + price_term + quality_term + brand_term
 
 
 def _increase_gap(link: Link, tm: TownMarket) -> float:
-    """N5: how far above reference this link is (positive → gets to grow)."""
-    score_term = (link.score - tm.ref_score) / 100.0
-    price_term = tm.price_weight * (tm.ref_price - link.price) / (link.price + 0.1) / 300.0
-    quality_term = tm.score_in_weight * (link.seller.quality - tm.ref_score_in) / 30000.0
-    brand_term = tm.brand_weight * (link.brand - tm.ref_brand) / 30000.0
-    return max(0.0, score_term + price_term + quality_term + brand_term)
+    """N5: how far above reference (positive → gets to grow). Per-factor clamping."""
+    score_term = max(0.0, (link.score - tm.ref_score) / 100.0)
+    price_term = max(0.0, tm.price_weight * (tm.ref_price - link.price) / (link.price + 0.1) / 300.0)
+    quality_term = max(0.0, tm.score_in_weight * (link.seller.quality - tm.ref_score_in) / 30000.0)
+    brand_term = max(0.0, tm.brand_weight * (link.brand - tm.ref_brand) / 30000.0)
+    return score_term + price_term + quality_term + brand_term
 
 
 def _take_gap(me: Link, them: Link, tm: TownMarket) -> float:
-    """N6: advantage of `me` over `them` (positive → me takes from them)."""
-    score_term = (me.score - them.score + 1) / 100.0
-    price_term = tm.price_weight * (them.price - me.price) / (me.price + 0.1) / 300.0
-    quality_term = tm.score_in_weight * (me.seller.quality - them.seller.quality) / 30000.0
-    brand_term = tm.brand_weight * (me.brand - them.brand) / 30000.0
-    return max(0.0, score_term + price_term + quality_term + brand_term)
+    """N6: advantage of `me` over `them` (positive → me takes). Per-factor clamping."""
+    score_term = max(0.0, (me.score - them.score + 1) / 100.0)
+    price_term = max(0.0, tm.price_weight * (them.price - me.price) / (me.price + 0.1) / 300.0)
+    quality_term = max(0.0, tm.score_in_weight * (me.seller.quality - them.seller.quality) / 30000.0)
+    brand_term = max(0.0, tm.brand_weight * (me.brand - them.brand) / 30000.0)
+    return score_term + price_term + quality_term + brand_term
 
 
 class Market:
@@ -204,15 +208,17 @@ class Market:
 
     def daily(self, eco: Economy) -> None:
         Link.month_index = eco.calendar.month - 1
+        day_serial = eco.calendar.day_serial
+        day = eco.calendar.day
         for link in self.links:
             if link is not None:
                 link.adjust_score()
         for key in sorted(self.towns):
             tm = self.towns[key]
             if tm.links:
-                self.consumer_pass(tm)
+                self.consumer_pass(tm, day_serial, day)
 
-    def consumer_pass(self, tm: TownMarket) -> None:
+    def consumer_pass(self, tm: TownMarket, day_serial: int, day: int) -> None:
         """Native N7 transfer system: oversupply trim, reduce (N4), increase (N5), take (N6)."""
         live = [x for x in tm.links if x.live]
         if not live:
@@ -220,40 +226,52 @@ class Market:
         demand = tm.demand_per_day
         if demand <= 0:
             return
+        supply = sum(x.quantity for x in live)
+        if supply > demand:
+            for x in live:
+                if x.quantity > 0:
+                    x.quantity -= x.quantity / 50.0
         for x in live:
-            x.quantity -= x.quantity / 50.0
-        for x in live:
+            x.update_weight()
             gap = _reduce_gap(x, tm)
             if gap > 0 and demand > 0:
                 cut = (100.0 - x.weight) * x.quantity * gap * gap * (x.quantity / demand) ** 2 / 100.0
-                x.quantity = max(0.0, x.quantity - cut)
-        supply = sum(x.quantity for x in live)
-        free = max(0.0, demand - supply)
-        if free > 0:
-            for x in live:
+                cut = min(cut, x.quantity)
+                x.quantity -= cut
+        proj_day = min(day, 30)
+        for x in live:
+            proj_qty = x.quantity_prev * (30 - proj_day) / 30.0 + x.quantity_sum
+            m = Link.month_index
+            flow_this = x.units_month[m]
+            proj_flow = x.flow_prev * (30 - proj_day) / 30.0 + flow_this
+            if proj_flow > 0.0 and proj_qty >= 2.0 * proj_flow:
+                continue
+            supply = sum(lk.quantity for lk in live)
+            free = max(0.0, demand - supply)
+            if free > 0:
                 gap = _increase_gap(x, tm)
                 if gap > 0:
                     add = (100.0 - x.weight) * free * gap * gap * (free / demand) ** 2 / 100.0
+                    add = min(add, free)
                     x.quantity += add
-            for i, me in enumerate(live):
-                for j, them in enumerate(live):
-                    if i == j:
-                        continue
-                    gap = _take_gap(me, them, tm)
-                    if gap > 0:
-                        take = (
-                            (100.0 - me.weight)
-                            * them.quantity
-                            * gap
-                            * gap
-                            * (them.quantity / demand) ** 2
-                            * 120.0
-                            / 100.0
-                            / 100.0
-                        )
-                        take = min(take, them.quantity)
-                        me.quantity += take
-                        them.quantity -= take
+            for them in live:
+                if them is x:
+                    continue
+                gap = _take_gap(x, them, tm)
+                if gap > 0 and demand > 0:
+                    take = (
+                        (100.0 - x.weight)
+                        * them.quantity
+                        * gap
+                        * gap
+                        * (them.quantity / demand) ** 2
+                        * 120.0
+                        / 100.0
+                        / 100.0
+                    )
+                    take = min(take, them.quantity)
+                    x.quantity += take
+                    them.quantity -= take
         for x in live:
             x.quantity_sum += x.quantity
             seller = x.seller
@@ -263,10 +281,17 @@ class Market:
                 seller.sell_to(sold, x)  # type: ignore[attr-defined]
                 x.nudge_brand()
                 self._awareness_gain(x, tm)
-        supply_after = sum(x.quantity for x in live)
-        tm.supply_today = supply_after
-        unmet = max(0.0, demand - supply_after)
+        if day_serial % 2 == 0:
+            self._sum_supply(tm)
+        unmet = max(0.0, demand - sum(x.quantity for x in live))
         tm.unmet_demand_sum += unmet
+
+    @staticmethod
+    def _sum_supply(tm: TownMarket) -> None:
+        """N10: recompute supply on even day_serial; each link sees others only."""
+        live = [x for x in tm.links if x.live]
+        total = sum(x.quantity for x in live)
+        tm.supply_today = max(0.0, total)
 
     @staticmethod
     def _awareness_gain(link: Link, tm: TownMarket) -> None:
@@ -311,10 +336,12 @@ class Market:
             tm.supply_today = max(-tm.demand_per_day, min(tm.supply_today, tm.demand_per_day))
 
     def monthly(self, month0: int) -> None:
-        """Monthly roll (ref): zero the new month's buckets, reset sums, recompute weight."""
+        """Monthly roll (ref): save prev, zero the new month's buckets, recompute weight."""
         for link in self.links:
             if link is None:
                 continue
+            link.quantity_prev = link.quantity_sum
+            link.flow_prev = link.units_month[month0]
             link.money_month[month0] = 0.0
             link.units_month[month0] = 0.0
             link.margin_month[month0] = 0.0

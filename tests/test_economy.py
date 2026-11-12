@@ -548,7 +548,7 @@ def test_oversupply_trim_two_percent():
     for lk in links:
         lk.quantity = tm.demand_per_day  # supply = 2 × demand
     before = [lk.quantity for lk in links]
-    eco.market.consumer_pass(tm)
+    eco.market.consumer_pass(tm, 0, 1)
     for b, lk in zip(before, links, strict=True):
         assert lk.quantity < b
         assert lk.quantity == pytest.approx(b * 0.98, abs=b * 0.05)
@@ -564,11 +564,11 @@ def _run_chain(seed: int = 1, days: int = 120):
 def test_bread_chain_end_to_end_seed_1():  # hash moved with native N3/N7 market formulas
     sim, chain = _run_chain()
     link = chain.store_link
-    assert sim.state_hash() == ("76d7feee7774b64d0276c806de5898146aa07b9778cde29647067b26c4140942")
-    assert sum(link.money_month) == pytest.approx(727.816301201094, abs=1e-3)
+    assert sim.state_hash() == ("5f0c3ecb3a14ee377f8c61ca7c1c97152f09f590fdb8a5e2eb3e1aac040318ee")
+    assert sum(link.money_month) == pytest.approx(1080.5051480547118, abs=1e-3)
     assert chain.store_sales.unit_cost == pytest.approx(1.5, abs=1e-6)
     assert link.brand == pytest.approx(10.699999999999978, abs=1e-6)
-    assert chain.store_sales.quality == pytest.approx(13.16614479059305, abs=1e-5)
+    assert chain.store_sales.quality == pytest.approx(13.166209961264933, abs=1e-5)
     assert all(link.units_month[m] > 0 for m in (1, 2, 3))
 
 
@@ -589,19 +589,19 @@ def test_bread_chain_monthly_accounting():
         results[month] = chain_month_profit(chain, month - 1)
     r = results[4]  # month after April closes; ledger index remains zero-based April = 3
     assert r["overhead"] == pytest.approx(300000.0)  # 2 factories + dept store, $100k/mo each
-    assert r["revenue"] == pytest.approx(468.83738599929086, abs=0.01)
+    assert r["revenue"] == pytest.approx(710.2438064117135, abs=0.01)
     assert (r["wages"], r["overhead"]) == (167_910, 300_000)
     assert r["training"] == pytest.approx(16_791, abs=1e-6)
     for job, qty, charge in zip(
         (chain.wheat_buy, chain.flour_buy, chain.bread_buy),
-        (216.0, 243.0, 296.72475570847746),
-        (0.2268, 0.42524999999999996, 1.1127178339067905),
+        (315.0, 351.0, 443.5354507381562),
+        (0.33075, 0.61425, 1.6632579402680858),
         strict=True,
     ):
         assert job.received_month[3] == pytest.approx(qty)
         assert job.freight_month[3] == pytest.approx(charge)
-    assert r["freight"] == pytest.approx(1.7647678339067905)
-    assert r["profit"] == pytest.approx(-484255.52738183463, abs=0.01)
+    assert r["freight"] == pytest.approx(2.6082579402680857)
+    assert r["profit"] == pytest.approx(-484024.8644515286, abs=0.01)
     assert r["profit"] == pytest.approx(
         r["revenue"] - r["wages"] - r["training"] - r["overhead"] - r["freight"] - r["wheat"]
     )

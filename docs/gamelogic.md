@@ -3606,6 +3606,12 @@ At the start of each month:
   used for display and goals; it doesn't drive the split between
   sellers
 
+> **Sim status:** The consumer split (R11) now uses per-factor clamped gap
+> functions, oversupply trim gated on D < S, a projection gate for
+> increase/take, and even-day supply sum (R15). The N10 price swap and
+> the full N8 brand build-up system are not yet modelled (Unknown native
+> fields block them). Brand perception remains a per-link nudge (R13).
+
 ### Sales
 
 When a retail firm sells units of a product:
