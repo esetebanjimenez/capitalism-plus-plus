@@ -6,7 +6,7 @@ from enum import IntEnum
 from math import floor, isqrt
 
 from .rng import Rng
-from .tables import CITY_NAME_POOL, LAND_VALUE, MAP_RULES
+from .tables import CITY_NAME_POOL, LAND_VALUE, MAP_RULES, RAW_RESOURCE_TYPES
 from .town import Town
 
 MAP_W = MAP_RULES.width
@@ -29,7 +29,7 @@ class TileCategory(IntEnum):
 
 
 class Tile:
-    __slots__ = ("climate", "height", "kind", "moisture", "rainfall", "ref", "soil")
+    __slots__ = ("climate", "height", "kind", "moisture", "rainfall", "ref", "resource", "soil")
 
     def __init__(
         self,
@@ -41,6 +41,7 @@ class Tile:
         moisture: int = 0,
         climate: int = 0,
         height: float = 0.0,
+        resource: int = 0,
     ) -> None:
         self.kind = kind
         self.ref = ref
@@ -49,6 +50,7 @@ class Tile:
         self.moisture = moisture
         self.climate = climate
         self.height = height
+        self.resource = resource
 
     # Aliases used by older call sites / tests
     @property
@@ -66,12 +68,15 @@ class World:
     __slots__ = (
         "centroid",
         "days_since_spawn",
+        "deposit_counts",
         "detailed_cities",
         "equator_row",
         "height",
+        "last_resource_day_serial",
         "last_spawn_day_serial",
         "target_cities",
         "tiles",
+        "total_deposits",
         "towns",
         "width",
     )
@@ -98,6 +103,9 @@ class World:
         self.target_cities = target_cities
         self.days_since_spawn = 0
         self.last_spawn_day_serial = 0
+        self.last_resource_day_serial = 0
+        self.deposit_counts: dict[int, int] = {}
+        self.total_deposits = 0
 
     def tile_at(self, x: int, y: int) -> Tile:
         return self.tiles[y * self.width + x]
@@ -156,6 +164,75 @@ class World:
                     tile.kind = TileCategory.TOWN
                     tile.ref = town.id
 
+    def _try_place_deposit(self, rng: Rng, res_id: int, *, notify: bool) -> bool:
+        """Try once to place a deposit for product *res_id* at a random tile.
+
+        Returns True on success (native FUN_0007449e, decomp:84090-84176).
+        Terrain rules per entry terrain_type:
+          0 → grassland or forest/hill  (oil)
+          1 → grassland only            (mines)
+          2 → forest/hill only          (timber)
+        """
+        entry = RAW_RESOURCE_TYPES[res_id]
+        x = rng.randint(0, self.width - 1)
+        y = rng.randint(0, self.height - 1)
+        tile = self.tile_at(x, y)
+        if tile.resource != 0:
+            return False
+        tt = entry.terrain_type
+        if tt == 0:
+            if tile.kind not in (TileCategory.GRASSLAND, TileCategory.FOREST_HILL):
+                return False
+        elif tt == 1:
+            if tile.kind != TileCategory.GRASSLAND:
+                return False
+        elif tt == 2:
+            if tile.kind != TileCategory.FOREST_HILL:
+                return False
+        if tile.kind in (TileCategory.TOWN, TileCategory.FIRM):
+            return False
+        tile.resource = res_id
+        self.deposit_counts[res_id] = self.deposit_counts.get(res_id, 0) + 1
+        self.total_deposits += 1
+        return True
+
+    def place_initial_deposits(self, rng: Rng) -> None:
+        """Seed resource deposits at game start (native FUN_0007428b, decomp:83986-84014)."""
+        for res_id in RAW_RESOURCE_TYPES:
+            self.deposit_counts[res_id] = 0
+            min_target = rng.randint(0, 1) + 2
+            budget = rng.randint(0, 4) + 6
+            placed = 0
+            while (placed == 0 and budget > -1000) or (budget > 0 and placed < min_target):
+                if self._try_place_deposit(rng, res_id, notify=False):
+                    placed += 1
+                budget -= 1
+
+    def discover_resources(self, rng: Rng, day_serial: int, start_day_serial: int) -> None:
+        """Daily late-spawner tick (native FUN_0007433c+FUN_00074376, decomp:84018-84082).
+
+        Gate: both start_day + 365 < day AND last_resource_day + 365 < day.
+        Then per resource type: if placed < 2, try once.
+        Global: 1/500 chance to place any type with < 4 deposits.
+        """
+        if start_day_serial + 365 >= day_serial:
+            return
+        if self.last_resource_day_serial + 365 >= day_serial:
+            return
+        n_types = len(RAW_RESOURCE_TYPES)
+        res_ids = list(RAW_RESOURCE_TYPES)
+        for res_id in res_ids:
+            if not RAW_RESOURCE_TYPES[res_id].discoverable:
+                continue
+            placed = self.deposit_counts.get(res_id, 0)
+            if placed < 2:
+                self._try_place_deposit(rng, res_id, notify=True)
+        if rng.chance(1.0 / 500) and self.total_deposits < n_types * 3:
+            idx = rng.randint(0, n_types - 1)
+            res_id = res_ids[idx]
+            if self.deposit_counts.get(res_id, 0) < 4:
+                self._try_place_deposit(rng, res_id, notify=True)
+
     @classmethod
     def generate(
         cls,
@@ -168,6 +245,7 @@ class World:
         world = cls(detailed_cities=detailed_cities, target_cities=target_cities)
         world._build_terrain(rng)
         world._place_cities(rng)
+        world.place_initial_deposits(rng)
         world._update_centroid()
         return world
 

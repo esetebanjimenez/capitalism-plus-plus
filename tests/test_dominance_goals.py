@@ -1,5 +1,7 @@
 """Sector and industry dominance goals can be met (gamelogic.md Goals)."""
 
+import pytest
+
 from capitalism.goals import (
     GameResult,
     check_goals,
@@ -70,7 +72,10 @@ def test_sector_row_shows_player_and_leader_share():
     goals = sim.goal_config
     goals.sector_goals[0] = True
     _, results = check_goals(goals, sim.economy, corp)
-    assert results["sector_0"] == (0.0, 100.0, True)
+    leader, player, met = results["sector_0"]
+    assert leader == pytest.approx(0.0)
+    assert player == pytest.approx(100.0)
+    assert met is True
     assert share_row({corp: 30.0, corp + 1: 70.0}, corp) == (70.0, 30.0, False)
 
 

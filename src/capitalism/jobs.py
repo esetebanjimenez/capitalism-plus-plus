@@ -16,6 +16,7 @@ from .tables import (
     LIVESTOCK_HERD_RATES,
     LIVESTOCK_YIELDS,
     RATING_THROUGHPUT,
+    RAW_RESOURCE_TYPES,
     RESEARCH_RULES,
     SOFTWARE_RULES,
     JobTypeRow,
@@ -290,7 +291,10 @@ class Extraction(Job):
 
     def __init__(self, firm: Firm, slot: int, product: Product | None, rating: int = 1) -> None:
         super().__init__(firm, slot, product, rating)
-        self.rate: float = JOB_RULES.extraction_rate
+        if product is not None and product.id in RAW_RESOURCE_TYPES:
+            self.rate: float = float(RAW_RESOURCE_TYPES[product.id].speed)
+        else:
+            self.rate: float = JOB_RULES.extraction_rate
 
     def work(self, eco: Economy) -> bool:
         if self.product is None:

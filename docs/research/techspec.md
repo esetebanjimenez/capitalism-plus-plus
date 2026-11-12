@@ -220,6 +220,17 @@ Placement (FUN_0007449e at `0x7449e`):
 5. Posts news event ("Natural resources discovered")
 6. Records `g_game_date.day_serial` as last spawn timestamp
 
+**Implementation (sim-extraction):** The RAW resource table was decoded from the
+1STD.SET RAW dBASE section — 8 entries of 13-byte stride loaded by
+`FUN_00074194`. Each entry maps product→firm_type→speed→terrain.
+`raw_resource_types` table in `capitalism.db` stores the decoded values.
+`Extraction.__init__` reads speed per resource (Mine=2, Timber=1, Oil=4).
+`World.place_initial_deposits()` seeds deposits at game start matching
+`FUN_0007428b`. `World.discover_resources()` runs the late-spawner gate
+(`FUN_0007433c`) and discovery logic (`FUN_00074376`) daily. Terrain
+validation follows `FUN_0007449e`: type 0=any land, 1=grassland, 2=forest/hill;
+town and firm tiles are excluded.
+
 ### on_new_month detail (FUN_0002762f)
 
 Full sequence:
@@ -857,10 +868,11 @@ Units: `min(room, (short_+0x3e × short_+0x54 × int_+0x30) / 100)`.
 Reserve draw: `((units / int_+0x30) / short_+0x54) / (float 0xa7bd1)`.
 `0x46fc3` land amount. Category 8. `group_move_balance(corp, 0, 3, amount)`.
 Training: `job_add_training(job, units × 100 / max_units, 1)` (line 56375).
-Sim: `Extraction.rate` (from `JOB_RULES.extraction_rate`, provisional 1.0);
-`_ExtractionFirm.reserve` on LoggingCamp/Mine/OilWell; `work()` guards on
-reserve ≤ 0 and depletes by `added / capacity / rate / 100`. Land writedown
-and news event on exhaustion are not yet implemented (data-dependent, see J6).
+Sim: `Extraction.rate` now reads the per-resource `speed` from `RAW_RESOURCE_TYPES`
+(decoded from 1STD.SET RAW table: Mine=2, Timber=1, Oil=4), replacing the
+provisional fixed 1.0. `_ExtractionFirm.reserve` on LoggingCamp/Mine/OilWell;
+`work()` guards on reserve ≤ 0 and depletes by `added / capacity / rate / 100`.
+Land writedown and news event on exhaustion are not yet implemented.
 
 **Types 11 (R&D)/13 (Software R&D)** — `job_rd` (`0x58c2c`), `oj_rd.cpp`:
 Returns 0. `job_add_training(job, 14, 0)`. Duration from short `+0x28`:
