@@ -842,10 +842,14 @@ Input int `+0xde`. `job_refill_input` (`0x54599`). Step:
 `(recipe_short_+0x20 × recipe_int_+0x2c × job_short_+0x3e) / 100`.
 Abort below 1 (`oj_mft.cpp:0x221`). `job_add_training`:
 `(units × 100) / step`. Gate `job_manufacturing_daily` (`0x556c4`):
-`day_serial % 7 == firm_index % 7`. Advances per-job tech level (stored
-at job struct, starts at 0) by 1 toward the corporation's technology
-level for the product. Quality uses this per-job tech, not the corp
-level directly. `job_take_linked_type7` (`0x547c7`):
+`day_serial % 7 == firm_index % 7`. Advances per-job tech level at
+`job+0x46` (short) by 1 toward the corporation's technology level
+`product+0x66[corp]`. **Confirmed**: `job_upgrade_technology`
+(`decomp:54522`) displays `+0x46` as "Current production technology
+level"; source annotation `oj_mft.cpp` names the field; it is
+persisted in the Manufacturing save blob (class size `0xf0`, extension
+starts at `+0x28`). Quality uses this per-job tech, not the corp level
+directly. `job_take_linked_type7` (`0x547c7`):
 recipe from `0x76f36` on `0xb1b2f` indexed by short `+0x56`.
 
 **Type 10 (Purchasing)** — `job_purchase` (`0x55de5`), `oj_pur.cpp`:
@@ -1622,8 +1626,11 @@ via `FUN_000347c2`.
 `corp+0x186` (cash) < `needed`. Returns 0 at once if cash already
 covers `needed`. The gate byte is `+0x2a` of the chairman's person
 record (`corp+0x5a` → `FUN_0007c0c1(&DAT_000b1b87, …)`, lines
-27437-27439), not a stock record; its meaning is unrecovered. Steps in
-order:
+27437-27439). **Confirmed**: `person+0x2a` is the active flag
+(`techspec:2067`). `person_init` (`decomp:87766`) sets it from its
+parameter: 1 for real persons, 0 for the player's initial slot.
+Market-dominance (`decomp:24493`) and market-survey (`decomp:26758`)
+also read it as "chairman active". Steps in order:
 
 1. Holdings sale (lines 27439-27440): only if the chairman byte is
    set, `FUN_00030c6e` (0x30c6e, line 27484) sells shares this corp
@@ -1648,13 +1655,13 @@ Reached by competitor builds through `FUN_0002e19a`, by the AI
 bankruptcy path `FUN_00030a34` and by the corp daily `FUN_00034e34`.
 
 **Implemented** in `ai.py:ai_raise_cash` (sim-setup-cost PR). Steps
-1 (holdings sale), 2 (bank loan), 4 (own share issue), 5 (second
-holdings sale) and 6 (retry loop) are modelled. Step 3 (chairman-byte
-give-up gate) is skipped — byte meaning is Unknown. Step 7 (firm
-closures) is not modelled — blocked on A3 (Hold). The issue size
-(share_issue_min = 10,000 from `DAT_000a4835`) is Observed; the
-native issue-size calculation is lost in the decompile, so issuing the
-minimum is provisional.
+1 (holdings sale, skipped when chairman inactive), 2 (bank loan),
+3 (chairman-active gate: give up if inactive and cash > 0),
+4 (own share issue), 5 (second holdings sale) and 6 (retry loop) are
+modelled. Step 7 (firm closures) is not modelled — blocked on A3
+(Hold, #168). The issue size (share_issue_min = 10,000 from
+`DAT_000a4835`) is Observed; the native issue-size calculation is lost
+in the decompile, so issuing the minimum is provisional.
 
 **FUN_00030c6e** (holdings sale): runs only when `DAT_000b1ee3` (Allow
 Stock Investment) is set and `corp+0x7e2` (investment value) is nonzero
