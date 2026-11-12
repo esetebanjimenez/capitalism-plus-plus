@@ -393,7 +393,7 @@ def test_fixed_and_work_mode_credit_ratios():
     nominal = job.efficiency * job.capacity * recipe.speed_pct / 10000.0
     assert (job.capacity, nominal) == (50.0, 100.0)
     assert job.work(eco) and job.stock == 50
-    assert job.train_credits == pytest.approx(50.0)
+    assert job.train_credits == pytest.approx(5.0)
     for ingredient in recipe.inputs:
         job.inputs[ingredient.input_id][0] = 0
     prior = job.train_credits
@@ -416,7 +416,7 @@ def test_extraction_and_software_production_training_credit():
     ext = Extraction(f, 0, coal)
     ext.work(eco)
     assert ext.stock > 0
-    assert ext.train_credits == pytest.approx(100.0)
+    assert ext.train_credits == pytest.approx(10.0)
     sw = eco.catalog["Software"]
     sp = SoftwareProduction(f, 1, sw)
     sp.has_master = True
@@ -425,7 +425,8 @@ def test_extraction_and_software_production_training_credit():
     sp.work(eco)
     assert sp.stock > 0
     nominal = sp.efficiency * sp.capacity
-    assert sp.train_credits == pytest.approx(sp.stock * 100.0 / nominal)
+    raw = sp.stock * 100.0 / nominal
+    assert sp.train_credits == pytest.approx((raw * 10 // 100) * 100 // 100)
 
 
 def test_weekly_training_strict_threshold_one_staff_step():
@@ -464,7 +465,7 @@ def test_low_stock_receipt_and_real_sale_credit_actual_units(monkeypatch):
     )
     calendar = SimpleNamespace(day_serial=(-factory.id) % JOB_RULES.purchase_every_days, month=1)
     assert buy.work(SimpleNamespace(calendar=calendar)) is False
-    assert buy.train_credits == pytest.approx(80.0)
+    assert buy.train_credits == pytest.approx(8.0)
     assert buy.stock == pytest.approx(buy.capacity)
 
     store = eco.build_firm(DEPARTMENT_STORE, corp, *find_site(sim, town), town)
@@ -477,7 +478,7 @@ def test_low_stock_receipt_and_real_sale_credit_actual_units(monkeypatch):
     link = SimpleNamespace(price=1.5, record_sale=lambda qty: None)
     sale.sell_left = cap
     sale.sell_to(sold, link)
-    assert sale.train_credits == pytest.approx(50.0)
+    assert sale.train_credits == pytest.approx(5.0)
     assert sale.stock == pytest.approx(cap - sold)
 
 
@@ -564,7 +565,7 @@ def _run_chain(seed: int = 1, days: int = 120):
 def test_bread_chain_end_to_end_seed_1():  # hash moved with native N3/N7 market formulas
     sim, chain = _run_chain()
     link = chain.store_link
-    assert sim.state_hash() == ("5f0c3ecb3a14ee377f8c61ca7c1c97152f09f590fdb8a5e2eb3e1aac040318ee")
+    assert sim.state_hash() == ("1bc1868331a39038d97bc47e2c527d046c095c9a52cbd6bded1505f7d840dbf8")
     assert sum(link.money_month) == pytest.approx(1080.5051480547118, abs=1e-3)
     assert chain.store_sales.unit_cost == pytest.approx(1.5, abs=1e-6)
     assert link.brand == pytest.approx(10.699999999999978, abs=1e-6)

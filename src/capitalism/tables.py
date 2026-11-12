@@ -298,9 +298,7 @@ class JobRules(StaticModel):
     purchase_every_days: int
     purchase_order_mult: float
     train_weekday: int
-    training_credit_budget_divisor: float = Field(gt=0)
-    training_credit_education: float = Field(ge=0)
-    training_credit_education_divisor: float = Field(gt=0)
+    training_education_default: int = Field(ge=0)
     rating_min: int
     rating_max: int
     livestock_scalar: float
