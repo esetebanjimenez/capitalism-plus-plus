@@ -1659,14 +1659,16 @@ based on aggressiveness (the most aggressive CEOs cycle back fastest).
 ### Asset sale (cash shortfall)
 
 When the AI needs cash for a build but doesn't have enough, it tries
-an escalating sequence to raise it. Some steps depend on a setting on
-the corporation's chairman whose meaning is not known.
+an escalating sequence to raise it. Some steps depend on whether the
+corporation's chairman (the person at `corp+0x5a`) is active
+(`person+0x2a` != 0). An inactive chairman cannot authorise asset sales
+or share issues.
 
 1. Sell shares it holds in other corporations, apparently the cheapest
-   stock first (only if the chairman setting is on, and only when stock
+   stock first (only when the chairman is active, and only when stock
    investment is allowed in the game).
 2. Take a bank loan of at least $100,000, limited by the credit limit.
-3. If it is still short, the chairman setting is off and its cash is
+3. If it is still short, the chairman is inactive and its cash is
    still positive, it gives up here.
 4. Issue new shares of its own stock (only for a listed corporation,
    and only if at least 10,000 shares can be issued).

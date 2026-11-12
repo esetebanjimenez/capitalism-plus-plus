@@ -134,6 +134,8 @@ def test_ai_build_checks_land_plus_real_setup_cost():
     sim, town = bread_town()
     eco = sim.economy
     corp = eco.add_corp("AI", CORP_AI)
+    ceo = eco.add_person("CEO")
+    ceo.link_to_corp(corp.id, as_ceo=True)
     corp.ledger.cash = FIRM_TYPES[DEPT_STORE].setup_cost * 0.4  # too short even with a loan
     assert ai_build_firm(eco, corp, DEPT_STORE, town, Rng(1)) is None
     assert corp.business_assets == 0
@@ -187,6 +189,9 @@ def _ai_with_shares(sim, cash):
     other = eco.add_corp("Target", CORP_AI)
     corp = eco.add_corp("AI", CORP_AI)
     corp.ledger.cash = cash
+    # Link a CEO so the chairman-active gate doesn't block raise-cash
+    ceo = eco.add_person("CEO")
+    ceo.link_to_corp(corp.id, as_ceo=True)
     from capitalism.stock import Stock
 
     stock = Stock(other.id, 1e9, 10.0)  # a $1B company at $10 a share
@@ -223,6 +228,8 @@ def test_ai_raise_cash_borrows_up_to_credit_limit():
     sim, _town = bread_town()
     eco = sim.economy
     corp = eco.add_corp("AI", CORP_AI)
+    ceo = eco.add_person("CEO")
+    ceo.link_to_corp(corp.id, as_ceo=True)
     corp.ledger.cash = 1_000_000.0
     corp.business_assets = 3_000_000.0
     corp.liabilities = 1_000_000.0
@@ -242,6 +249,8 @@ def test_ai_loan_floor():
     sim, _town = bread_town()
     eco = sim.economy
     corp = eco.add_corp("AI", CORP_AI)
+    ceo = eco.add_person("CEO")
+    ceo.link_to_corp(corp.id, as_ceo=True)
     corp.ledger.cash = 1_000_000.0
     corp.business_assets = 1_000_000.0
     # short by 10k: borrows the 100k floor
@@ -254,6 +263,50 @@ def test_ai_loan_floor():
     assert corp.liabilities == debt
 
 
+# --- B2: chairman-active gate in raise-cash (decomp:27439, 27450) ----------
+
+
+def test_raise_cash_chairman_gate_skips_holdings_and_gives_up():
+    """An inactive chairman skips holdings sale and gives up when cash > 0."""
+    from capitalism.ai import ai_raise_cash
+
+    sim, _town = bread_town()
+    eco = sim.economy
+    other = eco.add_corp("Target", CORP_AI)
+    corp = eco.add_corp("AI", CORP_AI)
+    # No CEO linked → chairman is inactive
+    corp.ledger.cash = 500.0
+    from capitalism.stock import Stock
+
+    stock = Stock(other.id, 1e9, 10.0)
+    eco.stocks[other.id] = stock
+    stock.holdings_corps[corp.id] = 1_000_000
+    # Cash is 500 (> 0), chairman inactive → gate fires, gives up
+    assert not ai_raise_cash(eco, corp, 50_000.0)
+    assert stock.holdings_corps[corp.id] == 1_000_000  # holdings untouched
+
+
+def test_raise_cash_chairman_gate_does_not_fire_when_active():
+    """An active chairman proceeds past the gate to sell holdings."""
+    from capitalism.ai import ai_raise_cash
+
+    sim, _town = bread_town()
+    eco = sim.economy
+    other = eco.add_corp("Target", CORP_AI)
+    corp = eco.add_corp("AI", CORP_AI)
+    ceo = eco.add_person("CEO")
+    ceo.link_to_corp(corp.id, as_ceo=True)
+    corp.ledger.cash = 500.0
+    from capitalism.stock import Stock
+
+    stock = Stock(other.id, 1e9, 10.0)
+    eco.stocks[other.id] = stock
+    stock.holdings_corps[corp.id] = 1_000_000
+    # Chairman active → sells holdings, succeeds
+    assert ai_raise_cash(eco, corp, 50_000.0)
+    assert stock.holdings_corps[corp.id] < 1_000_000
+
+
 # --- B2: own-share issue in raise-cash (FUN_00030d97) ----------------------
 
 
@@ -263,6 +316,8 @@ def _ai_with_own_stock(sim, cash):
 
     eco = sim.economy
     corp = eco.add_corp("AI", CORP_AI)
+    ceo = eco.add_person("CEO")
+    ceo.link_to_corp(corp.id, as_ceo=True)
     corp.ledger.cash = cash
     stock = Stock(corp.id, 1e8, 50.0)  # $100M company at $50/share
     eco.stocks[corp.id] = stock
