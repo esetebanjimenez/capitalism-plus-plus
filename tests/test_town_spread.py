@@ -1,7 +1,5 @@
 """T4: Town spreads on level-up (native FUN_0004c334)."""
 
-import pytest
-
 from capitalism.rng import Rng
 from capitalism.world import TileCategory, World
 
