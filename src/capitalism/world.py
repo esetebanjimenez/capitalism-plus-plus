@@ -186,9 +186,8 @@ class World:
         elif tt == 1:
             if tile.kind != TileCategory.GRASSLAND:
                 return False
-        elif tt == 2:
-            if tile.kind != TileCategory.FOREST_HILL:
-                return False
+        elif tt == 2 and tile.kind != TileCategory.FOREST_HILL:
+            return False
         if tile.kind in (TileCategory.TOWN, TileCategory.FIRM):
             return False
         tile.resource = res_id
