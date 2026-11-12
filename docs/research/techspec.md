@@ -705,8 +705,21 @@ credit = (work_pct × training_budget / 100 × education / 100)
 
 `training_budget` = corp int at `firm+0x33→+0x2c` (player-adjustable,
 default 10, same setting that controls training expense).
-`education` = `FUN_00066a2f(firm)`: town education level for retail
-firms (`place_kind` `0x3000..0x300c`), else `DAT_000b1b28`.
+`education` = `FUN_00066a2f(firm)` (`decomp:70663-70687`): if
+`firm+0x4a` (place_kind) is in `0x3000..0x300c` (town tiles), returns
+`round(town_item+0x43)` — the town's education float, initialized to
+100.0 (`0x42c80000`, `decomp:46330`), smoothed daily toward a target
+with divisor 5.0 (`DAT_000a6f32`), clamped [1.0, 100.0] (`DAT_000a6f36`
+= 100.0). Otherwise returns `(int)DAT_000b1b28` — a BSS global
+(virtual address `0xb1b28`, object 2 page 17 of 16 file-backed pages),
+zero-initialized, no writes found in the decompile. Non-town firms
+(typically resource extraction on map deposits) therefore accumulate
+zero training credits.
+
+**Implementation:** sim uses education = 100 for all firms (the
+town-tile default). This matches native for in-town firms but is
+more generous for resource extraction on non-town tiles, which
+natively gets 0.
 
 **Rating table** at `DAT_000add26` (short[10], indexed by rating 1–9):
 
@@ -714,9 +727,10 @@ firms (`place_kind` `0x3000..0x300c`), else `DAT_000b1b28`.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Multiplier | 100 | 130 | 160 | 200 | 250 | 300 | 360 | 430 | 500 |
 
-Higher ratings earn more credits per day in mode 0 (positive feedback),
-but the threshold also scales by rating (see below), so net progression
-slows at higher levels.
+Rating table confirmed from EXE binary (object 2, page 13, offset
+`0xdd26`). Higher ratings earn more credits per day in mode 0
+(positive feedback), but the threshold also scales by rating (see
+below), so net progression slows at higher levels.
 
 **Base credits by job type:**
 

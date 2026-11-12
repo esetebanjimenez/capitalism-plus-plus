@@ -294,23 +294,18 @@ def migrate(con: sqlite3.Connection) -> None:
             ),
         ],
     )
-    # The missing original budget/education mapping is neutral for M1 at defaults.
-    for key, value, units in [
-        ("training_credit_budget_divisor", 10, "budget-value / divisor; budget10 neutral"),
-        ("training_credit_education", 100, "global fallback education; no native field recovered"),
-        ("training_credit_education_divisor", 100, "education / divisor; fallback100 neutral"),
-    ]:
-        con.execute(
-            "INSERT INTO rules VALUES('jobs',?,?,?,?,1) "
-            "ON CONFLICT(system,key) DO UPDATE SET value=excluded.value,units=excluded.units,"
-            "ref=excluded.ref,provisional=1",
-            (
-                key,
-                value,
-                units,
-                "docs/design.md slice 4 call 6 (PR22 d012404) — provisional neutral credit scaling",
-            ),
-        )
+    con.execute(
+        "DELETE FROM rules WHERE system='jobs' AND key IN "
+        "('training_credit_budget_divisor','training_credit_education','training_credit_education_divisor')"
+    )
+    con.execute(
+        "INSERT INTO rules VALUES('jobs','training_education_default',100,"
+        "'town-default education (decomp:46330, 0x42c80000=100.0); "
+        "non-town firms natively get 0 (DAT_000b1b28 BSS)',"
+        "'decomp:60780 — job_add_training scales by budget/100 × education/100',0) "
+        "ON CONFLICT(system,key) DO UPDATE SET value=excluded.value,units=excluded.units,"
+        "ref=excluded.ref,provisional=0"
+    )
     con.execute(
         "DELETE FROM rules WHERE system='jobs' AND key IN "
         "('train_step','train_threshold','train_hi','train_lo','eff_base','eff_per_rating','eff_min','eff_max')"
