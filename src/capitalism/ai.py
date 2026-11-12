@@ -15,7 +15,7 @@ from .person import (
     SKILL_RND,
     STATE_ACTIVE,
 )
-from .tables import AI_RULES, COMPETITOR_CAPITAL, FIRM_TYPES
+from .tables import AI_RULES, FIRM_TYPES, STRATEGY_CAPITAL
 
 if TYPE_CHECKING:
     from .economy import Corporation, Economy
@@ -267,15 +267,34 @@ def ai_raise_cash(eco: Economy, corp: Corporation, target: float) -> bool:
 
 # --- NPC spawning -----------------------------------------------------------
 
-def ai_starting_capital(setting: int, rng: Rng) -> float:
-    """AI starting money for a Competitor Capital setting (gap audit C4).
+def _round_2sig(value: float) -> float:
+    """Round to 2 significant digits (FUN_00090865 with params 2, 0)."""
+    if value == 0:
+        return 0.0
+    scale = 1.0
+    threshold = 100.0
+    v = abs(value)
+    while v > threshold:
+        v /= 10.0
+        scale *= 10.0
+    truncated = int(v)
+    if truncated != v and truncated % 10 >= 5:
+        truncated += 1
+    return truncated * scale
 
-    FUN_0007916c: (v/2 + random(v/2)) * 6,000,000 / 10 with integer v/2 and
-    random(n) in 0..n-1. Native credits the CEO's wealth; the hand-off to corp
-    cash is not traced, so the sim puts it in corp cash.
+
+def ai_starting_capital(setting: int, mode: int, rng: Rng) -> float:
+    """AI corp starting cash (gap audit C4, FUN_00079750).
+
+    Native formula decoded from assembly at 0x79750:
+      base = (3 * setting + 1) * 100_000_000
+      value = cap_min + random(cap_max - cap_min + 1)
+      capital = round_2sig((value + 10) * base / 20.0)
     """
-    half = COMPETITOR_CAPITAL[setting].v // 2
-    return (half + rng.randint(0, half - 1)) * _AR.capital_unit
+    sc = STRATEGY_CAPITAL[mode]
+    value = sc.cap_min + rng.randint(0, sc.cap_max - sc.cap_min)
+    base = (3 * setting + 1) * 100_000_000
+    return _round_2sig((value + 10) * base / 20.0)
 
 
 def try_spawn_competitor(eco: Economy, day_serial: int) -> Corporation | None:
@@ -306,15 +325,15 @@ def try_spawn_competitor(eco: Economy, day_serial: int) -> Corporation | None:
     corp = eco.add_corp(person.name, CORP_AI)
     person.link_to_corp(corp.id, as_ceo=True)
 
-    # Starting capital
-    corp.ledger.cash = ai_starting_capital(eco.competitor_capital, rng)
-
-    # Determine strategy mode
+    # Determine strategy mode (native does this before capital)
     game_years = day_serial / 365.0
     if game_years > _AR.dormant_year_threshold and rng.chance(_AR.dormant_chance):
         mode = MODE_DORMANT
     else:
         mode = rng.randint(MODE_ESTABLISH, MODE_RETAIL)
+
+    # Starting capital (FUN_00079750 uses mode + setting)
+    corp.ledger.cash = ai_starting_capital(eco.competitor_capital, mode, rng)
 
     ai_state = AIState(corp.id, day_serial, rng)
     ai_state.mode = mode

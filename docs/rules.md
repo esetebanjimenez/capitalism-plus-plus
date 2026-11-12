@@ -287,7 +287,6 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `bankruptcy_age_threshold` | 10 | years | gamelogic.md Bankruptcy check |
 | `bankruptcy_value_threshold` | 100000 | dollars | gamelogic.md Bankruptcy check |
 | `build_cooldown` | 30 | days | gamelogic.md Firm creation |
-| `capital_unit` | 600000 **provisional** | dollars per v | FUN_0007916c decomp:87774-87776: (v/2 + random(v/2)) * 6,000,000 / 10. Native credits the CEO's wealth; sim credits corp cash (hand-off not traced) |
 | `competitor_cap` | 10 | count | gamelogic.md NPC corporation spawning |
 | `dormant_chance` | 0.5 | probability | gamelogic.md NPC corporation spawning |
 | `dormant_year_threshold` | 10 | years | gamelogic.md NPC corporation spawning |

@@ -228,6 +228,16 @@ class CompetitorCapitalRow(StaticModel):
     provisional: frozenset[str] = frozenset()
 
 
+class StrategyCapitalRow(StaticModel):
+    """Per-strategy-mode capital range (FUN_00079750, DAT_000ad7f0)."""
+
+    mode: int = Field(ge=0)
+    name: str
+    cap_min: int = Field(ge=0)
+    cap_max: int = Field(gt=0)
+    ref: str
+
+
 class TownFootprintRow(StaticModel):
     """Visual town footprint per town level (client map only; the sim town stays one tile)."""
 
@@ -613,6 +623,16 @@ def load_competitor_capital() -> dict[int, CompetitorCapitalRow]:
 
 
 @lru_cache(maxsize=1)
+def load_strategy_capital() -> dict[int, StrategyCapitalRow]:
+    out: dict[int, StrategyCapitalRow] = {}
+    for r in _rows(
+        "SELECT mode, name, cap_min, cap_max, ref FROM strategy_capital ORDER BY mode"
+    ):
+        out[dict(r)["mode"]] = StrategyCapitalRow(**dict(r))
+    return out
+
+
+@lru_cache(maxsize=1)
 def load_firm_sectors() -> dict[int, FirmSectorRow]:
     out: dict[int, FirmSectorRow] = {}
     for r in _rows(
@@ -694,6 +714,7 @@ FIRM_TYPES: dict[int, FirmTypeRow] = load_firm_types()
 FIRM_SECTORS: dict[int, FirmSectorRow] = load_firm_sectors()
 TOWN_FOOTPRINTS: dict[int, TownFootprintRow] = load_town_footprints()
 COMPETITOR_CAPITAL: dict[int, CompetitorCapitalRow] = load_competitor_capital()
+STRATEGY_CAPITAL: dict[int, StrategyCapitalRow] = load_strategy_capital()
 JOB_TYPES: dict[int, JobTypeRow] = load_job_types()
 FIRM_JOB_ALLOWED: dict[int, frozenset[int]] = load_firm_job_allowed()
 RATING_THROUGHPUT: dict[int, RatingThroughputRow] = load_rating_throughput()
@@ -808,7 +829,6 @@ class AIRules(StaticModel):
     dormant_chance: float
     competitor_cap: int
     max_competitors: int
-    capital_unit: float
     loan_minimum: float
     share_issue_min: int
     random_build_chance: float
