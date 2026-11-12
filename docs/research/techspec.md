@@ -790,7 +790,11 @@ capacity int `+0x28`.
 Returns 0. Short `+0x44` = `(rating − 1) × 5 + 30`. `0x528ec` and
 `0x52afc` run. `job_add_training(job, 10, 0)`. `0x528ec` moves a slice
 from `+0x56` onto `+0x5a`. Record from `0x74dcc` on `0xb1c1c` indexed
-by short `+0x54`. Floats at `0xa768e` and `0xa7692` not decoded.
+by short `+0x54`. Float at `0xa768e` = 36500.0 (daily scalar),
+`0xa7692` = 100.0 (percentage divisor). Per-livestock GROW and REPRODUCE
+rates decoded from 1STD.SET FARMLIVE section (18-byte records: short
+product code, float weight, short grow_rate, short reproduce_rate,
+short byproduct_count, 3×short byproduct_ids).
 
 **Type 3 (Livestock Processing)** — `job_livestock_process` (`0x52fce`):
 Calls `job_process_calc` (`0x52f0c`), stores at int `+0x58`. Returns 0.

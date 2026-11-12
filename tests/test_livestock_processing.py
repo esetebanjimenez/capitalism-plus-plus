@@ -30,28 +30,28 @@ def test_throughput_uses_own_capacity():
     """J10: throughput = eff × self.capacity × yield / 10000."""
     sim, town = bread_town()
     raising, proc, row = _livestock_pair(sim, town)
-    raising.stock = 1000.0
+    raising.grown = 1000.0
     expected = proc.efficiency * proc.capacity * row.yield_factor / 10_000
     proc.work(sim.economy)
-    taken = 1000.0 - raising.stock
+    taken = 1000.0 - raising.grown
     assert taken == pytest.approx(min(expected, proc.room, 1000.0))
 
 
 def test_throughput_limited_by_stock():
-    """Take is min(stock, wanted, room)."""
+    """Take is min(grown, wanted, room)."""
     sim, town = bread_town()
     raising, proc, _row = _livestock_pair(sim, town)
-    raising.stock = 0.5  # very little stock
+    raising.grown = 0.5  # very little grown stock
     proc.work(sim.economy)
-    assert raising.stock == pytest.approx(0.0)
+    assert raising.grown == pytest.approx(0.0)
     assert proc.stock == pytest.approx(0.5)
 
 
 def test_throughput_limited_by_room():
-    """Take is min(stock, wanted, room)."""
+    """Take is min(grown, wanted, room)."""
     sim, town = bread_town()
     raising, proc, _row = _livestock_pair(sim, town)
-    raising.stock = 1000.0
+    raising.grown = 1000.0
     proc.stock = proc.ceiling - 0.1  # almost full, only 0.1 room
     proc.work(sim.economy)
     assert proc.stock == pytest.approx(proc.ceiling, abs=0.01)
@@ -61,7 +61,7 @@ def test_quality_bonus_from_raising_rating():
     """J12: proc.quality = src.quality + (src.rating - 1) × 4, capped at 100."""
     sim, town = bread_town()
     raising, proc, _row = _livestock_pair(sim, town)
-    raising.stock = 100.0
+    raising.grown = 100.0
     raising.quality = 35.0
     raising.rating = 3
     proc.work(sim.economy)
@@ -73,7 +73,7 @@ def test_quality_bonus_rating_1():
     """Rating 1 adds 0 bonus."""
     sim, town = bread_town()
     raising, proc, _row = _livestock_pair(sim, town)
-    raising.stock = 100.0
+    raising.grown = 100.0
     raising.quality = 40.0
     raising.rating = 1
     proc.work(sim.economy)
@@ -84,7 +84,7 @@ def test_quality_capped_at_100():
     """Quality bonus cannot exceed 100."""
     sim, town = bread_town()
     raising, proc, _row = _livestock_pair(sim, town)
-    raising.stock = 100.0
+    raising.grown = 100.0
     raising.quality = 95.0
     raising.rating = 9
     proc.work(sim.economy)
