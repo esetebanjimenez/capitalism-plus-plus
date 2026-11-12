@@ -185,40 +185,83 @@ def ai_build_firm(
         return None
 
 
-def ai_raise_cash(eco: Economy, corp: Corporation, target: float) -> bool:
-    """Raise cash toward target before a build is cancelled (FUN_00030ae2, audit B2/A3).
+def _sell_holdings(eco: Economy, corp: Corporation, target: float) -> None:
+    """Step 1/5: sell shares this corp holds in other corps (FUN_00030c6e)."""
+    if not eco.stock_enabled:
+        return
+    for stock in eco.stocks:
+        if corp.ledger.cash >= target:
+            break
+        if stock is None or stock.corp_id == corp.id:
+            continue
+        held = stock.holdings_corps[corp.id]
+        while held > 0 and corp.ledger.cash < target:
+            want = min(held, int((target - corp.ledger.cash) // max(stock.price, 0.10)) + 1)
+            eco.sell_stock(corp, stock.corp_id, want)
+            held = stock.holdings_corps[corp.id]
 
-    Researcher trace (decomp:27435-27473), steps modelled here:
-    1. Sell holdings in other corps (FUN_00030c6e, decomp:27484-27530), only
-       with Allow Stock, stopping at target.
-    2. Bank loan (FUN_00037a7e, decomp:33468-33495), capped at total assets
-       minus debt, booked to Cash and Loans. The amount asked for is lost in the
-       decompile; asking for max(shortfall, ai.loan_minimum = 100,000) is
-       provisional, and there's no loan when the cap is below that floor.
-    Not modelled yet: the chairman-flag give-up, own-share issues
-    (FUN_00030d97, share-cash PR), the second holdings sale and firm closures
-    (FUN_00030e55). Returns True once cash >= target.
+
+def _issue_own_shares(eco: Economy, corp: Corporation) -> bool:
+    """One own-share issue (FUN_00030d97, decomp:27540-27566).
+
+    Issues new shares of the corp's own stock. Minimum issue is
+    ai.share_issue_min (DAT_000a4835 = 10,000). The issue size source is
+    lost in the decompile; issuing share_issue_min shares is provisional.
+    Returns True if shares were issued.
+    """
+    if not eco.stock_enabled:
+        return False
+    stock = eco.stocks[corp.id]
+    if stock is None or stock.price < 1.0:
+        return False
+    if stock.total_shares < _AR.share_issue_min:
+        return False
+    eco.issue_stock(corp, _AR.share_issue_min)
+    return True
+
+
+def ai_raise_cash(eco: Economy, corp: Corporation, target: float) -> bool:
+    """Raise cash toward *target* before a build is cancelled (FUN_00030ae2, audit B2).
+
+    Researcher trace (decomp:27435-27473), seven steps:
+    1. Sell holdings in other corps (FUN_00030c6e, decomp:27484-27530).
+    2. Bank loan (FUN_00037a7e, decomp:33468-33495), capped at credit limit.
+    3. Chairman-byte give-up gate — skipped (byte meaning is Unknown).
+    4. Own share issue (FUN_00030d97, decomp:27540-27566).
+    5. Second holdings sale.
+    6. Retry loop: up to 10 more own-share issues (decomp:27455-27459).
+    7. Firm closures while cash < 0 — not modelled (A3 Hold).
+    Returns True once cash >= target.
     """
     if corp.ledger.cash >= target:
         return True
-    if eco.stock_enabled:
-        for stock in eco.stocks:
-            if corp.ledger.cash >= target:
-                break
-            if stock is None or stock.corp_id == corp.id:
-                continue
-            held = stock.holdings_corps[corp.id]
-            while held > 0 and corp.ledger.cash < target:
-                want = min(held, int((target - corp.ledger.cash) // max(stock.price, 0.10)) + 1)
-                eco.sell_stock(corp, stock.corp_id, want)
-                held = stock.holdings_corps[corp.id]
+    # Step 1: sell holdings
+    _sell_holdings(eco, corp, target)
+    if corp.ledger.cash >= target:
+        return True
+    # Step 2: bank loan
     short = target - corp.ledger.cash
     if short > 0:
-        # Ask for the shortfall but at least ai.loan_minimum, capped at credit
-        # (assets - debt); no loan if the cap is below the floor. Provisional.
         amount = min(max(short, _AR.loan_minimum), corp.credit_limit(eco.firms))
         if amount >= _AR.loan_minimum:
             corp.borrow(amount)
+    if corp.ledger.cash >= target:
+        return True
+    # Step 3: chairman-byte give-up gate — Unknown, skipped
+    # Step 4: own share issue
+    _issue_own_shares(eco, corp)
+    if corp.ledger.cash >= target:
+        return True
+    # Step 5: second holdings sale
+    _sell_holdings(eco, corp, target)
+    if corp.ledger.cash >= target:
+        return True
+    # Step 6: retry own-share issues up to 10 times
+    for _ in range(10):
+        if corp.ledger.cash >= target:
+            return True
+        if not _issue_own_shares(eco, corp):
+            break
     return corp.ledger.cash >= target
 
 

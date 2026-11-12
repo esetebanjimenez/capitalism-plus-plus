@@ -248,3 +248,82 @@ def test_ai_loan_floor():
     debt = corp.liabilities
     assert not ai_raise_cash(eco, corp, 10_000_000.0)
     assert corp.liabilities == debt
+
+
+# --- B2: own-share issue in raise-cash (FUN_00030d97) ----------------------
+
+
+def _ai_with_own_stock(sim, cash):
+    """Set up a corp that owns its own stock and can issue shares."""
+    from capitalism.stock import Stock
+
+    eco = sim.economy
+    corp = eco.add_corp("AI", CORP_AI)
+    corp.ledger.cash = cash
+    stock = Stock(corp.id, 1e8, 50.0)  # $100M company at $50/share
+    eco.stocks[corp.id] = stock
+    return eco, corp, stock
+
+
+def test_raise_cash_issues_own_shares_when_loan_insufficient():
+    from capitalism.ai import ai_raise_cash
+
+    sim, _town = bread_town()
+    eco, corp, stock = _ai_with_own_stock(sim, 0.0)
+    corp.business_assets = 0.0
+    corp.liabilities = 0.0
+    old_shares = stock.total_shares
+    # No holdings to sell, no credit for a loan — share issue is the only way
+    assert ai_raise_cash(eco, corp, 100_000.0)
+    assert corp.ledger.cash >= 100_000.0
+    assert stock.total_shares > old_shares
+
+
+def test_raise_cash_skips_issue_when_price_below_one():
+    from capitalism.ai import ai_raise_cash
+
+    sim, _town = bread_town()
+    eco, corp, stock = _ai_with_own_stock(sim, 0.0)
+    stock.price = 0.50
+    old_shares = stock.total_shares
+    assert not ai_raise_cash(eco, corp, 1e9)
+    assert stock.total_shares == old_shares
+
+
+def test_raise_cash_retries_issues_up_to_10():
+    from capitalism.ai import ai_raise_cash
+
+    sim, _town = bread_town()
+    eco, corp, stock = _ai_with_own_stock(sim, 0.0)
+    corp.business_assets = 0.0
+    corp.liabilities = 0.0
+    old_shares = stock.total_shares
+    min_issue = AI_RULES.share_issue_min
+    # Target is huge — it will take many issues
+    ai_raise_cash(eco, corp, 1e12)
+    # Step 4 + up to 10 retries = at most 11 issues
+    issued = stock.total_shares - old_shares
+    assert issued <= 11 * min_issue
+    assert issued >= min_issue
+
+
+def test_raise_cash_second_holdings_sale():
+    """After a share issue, a second holdings sale runs (step 5)."""
+    from capitalism.ai import ai_raise_cash
+    from capitalism.stock import Stock
+
+    sim, _town = bread_town()
+    eco, corp, stock = _ai_with_own_stock(sim, 0.0)
+    corp.business_assets = 0.0
+    corp.liabilities = 0.0
+    # Also hold shares in another corp — step 1 won't sell enough, step 5 will
+    other = eco.add_corp("Other", CORP_AI)
+    other_stock = Stock(other.id, 1e9, 100.0)
+    eco.stocks[other.id] = other_stock
+    other_stock.holdings_corps[corp.id] = 100
+    # Set stock price very low so issuing barely helps, forcing step 5
+    stock.price = 1.0
+    target = 1e6
+    ai_raise_cash(eco, corp, target)
+    # The second holdings sale should have sold some of those 100 shares
+    assert other_stock.holdings_corps[corp.id] < 100
