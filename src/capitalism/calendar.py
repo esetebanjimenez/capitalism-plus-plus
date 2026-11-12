@@ -30,6 +30,7 @@ class Calendar:
         self._date = start
         self.years_elapsed = 0
         self._start_year = start.year
+        self.start_serial: int = day_serial_of(start)
 
     @property
     def year(self) -> int:

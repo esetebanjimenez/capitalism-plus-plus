@@ -715,6 +715,17 @@ class LivestockHerdRow(StaticModel):
     weight: float
 
 
+class RawResourceRow(StaticModel):
+    product_id: int
+    char: str
+    firm_type_id: int
+    speed: int
+    terrain_type: int
+    resource_value: int
+    max_sites: int
+    discoverable: bool
+
+
 class ResearchRules(StaticModel):
     days_per_project_month: int
     manager_skill_divisor: float
@@ -908,8 +919,18 @@ def load_research_durations() -> tuple[int, ...]:
     )
 
 
+@lru_cache(maxsize=1)
+def load_raw_resource_types() -> dict[int, RawResourceRow]:
+    rows = _rows(
+        "SELECT product_id, char, firm_type_id, speed, terrain_type,"
+        " resource_value, max_sites, discoverable FROM raw_resource_types"
+    )
+    return {int(r["product_id"]): RawResourceRow(**dict(r)) for r in rows}
+
+
 LIVESTOCK_YIELDS = load_livestock_yields()
 LIVESTOCK_HERD_RATES = load_livestock_herd_rates()
+RAW_RESOURCE_TYPES = load_raw_resource_types()
 RESEARCH_DURATIONS = load_research_durations()
 RESEARCH_RULES = _rules_model(ResearchRules, "research")
 ADVERTISING_RULES = _rules_model(AdvertisingRules, "advertising")

@@ -3,7 +3,6 @@
 import pytest
 
 from capitalism.scenario import bread_town, find_site
-from capitalism.tables import JOB_RULES
 
 MINE = 6
 MINING = 8
@@ -22,11 +21,13 @@ def _mine_with_reserve(sim, town, reserve=10.0):
     return mine, job
 
 
-def test_rate_field_from_rules():
-    """J4: Extraction.rate is set from JOB_RULES.extraction_rate on init."""
+def test_rate_field_from_resource():
+    """J4+J6: Extraction.rate is set from RAW_RESOURCE_TYPES speed for the product."""
+    from capitalism.tables import RAW_RESOURCE_TYPES
+
     sim, town = bread_town()
     _mine, job = _mine_with_reserve(sim, town)
-    assert job.rate == JOB_RULES.extraction_rate
+    assert job.rate == float(RAW_RESOURCE_TYPES[5].speed)  # Iron Ore speed = 2
 
 
 def test_throughput_formula():

@@ -142,6 +142,9 @@ class Sim:
         self.product_slots_hit.add(product_slot)
         self.economy.products_daily(product_slot)
         self._hook("natural_resources")
+        self.world.discover_resources(
+            self.rng, self.calendar.day_serial, self.calendar.start_serial,
+        )
 
         self.history.append(
             {
