@@ -192,8 +192,6 @@ class Firm:
             self.slots.extend([None] * (slot - len(self.slots) + 1))
         if self.slots[slot] is not None:
             raise ValueError(f"slot {slot} unavailable")
-        # Job setup (ref:572); native booking not traced, so it goes to Business Assets
-        # like the firm's own setup (C2, provisional).
         book_asset(self.owner, JOB_TYPES[job_type].setup_cost)
         job = JOB_CLASSES[job_type](self, slot, product)
         self.slots[slot] = job

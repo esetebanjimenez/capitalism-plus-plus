@@ -10,7 +10,6 @@ from capitalism.scenario import bread_town, find_site
 from capitalism.sim import Sim
 from capitalism.tables import (
     AI_RULES,
-    COMPETITOR_CAPITAL,
     CORPORATION_RULES,
     FIRM_TYPES,
     JOB_TYPES,
@@ -144,17 +143,22 @@ def test_ai_build_checks_land_plus_real_setup_cost():
 
 
 @pytest.mark.parametrize(
-    ("setting", "lo", "hi"),
-    [(0, 3.0e6, 5.4e6), (1, 4.2e6, 7.8e6), (2, 6.0e6, 11.4e6), (3, 9.0e6, 17.4e6),
-     (4, 18.0e6, 35.4e6)],
+    ("setting", "mode", "lo", "hi"),
+    [
+        (0, 0, 55e6, 100e6),    # Low / Establish
+        (0, 2, 55e6, 65e6),     # Low / Retail
+        (1, 0, 220e6, 400e6),   # Moderate / Establish
+        (2, 0, 390e6, 700e6),   # High / Establish
+        (3, 0, 550e6, 1000e6),  # Very High / Establish
+        (4, 0, 710e6, 1300e6),  # Extreme / Establish
+        (4, 2, 710e6, 840e6),   # Extreme / Retail
+    ],
 )
-def test_ai_starting_capital_by_setting(setting, lo, hi):
-    assert AI_RULES.capital_unit == 600_000
+def test_ai_starting_capital_by_setting(setting, mode, lo, hi):
     rng = Rng(7)
-    values = {ai_starting_capital(setting, rng) for _ in range(2000)}
-    half = COMPETITOR_CAPITAL[setting].v // 2
-    assert min(values) == lo == half * 600_000
-    assert max(values) == hi == (2 * half - 1) * 600_000
+    values = {ai_starting_capital(setting, mode, rng) for _ in range(2000)}
+    assert min(values) == lo
+    assert max(values) == hi
 
 
 def test_facade_build_cost_and_refusal():

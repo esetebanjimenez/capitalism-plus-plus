@@ -647,6 +647,13 @@ Every type's vtable `+8` is `job_daily`. `job_init` copies
 firm index to short `+8`. Slots 0..8 (`ojob.cpp:0x51`). Base `Job`
 is 0x28 bytes ending at vtable.
 
+**Job setup cost booking** (C2): `job_init` (`decomp:60480`) calls
+`FUN_0005c4a8` (`decomp:60538`) which reads `job_type+0x2c` (setup cost
+float) and calls `group_move_balance(corp, 2, 0, slot, setup_cost)` —
+Cash → Business Assets. Assembly at 0x5c4a8 confirms: `FLD float ptr
+[EAX + 0x2c]` → `CALL 0x00031f9f` (group_move_balance) with EDX=2,
+EBX=0. Implemented in `firms.py:add_job` → `book_asset`.
+
 Steps:
 
 1. `job_post_wages` (`0x5c690`), every visit. Salary:
@@ -5042,20 +5049,39 @@ Uses DAT_000b1f16 (app+0x24c, expertise setting 0–4).
 *Moderate: base/2 = 7 (integer division), max = 7+7 = 14.
 Actual range $4.2M–$8.4M.
 
-Capital formula from `FUN_0007916c` (0x0007916c, line 87758):
+**Person wealth** formula from `FUN_0007916c` (0x0007916c, line 87758):
 ```
-base = DAT_000ae090[capital_setting]
-capital = (base/2 + random(base/2)) * DAT_000aa498 / DAT_000aa49c
+base = DAT_000ae090[capital_setting]   // {10, 15, 20, 30, 60}
+wealth = (base/2 + random(base/2)) * DAT_000aa498 / DAT_000aa49c
 ```
 Where DAT_000aa498 = 6000000.0 and DAT_000aa49c = 10.0, giving
-multiplier = 600,000.
+multiplier = 600,000. Written to person+0x2c (CEO personal wealth),
+NOT to corp cash.
+
+**Corp starting cash** formula from `FUN_00079750` (0x00079750, line 88079),
+decoded from assembly via Ghidra DumpAsm.java:
+```
+base = (3 × capital_setting + 1) × 100,000,000
+value = cap_min + random(cap_max - cap_min + 1)  // strategy mode table
+capital = FUN_00090865((value + 10) × base / 20.0, 2, 0)  // round to 2 sig digits
+```
+Simplified: `(value + 10) × (3×setting + 1) × 5,000,000`, rounded to 2
+significant digits. Constants: 0xaa4a0 = 20.0 (divisor), 0xabf55 = 10.0
+(rounding base in FUN_00090865). At Low/Establish: $55M–$100M.
+Implemented in `ai.py:ai_starting_capital`.
+
+Person wealth and corp cash are independent — U8 resolved.
 
 **Per-strategy-mode capital table** (DAT_000ad7f0, 4 entries × 10 bytes):
 
-Used by `FUN_00079750` (0x00079750, line 88079) for an alternative
-capital calculation keyed by strategy mode. Each 10-byte record has
-a min and max capital at offsets +6 and +8 (shorts). Capital =
-random(max - min + 1) + min.
+| Mode | Name | cap_min (+6) | cap_max (+8) |
+|------|------|--------------|--------------|
+| 0 | Establish | 1 | 10 |
+| 1 | Manufacture | 1 | 5 |
+| 2 | Retail | 1 | 3 |
+| 3 | Dormant | 1 | 5 |
+
+Stored in `db:strategy_capital`.
 
 #### begin_new_game — `FUN_00014c6e`
 
