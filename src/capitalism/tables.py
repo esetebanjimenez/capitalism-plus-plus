@@ -708,6 +708,13 @@ class LivestockYieldRow(StaticModel):
     ref: str
 
 
+class LivestockHerdRow(StaticModel):
+    product_id: int
+    grow_rate: int
+    reproduce_rate: int
+    weight: float
+
+
 class ResearchRules(StaticModel):
     days_per_project_month: int
     manager_skill_divisor: float
@@ -886,6 +893,14 @@ def load_livestock_yields() -> dict[int, LivestockYieldRow]:
 
 
 @lru_cache(maxsize=1)
+def load_livestock_herd_rates() -> dict[int, LivestockHerdRow]:
+    rows = _rows(
+        "SELECT product_id, grow_rate, reproduce_rate, weight FROM livestock_herd_rates"
+    )
+    return {int(r["product_id"]): LivestockHerdRow(**dict(r)) for r in rows}
+
+
+@lru_cache(maxsize=1)
 def load_research_durations() -> tuple[int, ...]:
     return tuple(
         int(r["months"])
@@ -894,6 +909,7 @@ def load_research_durations() -> tuple[int, ...]:
 
 
 LIVESTOCK_YIELDS = load_livestock_yields()
+LIVESTOCK_HERD_RATES = load_livestock_herd_rates()
 RESEARCH_DURATIONS = load_research_durations()
 RESEARCH_RULES = _rules_model(ResearchRules, "research")
 ADVERTISING_RULES = _rules_model(AdvertisingRules, "advertising")

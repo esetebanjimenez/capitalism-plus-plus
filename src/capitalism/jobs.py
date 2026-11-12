@@ -13,6 +13,7 @@ from .tables import (
     JOB_RULES,
     JOB_TYPES,
     LINK_RULES,
+    LIVESTOCK_HERD_RATES,
     LIVESTOCK_YIELDS,
     RATING_THROUGHPUT,
     RESEARCH_RULES,
@@ -235,18 +236,52 @@ class CropGrowing(Job):
 
 
 class LivestockRaising(Job):
+    """Two-pool herd model (native FUN_000528ec, decomp:52303-52339).
+
+    Per-livestock GROW and REPRODUCE rates from 1STD.SET FARMLIVE table.
+    Formula divisors: 36500.0 (``livestock_scalar``, EXE 0xa768e) and
+    100.0 (EXE 0xa7692).  Stock = round(young).
+    """
+
     type_id = 2
-    __slots__ = ()
+    __slots__ = ("grown", "young")
+
+    def __init__(self, firm: Firm, slot: int, product: Product | None, rating: int = 1) -> None:
+        super().__init__(firm, slot, product, rating)
+        self.young = 0.0
+        self.grown = 0.0
 
     def work(self, eco: Economy) -> bool:
         if self.product is None:
             return False
-        step = self.capacity / JOB_RULES.livestock_scalar * self.efficiency * self.capacity / 100
-        added = min(self.room, step)
-        if added > 0:
+        herd = LIVESTOCK_HERD_RATES.get(self.product.id)
+        if herd is None:
+            return False
+        scalar = JOB_RULES.livestock_scalar
+        eff = self.efficiency
+        ceil = self.ceiling
+        matured = herd.grow_rate * self.young / scalar * eff / 100.0
+        if self.grown + matured > ceil:
+            matured = ceil - self.grown
+        self.young -= matured
+        self.grown += matured
+        born = herd.reproduce_rate * self.grown / scalar * eff / 100.0
+        self.young += born
+        self.young = min(self.young, ceil)
+        self.stock = round(self.young)
+        if self.young > 0 and self.stock > 0:
+            self.quality = self.produced_quality()
+            self.unit_cost = self.product.row.base_cost
             self.fixed_visit_credit()
-        self.receive(added, self.produced_quality(), self.product.row.base_cost)
         return False
+
+    def available_stock(self) -> float:
+        return self.grown
+
+    def take(self, qty: float) -> float:
+        qty = max(0.0, min(qty, self.grown))
+        self.grown -= qty
+        return qty
 
 
 class Extraction(Job):
@@ -403,10 +438,11 @@ class LivestockProcessing(Job):
         row = self.yield_for(src)
         assert row is not None
         wanted = self.efficiency * self.capacity * row.yield_factor / 10_000
-        raw = min(src.stock, wanted, self.room)
+        raw = min(src.available_stock(), wanted, self.room)
         if raw > 0:
             self.take_from(src, raw)
             self.month_output += raw
+            self._credit(round(raw * 17.0 / self.capacity))
         return False
 
     def take_from(self, src: Job, raw: float) -> None:
