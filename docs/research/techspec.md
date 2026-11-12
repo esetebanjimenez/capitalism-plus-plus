@@ -4235,6 +4235,17 @@ formula. K1 market share is `Economy._compute_market_shares()`, K2 unmet
 demand is accumulated in `consumer_pass`, and K3 consumer split is the N4-N7
 transfer system replacing the old score² split.
 
+**Sim update** (sim-market, PR #205): `consumer_pass` now gates oversupply
+trim on D < S (N7), uses per-factor clamping in `_reduce_gap`/`_increase_gap`/
+`_take_gap` (each factor max(0) individually, no cross-factor offset), fixes
+the N4 price denominator to `ref_price + 0.1`, adds a projection gate for
+increase/take (`proj_qty < 2 × proj_flow`, N7), and sums supply on even
+`day_serial` only (N10). Link fields `quantity_prev` and `flow_prev` support
+the monthly projection. N7 processing order is phased (all trims, then all
+reduces, then per-link increase/take) rather than per-link sequential as in
+the native. The N10 price swap is not yet implemented. N8 brand build-up per
+(town, corp, brand key) is not yet implemented (Unknown corp fields).
+
 ### Sales — oitem4.cpp (lines ~78764–78920)
 
 `item_sell` (0x0006cf10, line 78764):
