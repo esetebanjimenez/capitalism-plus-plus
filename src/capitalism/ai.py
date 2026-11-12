@@ -224,19 +224,23 @@ def ai_raise_cash(eco: Economy, corp: Corporation, target: float) -> bool:
     """Raise cash toward *target* before a build is cancelled (FUN_00030ae2, audit B2).
 
     Researcher trace (decomp:27435-27473), seven steps:
-    1. Sell holdings in other corps (FUN_00030c6e, decomp:27484-27530).
+    1. Sell holdings in other corps — skipped when chairman inactive (decomp:27439).
     2. Bank loan (FUN_00037a7e, decomp:33468-33495), capped at credit limit.
-    3. Chairman-byte give-up gate — skipped (byte meaning is Unknown).
+    3. Chairman-active gate (decomp:27450): if chairman inactive and cash > 0,
+       give up — an inactive chairman can't authorise share issues.
+       Field: person+0x2a (active byte, techspec:2067). Observed.
     4. Own share issue (FUN_00030d97, decomp:27540-27566).
     5. Second holdings sale.
     6. Retry loop: up to 10 more own-share issues (decomp:27455-27459).
-    7. Firm closures while cash < 0 — not modelled (A3 Hold).
+    7. Firm closures while cash < 0 — not modelled (A3 Hold, #168).
     Returns True once cash >= target.
     """
     if corp.ledger.cash >= target:
         return True
-    # Step 1: sell holdings
-    _sell_holdings(eco, corp, target)
+    chairman_active = _find_ceo(eco, corp) is not None
+    # Step 1: sell holdings (skipped when chairman is inactive, decomp:27439)
+    if chairman_active:
+        _sell_holdings(eco, corp, target)
     if corp.ledger.cash >= target:
         return True
     # Step 2: bank loan
@@ -247,7 +251,9 @@ def ai_raise_cash(eco: Economy, corp: Corporation, target: float) -> bool:
             corp.borrow(amount)
     if corp.ledger.cash >= target:
         return True
-    # Step 3: chairman-byte give-up gate — Unknown, skipped
+    # Step 3: chairman-active gate (decomp:27450)
+    if not chairman_active and corp.ledger.cash > 0:
+        return False
     # Step 4: own share issue
     _issue_own_shares(eco, corp)
     if corp.ledger.cash >= target:
