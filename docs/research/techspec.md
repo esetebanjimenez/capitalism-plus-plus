@@ -1640,6 +1640,15 @@ order:
 Reached by competitor builds through `FUN_0002e19a`, by the AI
 bankruptcy path `FUN_00030a34` and by the corp daily `FUN_00034e34`.
 
+**Implemented** in `ai.py:ai_raise_cash` (sim-setup-cost PR). Steps
+1 (holdings sale), 2 (bank loan), 4 (own share issue), 5 (second
+holdings sale) and 6 (retry loop) are modelled. Step 3 (chairman-byte
+give-up gate) is skipped — byte meaning is Unknown. Step 7 (firm
+closures) is not modelled — blocked on A3 (Hold). The issue size
+(share_issue_min = 10,000 from `DAT_000a4835`) is Observed; the
+native issue-size calculation is lost in the decompile, so issuing the
+minimum is provisional.
+
 **FUN_00030c6e** (holdings sale): runs only when `DAT_000b1ee3` (Allow
 Stock Investment) is set and `corp+0x7e2` (investment value) is nonzero
 (line 27501). Each pass, `FUN_00044d44` (line 41713) picks the listed

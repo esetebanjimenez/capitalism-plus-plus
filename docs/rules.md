@@ -297,6 +297,7 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `max_competitors` | 12 | count | gamelogic.md NPC corporation spawning |
 | `mode_transition_interval` | 200 | days | gamelogic.md Decision schedule |
 | `random_build_chance` | 0.001 | probability | gamelogic.md Strategy parameter change |
+| `share_issue_min` | 10000 | shares | DAT_000a4835 = 10,000; FUN_00030d97 (decomp:27555): minimum shares for an AI own-stock issue |
 | `spawn_chance` | 0.333 | probability | gamelogic.md NPC corporation spawning |
 | `spawn_first_day_gate` | 0.01 | probability | gamelogic.md NPC corporation spawning |
 | `strategy_interval` | 15 | days | gamelogic.md Decision schedule |
