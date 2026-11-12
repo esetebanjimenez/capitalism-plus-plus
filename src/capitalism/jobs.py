@@ -267,8 +267,7 @@ class LivestockRaising(Job):
         self.grown += matured
         born = herd.reproduce_rate * self.grown / scalar * eff / 100.0
         self.young += born
-        if self.young > ceil:
-            self.young = ceil
+        self.young = min(self.young, ceil)
         self.stock = round(self.young)
         if self.young > 0 and self.stock > 0:
             self.quality = self.produced_quality()
