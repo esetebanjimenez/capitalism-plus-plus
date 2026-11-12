@@ -2484,6 +2484,13 @@ the centre gets a 1-in-10 chance to become a town tile. `level + 4` is
 the `map_land_value` decay radius (lines 43438-43439), not the painted
 footprint. No separate town demand radius was found.
 
+**Implementation:** `World.spread_town()` in `world.py`. `FUN_00090746`
+is Euclidean integer distance (`isqrt(dx² + dy²)`). Tiles with Euclidean
+distance < level are painted unconditionally; Chebyshev-fringe tiles
+(Chebyshev <= level, Euclidean >= level) get a 1-in-10 chance. TOWN and
+FIRM tiles are never overwritten. `monthly_tick` returns True on
+level-up; `sim.py:_towns_daily` calls `spread_town`.
+
 ### Population growth (0x0004b4de)
 
 Lines 46516-46543:
