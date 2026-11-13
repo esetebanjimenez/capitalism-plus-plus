@@ -3632,8 +3632,9 @@ For each link visited on a given day:
 
    b. **Decay factor**: a per-link factor is computed from the firm's
       properties: the firm's adjustment rate × 5, plus 50 unless the
-      firm stands on the farmland (rural) tile range, capped at 100. It
-      depends on the tile the firm stands on, not on the firm type.
+      firm stands on a town-core (urban) tile, kinds 0x3008–0x300c,
+      capped at 100. Firms on the rural ring (0x3000–0x3007) get the +50.
+      It depends on the tile the firm stands on, not on the firm type.
 
    c. **Demand reduction**: if the link's quantity is positive, it may
       be reduced based on how the link's score, price, score-in and

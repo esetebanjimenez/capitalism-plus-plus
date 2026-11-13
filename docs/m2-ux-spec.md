@@ -145,9 +145,11 @@ wheel switches between them. Pan by one-finger drag or mouse drag.
 
 **Town tiles (from the sim).** Towns are real map tiles, as in the original
 (decided on #279, sim work in #302). Each level-up spreads the town: a solid
-core of **rural** town tiles (5 variants) within the level radius, and a
-scattered ring of **urban** town tiles (8 variants) out to level + 4
-(techspec "Town spread", `FUN_0004c334`). Forest, hills and ocean are never
+core of **urban** town tiles (kinds `0x3008`–`0x300c`, 5 variants) within the
+level radius, and a scattered ring of **rural** town tiles (kinds
+`0x3000`–`0x3007`, 8 variants) out to level + 4, so rural always rings
+urban (techspec "Town spread", `FUN_0004c334`; names corrected by
+Esteban, #311). Forest, hills and ocean are never
 converted, and a town stops spreading for good once it touches another
 town. The client draws exactly what `map` / `map_objects` report for each
 tile. There's no drawn footprint, no radius table and no block-level step.
