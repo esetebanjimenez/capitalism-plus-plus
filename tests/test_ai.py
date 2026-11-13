@@ -78,11 +78,47 @@ class TestLocationSelection:
         assert 0 <= x < sim.world.width
         assert 0 <= y < sim.world.height
 
-    def test_find_rural_site(self):
+    def test_find_core_site(self):
         sim, town = bread_town(1)
         rng = Rng(42)
-        site = find_ai_site(sim.economy, town, rng, rural=True)
+        site = find_ai_site(sim.economy, town, rng, core=True)
         assert site is not None
+
+    def test_sites_are_town_tiles_of_the_native_range(self):
+        """#315: ring branch 0x3000..0x3007, core branch 0x3008..0x300c."""
+        from capitalism.world import TileCategory
+
+        sim, town = bread_town(1)
+        for core, lo, hi in ((False, 0x3000, 0x3007), (True, 0x3008, 0x300C)):
+            rng = Rng(7)
+            sites = [find_ai_site(sim.economy, town, rng, core=core) for _ in range(30)]
+            found = [site for site in sites if site is not None]
+            assert found  # a failed search (20 tries) is native: the AI skips the build
+            for site in found:
+                tile = sim.world.tile_at(*site)
+                assert tile.kind == TileCategory.TOWN and lo <= tile.town_kind <= hi
+
+    def test_no_site_when_no_town_tile_in_reach(self):
+        from capitalism.world import TileCategory
+
+        sim, town = bread_town(1)
+        for tile in sim.world.tiles:
+            if tile.kind == TileCategory.TOWN:
+                tile.kind, tile.town_kind = TileCategory.GRASSLAND, 0
+        assert find_ai_site(sim.economy, town, Rng(3)) is None
+        assert find_ai_site(sim.economy, town, Rng(3), core=True) is None
+
+    def test_ai_firm_stands_on_a_town_tile_and_pays_wages(self):
+        sim, town = bread_town(1)
+        eco = sim.economy
+        corp = eco.add_corp("AI Corp", CORP_AI)
+        corp.ledger.cash = 10_000_000.0
+        firm = ai_build_firm(eco, corp, 2, town, Rng(42))
+        assert firm is not None
+        assert 0x3000 <= firm.place_kind <= 0x300C and firm.place_town == town.id
+        firm.add_job(1, 7, eco.catalog["Flour"])  # Manufacturing
+        sim.advance_day()
+        assert firm.ledger.month[1] > 0  # salaries
 
 
 class TestAIBuildFirm:
@@ -122,7 +158,7 @@ class TestAIBuildFirm:
         corp = eco.add_corp("AI Corp", CORP_AI)
         corp.ledger.cash = 10_000_000.0
         rng = Rng(42)
-        firm = ai_build_firm(eco, corp, 4, town, rng, rural=True)
+        firm = ai_build_firm(eco, corp, 4, town, rng, core=True)
         assert firm is not None
         assert firm.type_id == 4
 

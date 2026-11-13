@@ -300,6 +300,13 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `mode_transition_interval` | 200 | days | gamelogic.md Decision schedule |
 | `random_build_chance` | 0.001 | probability | gamelogic.md Strategy parameter change |
 | `share_issue_min` | 10000 | shares | DAT_000a4835 = 10,000; FUN_00030d97 (decomp:27555): minimum shares for an AI own-stock issue |
+| `site_core_kind_max` | 12300 | tile kind | FUN_0002dc7c (techspec 'Location (FUN_0002dc7c)'): base-radius branch |
+| `site_core_kind_min` | 12296 | tile kind | FUN_0002dc7c (techspec 'Location (FUN_0002dc7c)'): base-radius branch |
+| `site_radius_cap` | 4 | tiles | FUN_0002dc7c (techspec 'Location (FUN_0002dc7c)'): cap at 4 |
+| `site_retries` | 20 | tries | FUN_0002dc7c (techspec 'Location (FUN_0002dc7c)'): retry 20 times, radius += 1 |
+| `site_ring_kind_max` | 12295 | tile kind | FUN_0002dc7c (techspec 'Location (FUN_0002dc7c)'): base + 4 branch |
+| `site_ring_kind_min` | 12288 | tile kind | FUN_0002dc7c (techspec 'Location (FUN_0002dc7c)'): base + 4 branch |
+| `site_ring_radius_extra` | 4 | tiles | FUN_0002dc7c (techspec 'Location (FUN_0002dc7c)'): urban = base + 4 |
 | `spawn_chance` | 0.333 | probability | gamelogic.md NPC corporation spawning |
 | `spawn_first_day_gate` | 0.01 | probability | gamelogic.md NPC corporation spawning |
 | `strategy_interval` | 15 | days | gamelogic.md Decision schedule |
