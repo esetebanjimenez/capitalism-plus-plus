@@ -4266,7 +4266,12 @@ the month buckets `+0x8e` / `+0xbe`; it is likely monthly.
 **Sim implementation** (Group 9, PR #199): `TownMarket.init_weights(rng)` in
 `catalog.py` seeds weights and reference levels at market creation; the
 monthly random walk is `TownMarket.random_walk_refs(rng)`. Town adjustments
-(`town+0x2a`, `town+0x26`) are provisionally 0. The reference score is
+(`town+0x2a`, `town+0x26`) are now derived from `Town.env_factors` (#223):
+`price_weight = w_price + int(env_price)`, `score_in_weight = w_quality +
+int(env_score_in)`, recomputed monthly by `TownMarket.recompute_weights()`.
+The native monthly recalculation (`FUN_0004b9ee`, `decomp:46798-46812`)
+couples adjustments to labor quality drift; the sim uses the env_factors
+directly (base + monthly random walk), which matches the init-time behavior. The reference score is
 rebuilt by `TownMarket.rebuild_ref_score()` using the FPU-recovered N2
 formula. K1 market share is `Economy._compute_market_shares(days_in_month)`,
 now with the native prorated projection: `projected = this_month + (31 −

@@ -565,11 +565,11 @@ def _run_chain(seed: int = 1, days: int = 120):
 def test_bread_chain_end_to_end_seed_1():  # hash moved with native N3/N7 market formulas
     sim, chain = _run_chain()
     link = chain.store_link
-    assert sim.state_hash() == ("8847def6b0c33b5ae3a760baa80b9c439cb6e268a165c34886a0728bcf9ba7d6")
-    assert sum(link.money_month) == pytest.approx(2056.625282666966, abs=1e-3)
+    assert sim.state_hash() == ("bb9efb37033aa4465d67a002bb399d770064c0169759dac4090079da3c2ab5bd")
+    assert sum(link.money_month) == pytest.approx(2019.269895614562, abs=1e-3)
     assert chain.store_sales.unit_cost == pytest.approx(1.5, abs=1e-6)
     assert link.brand == pytest.approx(0.0, abs=1e-6)
-    assert chain.store_sales.quality == pytest.approx(13.166403696932774, abs=1e-5)
+    assert chain.store_sales.quality == pytest.approx(13.16639678227366, abs=1e-5)
     assert all(link.units_month[m] > 0 for m in (1, 2, 3))
 
 
@@ -590,19 +590,19 @@ def test_bread_chain_monthly_accounting():
         results[month] = chain_month_profit(chain, month - 1)
     r = results[4]  # month after April closes; ledger index remains zero-based April = 3
     assert r["overhead"] == pytest.approx(300000.0)  # 2 factories + dept store, $100k/mo each
-    assert r["revenue"] == pytest.approx(712.0192523052116, abs=0.01)
+    assert r["revenue"] == pytest.approx(687.1559858399077, abs=0.01)
     assert (r["wages"], r["overhead"]) == (167_910, 300_000)
     assert r["training"] == pytest.approx(16_791, abs=1e-6)
     for job, qty, charge in zip(
         (chain.wheat_buy, chain.flour_buy, chain.bread_buy),
-        (405.0, 414.0, 470.6249374068575),
-        (0.42524999999999996, 0.7245, 1.7648435152757158),
+        (396.0, 405.0, 454.80205383512657),
+        (0.4158, 0.7087500000000001, 1.7055077018817248),
         strict=True,
     ):
         assert job.received_month[3] == pytest.approx(qty)
         assert job.freight_month[3] == pytest.approx(charge)
-    assert r["freight"] == pytest.approx(2.914593515275716)
-    assert r["profit"] == pytest.approx(-484032.39534121007, abs=0.01)
+    assert r["freight"] == pytest.approx(2.830057701881725)
+    assert r["profit"] == pytest.approx(-484056.274071862, abs=0.01)
     assert r["profit"] == pytest.approx(
         r["revenue"] - r["wages"] - r["training"] - r["overhead"] - r["freight"] - r["wheat"]
     )

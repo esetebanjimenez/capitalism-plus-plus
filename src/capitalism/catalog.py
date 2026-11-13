@@ -221,17 +221,22 @@ class TownMarket:
         self.demand_per_day = daily_demand(self.product, self.town)
 
     def init_weights(self, rng: Rng) -> None:
-        """Weights from product row (FUN_0004cca0); town adjustments are 0 (provisional)."""
-        row = self.product.row
-        pw = max(20, min(90, row.w_price))
-        sw = max(10, min(100 - pw, row.w_quality))
-        self.price_weight = pw
-        self.score_in_weight = sw
-        self.brand_weight = 100 - pw - sw
-        self.ref_price = row.base_price
+        """Weights from product row + town env (FUN_0004cca0, decomp:47582-47597)."""
+        self.recompute_weights()
+        self.ref_price = self.product.row.base_price
         self.ref_score_in = rng.randint(5, 15)
         self.ref_brand = 0
         self.rebuild_ref_score()
+
+    def recompute_weights(self) -> None:
+        """N2: product weight + per-town env adjustment, clamped (FUN_0004cca0)."""
+        row = self.product.row
+        env_price, env_score_in, _env3 = self.town.env_factors
+        pw = max(20, min(90, row.w_price + int(env_price)))
+        sw = max(10, min(100 - pw, row.w_quality + int(env_score_in)))
+        self.price_weight = pw
+        self.score_in_weight = sw
+        self.brand_weight = 100 - pw - sw
 
     def random_walk_refs(self, rng: Rng) -> None:
         """Monthly random walk (FUN_0004cd5b; constants 0.5, 100, ±1)."""

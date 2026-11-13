@@ -617,6 +617,7 @@ class Economy:
         self._compute_market_shares(real_days_in_month(prev_y, prev_m))
         self.market.monthly(self.calendar.month - 1, self)
         for tm in self.market.towns.values():
+            tm.recompute_weights()
             tm.random_walk_refs(self.rng)
             tm.last_month_unmet_demand_sum = tm.unmet_demand_sum
             tm.unmet_demand_sum = 0.0
