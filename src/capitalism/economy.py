@@ -11,6 +11,7 @@ import hashlib
 import struct
 from typing import TYPE_CHECKING
 
+from .calendar import real_days_in_month
 from .catalog import Catalog, Product, TownMarket
 from .firms import (
     FIRM_CLASSES,
@@ -53,7 +54,6 @@ from .tables import (
     PRODUCT_RULES,
     STOCK_RULES,
 )
-from .calendar import real_days_in_month
 from .world import TileCategory
 
 if TYPE_CHECKING:
