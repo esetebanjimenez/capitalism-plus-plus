@@ -22,14 +22,18 @@ and any rule it turns out to need goes to its own sim PR.
   posts `{id, ok: true, result}` or `{id, ok: false, error}`, where
   `error` is a short player-facing reason (shown in the toast).
 - Each tick the worker posts `tick {day_serial, cash, speed,
-  unread_important}`, which is all the status pill and menu badge read.
+  unread_important, map_rev}`, which is all the status pill and menu badge read.
+  `map_rev` is a counter that moves when a firm is built or removed or a town
+  changes level (which is when `spread_town` repaints tiles); when it moves the
+  map view calls `map_objects` with the `map_rev` it last drew.
 - Lists of 12 are month rings in M1 order; the client labels them.
 
 ## Queries
 
 | Query | Inputs | Returns | Used by |
 |---|---|---|---|
-| `map` | none | `width`, `height`, per tile `kind`, `ref`; towns `id`, `name`, `x`, `y`, `level`; firms `id`, `x`, `y`, `type_id`, `owner` | Map view, footprint |
+| `map` | none | `width`, `height`, `map_rev`, per tile `kind`, `ref`; towns `id`, `name`, `x`, `y`, `level`, `radius`, `block_level` (from `town_footprints`; levels past the table use its top row); firms `id`, `x`, `y`, `type_id`, `owner` | Map view, footprint |
+| `map_objects` | `since` (a `map_rev`, default -1) | `map_rev`, towns and firms as in `map`, and `changes`: `[[index, kind, ref], ...]` for tiles changed after `since`. When `since` is -1 or older than the last 64 revisions, `changes` is null and `kind` and `ref` hold the whole map | Map view redraw |
 | `overlay` | `layer`: `land_value`, `soil`, `rainfall`, `climate` or `ownership` | One value per tile (firm owner per firm for `ownership`), plus `min` and `max` for the legend | Map overlays |
 | `tile` | `x`, `y` | `kind`, `soil`, `rainfall`, `moisture`, `climate`, `land_value` (`World.land_value`), `can_build` (`World.can_build`), nearest `town` id | Tile card |
 | `build_options` | `x`, `y` | Per buildable firm type: `type_id`, `name`, `setup_cost`, `land_value`, `build_cost` (setup + land), `overhead_month`, `affordable`, `shortfall` (0 when affordable; when above 0 the type can't be built) | Build panel |
