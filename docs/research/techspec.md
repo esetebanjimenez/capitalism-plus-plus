@@ -2672,17 +2672,52 @@ city placement.
 | 6     | 4,000,000          |
 
 On level-up `town_pop_growth` calls `FUN_0004c334` (0x0004c334, line
-47128; body lines 47149-47201): each tile within distance <= level of
-the centre gets a 1-in-10 chance to become a town tile. `level + 4` is
-the `map_land_value` decay radius (lines 43438-43439), not the painted
-footprint. No separate town demand radius was found.
+47128; body lines 47149-47292). The function scans a square of side
+`2 × (level + 4) + 1` centred on the town, not just the level radius.
+`FUN_00090746` is rounded Euclidean integer distance:
+`FUN_000906f8(dx² + dy²)` returns `round(sqrt(n))` via odd-number
+subtraction (decomp:105102-105122).
 
-**Implementation:** `World.spread_town()` in `world.py`. `FUN_00090746`
-is Euclidean integer distance (`isqrt(dx² + dy²)`). Tiles with Euclidean
-distance < level are painted unconditionally; Chebyshev-fringe tiles
-(Chebyshev <= level, Euclidean >= level) get a 1-in-10 chance. TOWN and
-FIRM tiles are never overwritten. `monthly_tick` returns True on
-level-up; `sim.py:_towns_daily` calls `spread_town`.
+Three zones determine what happens to each tile:
+
+**Core** (Euclidean distance < level): every eligible tile is converted
+unconditionally to a **rural** town tile (`cfg_random(5) + 0x3008`,
+range 0x3008-0x300c). Eligible tiles: grassland (0x2000-0x2004) and
+urban town tiles (0x3000-0x3007). Urban-to-rural conversion means
+previously-fringe tiles get absorbed as the town grows inward.
+
+**Chebyshev overlap** (Euclidean ≥ level, Chebyshev ≤ level): 1-in-10
+chance (`cfg_random(10) == 0`) to enter the core path and become a
+rural tile.
+
+**Outer fringe** (Euclidean ≥ level, Chebyshev > level, up to
+level + 4): **urban** town tiles (`cfg_random(8) + 0x3000`, range
+0x3000-0x3007). Only grassland is converted — urban tiles are not
+re-converted. Beyond level + 4, a 1-in-10 roll is required.
+
+Tiles never converted: forest/hill (0x2013-0x201e), ocean
+(0x202d-0x2030), another town's tiles. Encountering another town's
+tile sets `town+0x1d` = 1 (abort flag), which halts the scan and
+prevents all future spread calls for this town (checked at
+decomp:46538).
+
+Firms on eligible tiles: if the firm has no workforce (`firm+0x4c == 0`),
+its `place_kind` (firm+0x4a) is updated to the new tile kind.
+
+**Callers:** (1) `town_pop_growth` (`FUN_0004b490`, decomp:46538-46542):
+monthly, when `population ≥ level² × 160,000` and abort flag is clear;
+increments level by 1. (2) Town initialisation (decomp:46371-46378):
+loops until level matches population.
+
+**Implementation:** `World.spread_town()` in `world.py`.
+
+Sim mismatches vs native:
+- Sim converts forest/hill tiles; native preserves them.
+- Sim has no outer fringe (urban zone from level to level+4).
+- Sim has no urban/rural tile distinction (only TOWN).
+- Sim has no abort flag — towns can overlap.
+- Sim uses `isqrt` (floor); native uses rounded sqrt.
+- Sim does not update firm `place_kind`.
 
 ### Population growth (0x0004b4de)
 
