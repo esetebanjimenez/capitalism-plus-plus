@@ -181,6 +181,7 @@ class TownMarket:
     __slots__ = (
         "brand_weight",
         "demand_per_day",
+        "last_month_unmet_demand_sum",
         "links",
         "max_score_in",
         "price_weight",
@@ -210,6 +211,7 @@ class TownMarket:
         self.ref_brand = 0
         self.ref_score = 0.0
         self.unmet_demand_sum = 0.0
+        self.last_month_unmet_demand_sum = 0.0
 
     def recompute(self) -> None:
         self.demand_per_day = daily_demand(self.product, self.town)

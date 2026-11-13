@@ -199,7 +199,7 @@ class TestMarketShare:
         link.quantity_sum = 1000.0
         tm = link.buyer
         tm.unmet_demand_sum = 0.0
-        eco._compute_market_shares()
+        eco._compute_market_shares(31)
         assert corp.market_share[link.product.id] == 100
 
     def test_two_corps_split(self):
@@ -212,7 +212,7 @@ class TestMarketShare:
         l1.quantity_sum = 600.0
         l2.quantity_sum = 400.0
         l1.buyer.unmet_demand_sum = 0.0
-        eco._compute_market_shares()
+        eco._compute_market_shares(31)
         pid = l1.product.id
         assert c1.market_share[pid] == 60
         assert c2.market_share[pid] == 40
@@ -225,7 +225,7 @@ class TestMarketShare:
         link.quantity_sum = 500.0
         tm = link.buyer
         tm.unmet_demand_sum = 500.0
-        eco._compute_market_shares()
+        eco._compute_market_shares(31)
         assert corp.market_share[link.product.id] == 50
 
 
@@ -420,3 +420,64 @@ class TestMonthlyRoll:
         eco.market.monthly(0, eco)
         assert link.flow_prev == 99.0
         assert link.units_month[0] == 0.0
+
+
+# ---------------------------------------------------------------------------
+# K1 prorated market-share projection
+# ---------------------------------------------------------------------------
+
+
+class TestK1Prorate:
+    """K1: market share uses prorated projection from native formula."""
+
+    def test_31_day_month_no_proration(self):
+        """For a 31-day month, proration factor is 0 — no last-month boost."""
+        sim, town = bread_town()
+        eco = sim.economy
+        corp = eco.add_corp("T")
+        link = _link_in_town(sim, town, corp, quality=50)
+        link.quantity_sum = 100.0
+        link.quantity_prev = 200.0
+        eco._compute_market_shares(31)
+        assert corp.market_share[link.product.id] == 100
+
+    def test_28_day_month_adds_proration(self):
+        """For a 28-day month, (31-28)/31 of last month is added."""
+        sim, town = bread_town()
+        eco = sim.economy
+        corp_a = eco.add_corp("A")
+        corp_b = eco.add_corp("B")
+        link_a = _link_in_town(sim, town, corp_a, quality=50)
+        link_b = _link_in_town(sim, town, corp_b, quality=50)
+        link_a.quantity_sum = 100.0
+        link_a.quantity_prev = 0.0
+        link_b.quantity_sum = 100.0
+        link_b.quantity_prev = 310.0
+        # With 28-day month: prorate = 3/31
+        # projected_a = 100 + 3/31 * 0 = 100
+        # projected_b = 100 + 3/31 * 310 = 130
+        # total = 230, a = round(100/230*100) = 43, b = round(130/230*100) = 57
+        eco._compute_market_shares(28)
+        assert corp_a.market_share[link_a.product.id] == 43
+        assert corp_b.market_share[link_b.product.id] == 57
+
+    def test_unmet_demand_prorated_in_denominator(self):
+        """Unmet demand in the K1 denominator is also prorated."""
+        sim, town = bread_town()
+        eco = sim.economy
+        corp = eco.add_corp("T")
+        link = _link_in_town(sim, town, corp, quality=50)
+        link.quantity_sum = 100.0
+        link.quantity_prev = 0.0
+        tm = eco.town_market(town, "Bread")
+        tm.unmet_demand_sum = 100.0
+        tm.last_month_unmet_demand_sum = 0.0
+        eco._compute_market_shares(31)
+        assert corp.market_share[link.product.id] == 50
+        # With last-month unmet demand and shorter month, denominator grows
+        tm.unmet_demand_sum = 100.0
+        tm.last_month_unmet_demand_sum = 310.0
+        eco._compute_market_shares(28)
+        # projected_link = 100, projected_unmet = 100 + 3/31*310 = 130
+        # total = 230, share = round(100/230*100) = 43
+        assert corp.market_share[link.product.id] == 43

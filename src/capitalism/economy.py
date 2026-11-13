@@ -53,6 +53,7 @@ from .tables import (
     PRODUCT_RULES,
     STOCK_RULES,
 )
+from .calendar import real_days_in_month
 from .world import TileCategory
 
 if TYPE_CHECKING:
@@ -611,14 +612,23 @@ class Economy:
         for firm in self.firms:
             if firm is not None:
                 firm.monthly(self)
-        self._compute_market_shares()
+        prev_m = self.calendar.month - 1 if self.calendar.month > 1 else 12
+        prev_y = self.calendar.year if self.calendar.month > 1 else self.calendar.year - 1
+        self._compute_market_shares(real_days_in_month(prev_y, prev_m))
         self.market.monthly(self.calendar.month - 1, self)
         for tm in self.market.towns.values():
             tm.random_walk_refs(self.rng)
+            tm.last_month_unmet_demand_sum = tm.unmet_demand_sum
             tm.unmet_demand_sum = 0.0
 
-    def _compute_market_shares(self) -> None:
-        """K1: monthly market share = round(corp_sum × 100 / total), capped 0–100."""
+    def _compute_market_shares(self, days_in_month: int) -> None:
+        """K1: prorated market share (native 0xa96b4/0xa99ed = 31).
+
+        projected = this_month_sum + (31 - days_in_month) * last_month_sum / 31.
+        For 31-day months the proration factor is 0; shorter months get a boost
+        from last month's data to normalize to a 31-day equivalent.
+        """
+        prorate = (31 - days_in_month) / 31.0
         corp_sums: dict[int, dict[int, float]] = {}
         product_totals: dict[int, float] = {}
         for link in self.market.live_links():
@@ -629,12 +639,16 @@ class Economy:
             if owner is None:
                 continue
             cid = owner.id
+            projected = link.quantity_sum + prorate * link.quantity_prev
             corp_sums.setdefault(cid, {})
-            corp_sums[cid][pid] = corp_sums[cid].get(pid, 0.0) + link.quantity_sum
-            product_totals[pid] = product_totals.get(pid, 0.0) + link.quantity_sum
+            corp_sums[cid][pid] = corp_sums[cid].get(pid, 0.0) + projected
+            product_totals[pid] = product_totals.get(pid, 0.0) + projected
         for tm in self.market.towns.values():
             pid = tm.product.id
-            product_totals[pid] = product_totals.get(pid, 0.0) + tm.unmet_demand_sum
+            projected_unmet = (
+                tm.unmet_demand_sum + prorate * tm.last_month_unmet_demand_sum
+            )
+            product_totals[pid] = product_totals.get(pid, 0.0) + projected_unmet
         for corp in self.corps:
             corp.market_share.clear()
             sums = corp_sums.get(corp.id, {})
