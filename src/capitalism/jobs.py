@@ -127,7 +127,7 @@ class Job:
 
     def post_wages(self, eco: Economy) -> None:
         if self.staff:
-            wage = job_wage_day(self.staff, self.firm.town.labor_cost, eco.calendar.real_month_days)
+            wage = job_wage_day(self.staff, self.firm.labor_factor, eco.calendar.real_month_days)
             self.firm.post(CAT_SALARIES, wage)
             training_budget = (
                 self.firm.owner.training_budget
@@ -149,7 +149,7 @@ class Job:
             if self.firm.owner is None
             else self.firm.owner.training_budget
         )
-        education = JOB_RULES.training_education_default
+        education = self.firm.education
         self.train_credits += (raw * budget // 100) * education // 100
 
     def fixed_visit_credit(self) -> None:
@@ -376,9 +376,7 @@ class Manufacturing(Job):
         if done:
             quals = {i.input_id: self.inputs[i.input_id][1] for i in recipe.inputs}
             material = sum(i.qty * self.inputs[i.input_id][2] for i in recipe.inputs) * done
-            wages = job_wage_day(
-                self.staff, self.firm.town.labor_cost, eco.calendar.real_month_days
-            )
+            wages = job_wage_day(self.staff, self.firm.labor_factor, eco.calendar.real_month_days)
             units = done * recipe.output_qty
             self.receive(
                 units, cycle_quality(recipe, quals, self.skill()), (material + wages) / units

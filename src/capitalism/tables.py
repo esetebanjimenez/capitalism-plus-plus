@@ -308,6 +308,10 @@ class JobRules(StaticModel):
     purchase_order_mult: float
     train_weekday: int
     training_education_default: int = Field(ge=0)
+    town_place_min: int
+    town_place_max: int
+    offtown_labor_factor: float
+    offtown_education: int = Field(ge=0)
     rating_min: int
     rating_max: int
     livestock_scalar: float
