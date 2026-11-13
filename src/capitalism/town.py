@@ -223,6 +223,7 @@ class Town:
         floor = TIER_GNP[self.tier].lo
         if self.per_capita_gnp < floor:
             self.per_capita_gnp = float(floor)
+        # Native bug: guard reads `gnp < 3.0` instead of `tier < 3`, making upgrade dead code.
         while self.tier < 3 and self.per_capita_gnp > TIER_GNP[self.tier].hi:
             self.tier += 1
 

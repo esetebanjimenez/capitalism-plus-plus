@@ -2625,13 +2625,26 @@ Monthly GNP adjustment (`town_gnp_update`, 0x0004b609):
 `gnp = gnp * (random(10) + 295) / 300.0`
 This gives ten discrete steps from 295/300 to 304/300 (`0x127` = 295,
 `0xa6eca` = 300; lines 46562-46564), roughly ±1.7% per month. GNP is
-clamped to the minimum for the current tier. If GNP exceeds the tier's
-max, the tier upgrades by one. The `0xa6ece` = 3.0 (f32, confirmed from
-EXE) is most likely a tier-cap compare (`tier < 3`) misattributed to GNP
-by the decompiler's x87 stack reconstruction. With that reading the
-upgrade condition is `gnp >= threshold[tier] && tier < 3`, and the raw
-shorts ×200 match the DB dollar values exactly (init formula uses
-`×20000/100`).
+clamped to the minimum for the current tier (floor clamp: if gnp <
+floor[tier], gnp = floor[tier]).
+
+Tier upgrade guard (raw x87 disassembly, 0x4B677–0x4B685):
+```
+FLD  dword [ebx+0x31]      ; gnp
+FCOMP dword [0xa6ECE]      ; 3.0 (f32)
+FNSTSW AX / SAHF
+JNB  +3                    ; skip if gnp >= 3.0
+INC  byte [ebx+0x2c]       ; tier++
+```
+The native upgrade condition is `gnp >= threshold[tier] && gnp < 3.0`.
+Thresholds are {10, 35, 70, 100}, so `gnp >= 10` and `gnp < 3.0` can
+never both hold: the tier increment is dead code. **Bug:** the guard
+was almost certainly meant to read `tier < 3` (cap at tier 3), not
+`gnp < 3.0`. The float 3.0 sits at `0xa6ECE`, four bytes after the
+`0xa6ECA` = 300.0 divisor used in the GNP walk — the compiler or the
+developer picked the wrong operand.
+
+Raw shorts ×200 match DB dollar values (init formula uses `×20000/100`).
 
 ### Economic climate thresholds
 
