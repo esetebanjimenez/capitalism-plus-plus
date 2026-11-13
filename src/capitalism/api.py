@@ -15,7 +15,7 @@ from typing import Any
 
 from . import stock as stk
 from .firms import FIRM_CLASSES, Firm, MediaFirm, decode_links, edge_bit
-from .goals import check_goals, compute_difficulty_rating, compute_final_score
+from .goals import GoalConfig, check_goals, compute_difficulty_rating, compute_final_score
 from .jobs import JOB_CLASSES, Job, Manufacturing, ProjectJob, Sales, product_freight_rate
 from .links import Link
 from .news import NewsCategory
@@ -71,9 +71,30 @@ class Api:
         self._map_changes: list[tuple[int, dict[int, tuple[int, int]]]] = []
 
     @classmethod
-    def new_game(cls, player: str = "Player", **sim_kwargs: Any) -> Api:
-        """A fresh sim with the player as corp 0."""
+    def new_game(
+        cls,
+        player: str = "Player",
+        setup: Json | None = None,
+        goals: Json | None = None,
+        **sim_kwargs: Any,
+    ) -> Api:
+        """A fresh sim with the player as corp 0.
+
+        `setup` overrides `SetupOptions` fields (validated); `goals` sets `GoalConfig`
+        targets in their own units (money goals in $ millions). Neither adds a rule.
+        """
         sim = Sim(**sim_kwargs)
+        if setup:
+            fixed = {"seed", "start_year", "detailed_cities", "target_cities"} & set(setup)
+            if fixed:
+                raise ValueError(f"pass {sorted(fixed)} as Sim arguments, not setup")
+            merged = {**sim.setup.model_dump(), **setup}
+            sim.setup = type(sim.setup).model_validate(merged)
+            sim.apply_setup()
+        for name, value in (goals or {}).items():
+            if name not in GoalConfig.__slots__:
+                raise ValueError(f"unknown goal {name!r}")
+            setattr(sim.goal_config, name, value)
         sim.economy.add_corp(player)
         return cls(sim)
 
@@ -683,6 +704,7 @@ class Api:
             "goals": rows,
             "years_played": years,
             "year_limit": sim.setup.year_limit,
+            "seed": sim.seed,
             "difficulty": compute_difficulty_rating(sim.setup),
             "score": score,
         }

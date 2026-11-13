@@ -18,7 +18,7 @@ import { LoadingOverlay, showSimError } from "./ui/overlay";
 import { Shell } from "./ui/shell";
 import { SimClient, type WorkerPort } from "./sim/client";
 import type { Speed } from "./sim/protocol";
-import { DEFAULT_SETUP } from "./sim/setup";
+import { m2TestSetup, randomSeed } from "./sim/setup";
 
 interface AtlasJson {
   tile: number;
@@ -258,7 +258,7 @@ boot().catch((err) => {
 function startSim(shell: Shell): SimClient {
   const loading = new LoadingOverlay();
   const worker = new Worker(new URL("./sim/worker.ts", import.meta.url), { type: "module" });
-  const sim = new SimClient(worker as unknown as WorkerPort, DEFAULT_SETUP, new URL("capitalism.zip", document.baseURI).href);
+  const sim = new SimClient(worker as unknown as WorkerPort, m2TestSetup(randomSeed()), new URL("capitalism.zip", document.baseURI).href);
   (window as unknown as { __sim: SimClient }).__sim = sim;
   let resumeTo: Speed = 1;
   const setSpeed = (s: Speed) => {
