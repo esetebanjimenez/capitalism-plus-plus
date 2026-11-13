@@ -2,8 +2,10 @@
 
 import pytest
 
-from capitalism.links import BRAND_CORPORATE, BRAND_RANGE, BRAND_UNIQUE
 from capitalism.links import (
+    BRAND_CORPORATE,
+    BRAND_RANGE,
+    BRAND_UNIQUE,
     DEMAND_DIVISOR,
     RATING_GATE,
     SUPPLY_DECAY_CAP,
