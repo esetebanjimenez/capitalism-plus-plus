@@ -140,7 +140,7 @@ move.
 | # | Rule | Sim now | Native / reference | Status | Fix PR |
 |---|---|---|---|---|---|
 | F1 | ~~Freight distance~~ | ~~`jobs.py:392`: Manhattan, `|dx| + |dy|`~~ | `FUN_000785f1` (`decomp:87210`) calls `FUN_00090746`, which is `isqrt(dx² + dy²)` (`decomp:105137`). `FUN_000906f8` (`decomp:105102-105122`) is an odd-number integer square root rounded to the nearest whole number. So the distance is Euclidean, as an integer | **Fixed** | [#162](https://github.com/esetebanjimenez/capitalism-plus-plus/issues/162) |
-| F2 | Freight rate fields | `jobs.py:393-400`: `freight × distance × spending_usd / 100² × 0.5`, with 0.01 when the result is 0 | `decomp:87212-87216`: `product.+0x37 (short) × distance × product.+0xaa (float) / 100 / 100 × 0.5` (`0xaa3a8` = 100, `0xaa3ac` = 0.5), with 0.01 when 0. The constants and the floor match. Not confirmed: that `+0x37` is the FREIGHT factor and `+0xaa` is spending (`techspec:3768` labels `+0x37` as an initial tech requirement) | Unknown (field mapping) | Hold ([#163](https://github.com/esetebanjimenez/capitalism-plus-plus/issues/163)) |
+| F2 | Freight rate fields | `jobs.py:393-400`: `freight × distance × spending_usd / 100² × 0.5`, with 0.01 when the result is 0 | **Confirmed from SET file and decompile:** `FUN_0006e7d0` (line 80125) parses ITEM resource offset 0x2c (3-char FREIGHT field) → `product+0x37`. `FUN_0006ec5e` (line 80237) parses ITEM resource offset 0x25 (7-char SPENDING field) → `product+0xaa`. The SET ITEM section has explicit FREIGHT (1–100, bulk factor) and SPENDING (unit price) columns. The sim's formula matches exactly: `freight × distance × spending_usd / 100² × 0.5`. **DB gap:** only 3 of 85 products have freight populated; the full SET FREIGHT data is documented in techspec for loading | Observed: **matches** (formula correct, DB needs FREIGHT data) | [#163](https://github.com/esetebanjimenez/capitalism-plus-plus/issues/163) |
 
 ## 11. Market demand and market share
 
@@ -166,7 +166,7 @@ move.
 | U9 | Resolved: the player's Build button is disabled when cash is short | `FUN_000698e0` / `FUN_0006956d` (see B3) | — |
 | ~~U10~~ | ~~Town labor factor (`__CHP`) and the global `DAT_000b1b26`~~ | **Resolved**: `firm_labor_factor` (0x669d7) returns `round(town+0x3b)` for town firms, else `DAT_000b1b26` (BSS=0) for non-town firms. The sim's `round(labor_cost)` in `job_wage_day` matches. Non-town firms don't exist in the sim | W2 ([#154](https://github.com/esetebanjimenez/capitalism-plus-plus/issues/154)) |
 | ~~U11~~ | ~~Market-share rounding~~ | **Resolved** (FPU recovery): `round(corp_share × 100.0 / total)`, byte capped at 100. Constant 100.0 (f64) at `0xa99f1` | K1 ([#155](https://github.com/esetebanjimenez/capitalism-plus-plus/issues/155)) |
-| U12 | Freight product fields `+0x37` / `+0xaa` | `decomp:87212` | F2 ([#156](https://github.com/esetebanjimenez/capitalism-plus-plus/issues/156)) |
+| ~~U12~~ | ~~Freight product fields `+0x37` / `+0xaa`~~ | **Resolved:** `+0x37` = FREIGHT (SET ITEM resource offset 0x2c, 3-char short), `+0xaa` = SPENDING (SET ITEM resource offset 0x25, 7-char float). Confirmed via `FUN_0006e7d0` (line 80125) and `FUN_0006ec5e` (line 80237). The techspec label `tech_requirement_initial` for `+0x37` was wrong — it is the FREIGHT bulk factor. The label `alternate_cost` for `+0xaa` was misleading — it is SPENDING (base unit cost), written by both primary and secondary loaders from the same SET field | F2 ([#156](https://github.com/esetebanjimenez/capitalism-plus-plus/issues/156)) |
 
 ## Not audited yet
 

@@ -881,10 +881,47 @@ Freight rate — `FUN_000785f1` (0x000785f1, line 87197): distance from
 `FUN_00090746` (0x00090746, line 105128) = `isqrt(dx² + dy²)`.
 `FUN_000906f8` (lines 105102-105122) is an integer square root rounded to
 the nearest whole number, so the distance is Euclidean, not Manhattan.
-Rate = `product+0x37 (short) × distance × product+0xaa (float) / 100 /
-100 × 0.5` (`0xaa3a8` = 100, `0xaa3ac` = 0.5), with 0.01 when the result
-is 0 (lines 87210-87216). The mapping of `+0x37` to FREIGHT and `+0xaa`
-to spending is unconfirmed (see the `+0x37` note in the product record).
+Rate = `product.freight (short +0x37) × distance × product.spending_usd
+(float +0xaa) / 100 / 100 × 0.5` (`0xaa3a8` = 100, `0xaa3ac` = 0.5),
+with 0.01 when the result is 0 (lines 87210-87216). **Confirmed:** `+0x37`
+= FREIGHT from SET ITEM resource (offset 0x2c, 3-char field, parsed by
+`FUN_0006e7d0` line 80125). `+0xaa` = SPENDING from SET ITEM resource
+(offset 0x25, 7-char float, written by primary loader line 80121 via
+`psVar12 + 0x55` = byte +0xAA, and by secondary loader line 80237).
+
+SET FREIGHT values (bulk factor, 0–100):
+
+| Product | FREIGHT | Product | FREIGHT | Product | FREIGHT |
+|---------|---------|---------|---------|---------|---------|
+| Car | 10 | Motorcycle | 10 | Beer | 70 |
+| Bottled Milk | 70 | Cola | 70 | Wine | 30 |
+| Detergent | 25 | Diaper | 30 | Shampoo | 20 |
+| Toothpaste | 20 | Cigarettes | 10 | Desktop Computer | 10 |
+| Internet-TV | 15 | PDA | 5 | VR Computer | 5 |
+| Wrist Computer | 2 | Eye Shadow | 1 | Perfume | 1 |
+| Air Conditioner | 15 | Camera | 5 | DVD Player | 10 |
+| Hi-fi | 10 | Television | 10 | Video Camera | 5 |
+| Video Recorder | 20 | Bread | 50 | Chocolate Bar | 20 |
+| Cookies | 30 | Ice Cream | 70 | Bed | 35 |
+| Sofa | 35 | Jewelry | 1 | Eggs | 60 |
+| Frozen Beef | 40 | Frozen Chicken | 40 | Frozen Pork | 40 |
+| Frozen Lamb | 40 | Leather | 30 | Milk | 60 |
+| Wool | 30 | Barley | 70 | Cocoa | 70 |
+| Cotton | 30 | Grapes | 50 | Rubber | 70 |
+| Sugar | 60 | Tobacco | 60 | Wheat | 70 |
+| Aluminum | 80 | Chemical Minerals | 50 | Coal | 100 |
+| Gold | 10 | Iron Ore | 100 | Oil | 80 |
+| Silica | 80 | Timber | 100 | Car Body | 50 |
+| CPU | 1 | Electronic Comp. | 5 | Engine | 40 |
+| Flour | 70 | Glass | 90 | Paper | 90 |
+| Plastic | 90 | Silicon | 30 | Steel | 100 |
+| Textiles | 60 | Wheel & Tire | 40 | Toy Train | 20 |
+| Toy Bear | 20 | Watch | 2 | Leather Briefcase | 20 |
+| Leather Jacket | 20 | Jeans | 15 | Leather Shoes | 20 |
+| Socks | 10 | Sweater | 15 | Sport Shoes | 20 |
+
+Livestock (Cattle, Chicken, Pig, Sheep) and crops (Rubber Plant, Sugar
+Cane) have no FREIGHT field — they are not transported between firms.
 
 **Type 12 (Sales)** — `job_sell` (`0x5a1be`), `oj_sale.cpp`:
 Cap: `(short_+0x3e × (2|4) × int_+0x30) / 100`. Multiplier 2 when
@@ -4146,7 +4183,7 @@ Offset  Size  Type        Field
                           (these three must sum to 100)
 +0x31      2  short       product_class_id
 +0x33      4  float       base_price (= constant / base_cost)
-+0x37      2  short       tech_requirement_initial
++0x37      2  short       freight (SET ITEM FREIGHT field, bulk factor 1–100; used in freight rate formula)
 +0x39      4  float       demand_value
 +0x3d      2  short       (parsed demand parameter)
 +0x3f      2  short       necessity_index (displayed × 10 in UI)
@@ -4173,7 +4210,7 @@ Offset  Size  Type        Field
 +0xa4      2  short       (related to brand scoring)
 +0xa6      2  short       brand_base_divisor (min 50 for calculations)
 +0xa8      2  short       score_base_divisor (min 50 for calculations)
-+0xaa      4  float       alternate_cost (from secondary resource)
++0xaa      4  float       spending_usd (SET ITEM SPENDING field = base unit cost; used in freight rate formula. Primary loader writes it via short* arithmetic: `psVar12 + 0x55` = byte +0xAA. Secondary loader also writes from the same SPENDING field)
 +0xae      4  float       demand_accumulator (summed during daily tick)
 +0xbe      4  float       supply_total (computed)
 +0xc2      4  float       demand_total (computed)
