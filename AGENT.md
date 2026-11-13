@@ -150,5 +150,9 @@ issue → branch → implement → tests → docs → PR → CI. Invoke with
 - Open a GitHub issue BEFORE creating a branch. Use `Closes #N` when
   the PR fully resolves the issue. Otherwise use `Refs #N` and update
   the issue with what the PR handled.
+- Use only pre-defined issue labels. If no existing label fits, suggest
+  a new one to the user rather than creating it. Notable labels:
+  `research` for issues requiring investigation of the original game,
+  `art` for art-related issues.
 - `MAX_CORPS = 12` throughout the sim.
 - Watcom `__CHP` (float-to-int) maps to Python `round()`.
