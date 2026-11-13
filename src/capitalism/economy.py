@@ -693,8 +693,8 @@ class Economy:
             if corp.dividend_auto:
                 leadership = person.trait7 if person else 50
                 payout = compute_ai_dividend(
-                    stock, corp.ledger.cash, corp.liabilities, earnings,
-                    leadership, self.rng,
+                    stock, corp.total_assets(self.firms), corp.ledger.cash,
+                    corp.stock_assets, earnings, leadership, self.rng,
                 )
             else:
                 payout = earnings * corp.dividend_ratio / 100.0

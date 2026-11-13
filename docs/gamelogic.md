@@ -774,8 +774,8 @@ newspapers with audience above a minimum threshold of 5. Once linked,
 the ad budget (clamped between 50,000 and 500,000) flows as revenue to
 the media firm and as marketing expense to the advertiser's corporation.
 
-The campaign cycle runs every 60 days (partner selection) and every
-30 days (product targeting). The monthly cycle checks which of the
+The campaign cycle runs every 60 days (partner selection and budget) and
+every 30 days (product targeting / ad placement). The 30-day cycle checks which of the
 advertiser's products need more market visibility and directs ad spend
 toward them, based on technology level and current brand rating versus
 target. If no products need advertising, the budget drops to zero.
@@ -1103,14 +1103,14 @@ refreshed.
 
 The gate function drives two periodic cycles:
 
-1. **Campaign management (every 60 days, staggered by firm index):**
+1. **Partner selection and budget (every 60 days, staggered by firm id):**
    Searches the town for a media partner — a TV station or newspaper
    in the same town with revenue above a minimum threshold. Once found,
    computes an advertising budget based on the firm's financials,
    clamped between 50,000 and 500,000. This links the advertising job
    to the media firm.
 
-2. **Monthly rating calculation (every 30 days, staggered):**
+2. **Campaign execution (every 30 days, staggered by firm id):**
    Requires an active media partner. Walks the firm's Sales job slots,
    and for each Sales job with a live product: checks whether the
    product has sufficient technology level (above 14) and whether the
@@ -2676,18 +2676,23 @@ dividend would your corporation pay this year?" with a slider for the
 payout ratio. The player can also set the dividend to automatic mode
 ("Auto Dividend Payout") so it is calculated without asking each year.
 
-**AI competitor corporations**: Dividends are calculated automatically.
-The payout considers:
+**AI competitor corporations** (FUN_00040fd5): Dividends are calculated
+automatically using a multi-step formula:
 
-- The CEO's personality (specifically their leadership trait index),
-  which influences generosity.
-- The corporation's cash position relative to its debt — companies
-  with comfortable cash reserves pay more.
-- A random factor that adds variance to the decision.
-- A minimum payout threshold below which no dividend is paid.
-- A cap to prevent paying more than the stock is worth.
-- If zero dividend would result, there is a small personality-dependent
-  chance of paying a random amount anyway.
+1. **EPS base**: if earnings per share > 0, a random base is computed
+   from `random(60) × eps / 600`.
+2. **Cash surplus test**: the ratio `(cash − total_assets) / total_assets`
+   is compared to a personality threshold `(150 − personality) / 10`.
+   If surplus exceeds the threshold, payout is proportional to excess
+   assets, capped at `share_price / 5` per share.
+3. **Random scaling**: the main-path payout is multiplied by
+   `(random(90) + 10) / 100`, keeping the larger of this and the EPS base.
+4. **Fallback**: if the dividend is still zero, there is a
+   `1 / (100 − personality)` chance of paying `random(300) × price / 10000`.
+5. **Equity cap**: net equity (total assets minus investment value, floored
+   at $20 000 000) must not exceed cash. The per-share payout is capped at
+   `min((cash − net_equity) / shares, share_price)`.
+6. **Minimum gate**: only paid if ≥ $0.10 per share.
 
 Dividends are distributed proportionally to all shareholders:
 corporation holders receive the payment through the financial

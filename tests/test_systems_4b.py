@@ -306,14 +306,12 @@ def test_repeated_identical_campaign_does_not_charge_every_day(monkeypatch):
     brand = _record_campaign_brand(monkeypatch, consumer)
     assert _next_campaign(sim, firm, lambda: _stock(consumer)) == 100_000
 
-    def february_books():
-        # Explicit February history read by the March tick (the roll already happened).
-        assert sim.calendar.month == 3
+    def next_month_books():
         tv.ledger.last_month[CAT_SALES] = 100_000
         firm.ledger.last_month[CAT_SALES] = 1_000_000
         _stock(consumer)
 
-    assert _next_campaign(sim, firm, february_books) == 100_000
+    assert _next_campaign(sim, firm, next_month_books) == 100_000
     assert firm.ledger.total[CAT_ADVERTISING] == 200_000
     # One bounded brand increment per committed campaign, never a daily or doubled jump.
     assert [after - before for before, after in brand] == [1, 1]
@@ -335,13 +333,12 @@ def test_campaign_without_stock_or_on_b2b_link_gains_no_brand(monkeypatch):
     assert _next_campaign(sim, firm) == 100_000
     assert [after - before for before, after in brand] == [0]
 
-    def stocked_february():
-        assert sim.calendar.month == 3
+    def stocked_next_month():
         tv.ledger.last_month[CAT_SALES] = 100_000
         firm.ledger.last_month[CAT_SALES] = 1_000_000
         _stock(consumer)
 
-    assert _next_campaign(sim, firm, stocked_february) == 100_000
+    assert _next_campaign(sim, firm, stocked_next_month) == 100_000
     assert [after - before for before, after in brand] == [0, 1]
     assert [after - before for before, after in b2b_brand] == [0, 0]
 
