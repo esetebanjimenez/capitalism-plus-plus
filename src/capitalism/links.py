@@ -89,10 +89,12 @@ class Link:
         "awareness",
         "brand",
         "buyer",
+        "corp_id",
         "flow_prev",
         "id",
         "margin_month",
         "money_month",
+        "owner_corp_id",
         "prev_score",
         "price",
         "product",
@@ -120,6 +122,9 @@ class Link:
         self.flow_prev = 0.0
         self.awareness = 0.0
         self.brand = LINK_RULES.brand_start
+        corp = seller.firm.owner
+        self.corp_id = corp.id if corp is not None else -1
+        self.owner_corp_id = self.corp_id
         self.score = 0.0
         self.prev_score = 0.0
         self.weight = 0.0
@@ -326,10 +331,20 @@ class Market:
 
     @staticmethod
     def _sum_supply(tm: TownMarket) -> None:
-        """N10: recompute supply on even day_serial; each link sees others only."""
+        """N10: recompute supply on even day_serial; price swap between cross-owned links."""
         live = [x for x in tm.links if x.live]
         total = sum(x.quantity for x in live)
         tm.supply_today = max(0.0, total)
+        for link in live:
+            for other in live:
+                if other is link:
+                    continue
+                if (
+                    other.corp_id == link.corp_id
+                    and link.corp_id == other.owner_corp_id
+                    and other.corp_id != link.owner_corp_id
+                ):
+                    link.price = other.price
 
     def _brand_buildup(self, link: Link, count: float, tm: TownMarket) -> None:
         """FUN_0006d0cd: brand perception update on each sale (decomp:78835-78920)."""
