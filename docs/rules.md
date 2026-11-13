@@ -219,9 +219,9 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 
 | Key | Value | Units | Reference |
 |---|---|---|---|
-| `ad_campaign_every_days` | 60 **provisional** | days | design.md slice 4b advertising campaign stagger |
+| `ad_campaign_every_days` | 30 | days | EXE caller of FUN_0005136e: day_serial % 0x1e |
 | `ad_revenue_fraction` | 0.1 **provisional** | fraction of previous month revenue | design.md slice 4b provisional budget rate |
-| `ad_tech_min_exclusive` | 14 **provisional** | tech level | design.md slice 4b no ads at tech <= 14 |
+| `ad_tech_min_exclusive` | 14 | tech level | FUN_0005136e decomp:51323 (0xe < tech_level) |
 | `media_audience_adjust_rate` | 0.1 **provisional** | fraction / month | M1 provisional gradual audience adjustment |
 | `media_audience_cap` | 100 **provisional** | audience | design.md slice 4b provisional audience |
 | `media_audience_delta_divisor` | 200 | divisor | gamelogic.md Media firm economics — audience delta divisor |
@@ -312,8 +312,12 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `buyback_fraction` | 0.1 **provisional** | fraction | gamelogic.md AI stock trading |
 | `dilution_decay_rate` | 0.95 **provisional** | per-day | gamelogic.md Daily price movement |
 | `dilution_issue_factor` | 0.5 **provisional** | multiplier | gamelogic.md Share issuance |
-| `dividend_max_ratio` | 0.5 **provisional** | fraction | gamelogic.md Dividends |
-| `dividend_min_payout` | 1000 **provisional** | dollars | gamelogic.md Dividends |
+| `dividend_eps_divisor` | 600 | divisor | EXE 0xa622b (f32) |
+| `dividend_equity_floor` | 20000000 | dollars | EXE 0xa623b (f32) |
+| `dividend_fallback_divisor` | 10000 | divisor | EXE 0xa6237 (f32) |
+| `dividend_min_per_share` | 0.1 | dollars/share | EXE 0xa623f (f64) |
+| `dividend_price_cap_divisor` | 5 | divisor | EXE 0xa622f (f32) |
+| `dividend_random_divisor` | 100 | divisor | EXE 0xa6233 (f32) |
 | `impact_factor` | 0.5 **provisional** | multiplier | gamelogic.md Price impact |
 | `initial_price_per_share` | 10 **provisional** | dollars | gamelogic.md Share creation and ownership |
 | `invest_max_fraction` | 0.05 **provisional** | fraction | gamelogic.md AI stock trading |

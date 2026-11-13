@@ -286,36 +286,59 @@ def pay_dividend(stock: Stock, total_payout: float) -> dict[str, list[tuple[int,
 
 
 def compute_ai_dividend(
-    stock: Stock, cash: float, debt: float, earnings: float,
-    leadership_trait: int, rng: Rng,
+    stock: Stock, total_assets: float, cash: float,
+    investment_value: float, earnings: float,
+    personality: int, rng: Rng,
 ) -> float:
-    """Compute automatic AI dividend (gamelogic.md Dividends — AI)."""
-    if earnings <= 0:
-        # Small chance of paying anyway
-        if rng.chance(leadership_trait / 200.0):
-            return rng.uniform(0, earnings * -0.1) if earnings < 0 else 0.0
+    """Native AI dividend (FUN_00040fd5, decomp:39332). Returns total payout."""
+    eps = stock.earnings_per_share(earnings)
+    shares = stock.total_shares
+    price = stock.price
+    if shares <= 0:
         return 0.0
 
-    # Base ratio from personality
-    base_ratio = min(0.8, leadership_trait / 120.0)
-    # Adjust for cash position vs debt
-    if debt > 0:
-        cash_ratio = cash / max(1.0, debt)
-        if cash_ratio > 2.0:
-            base_ratio *= 1.2
-        elif cash_ratio < 0.5:
-            base_ratio *= 0.5
+    # Step 1: random base from EPS
+    div_ps = 0.0
+    if eps > 0:
+        div_ps = rng.randint(0, 59) * eps / _SR.dividend_eps_divisor
 
-    # Random variance
-    base_ratio *= (0.8 + rng.uniform(0, 0.4))
+    # Step 2: cash-excess ratio vs personality threshold
+    if total_assets > 0:
+        ratio = (cash - total_assets) / total_assets
+    else:
+        ratio = 0.0
+    threshold = (150 - personality) / 10.0
 
-    payout = earnings * base_ratio
+    # Step 3: main path — surplus cash drives payout
+    if ratio > threshold:
+        amount = total_assets * (ratio - threshold) / shares
+        cap = price / _SR.dividend_price_cap_divisor
+        if amount > cap:
+            amount = cap
+        main = (rng.randint(0, 89) + 10) * amount / _SR.dividend_random_divisor
+        if main > div_ps:
+            div_ps = main
 
-    # Floor and cap
-    if payout < _SR.dividend_min_payout:
+    # Step 4: fallback — rare dividend even when cash-poor
+    if div_ps == 0.0 and personality < 100:
+        if rng.randint(0, 99 - personality) == 0:
+            div_ps = rng.randint(0, 299) * price / _SR.dividend_fallback_divisor
+
+    # Step 5: equity cap and minimum-payout gate
+    net_equity = total_assets - investment_value
+    if net_equity < _SR.dividend_equity_floor:
+        net_equity = _SR.dividend_equity_floor
+    if net_equity > cash:
         return 0.0
-    max_payout = stock.price * stock.total_shares * _SR.dividend_max_ratio
-    return min(payout, max_payout)
+    per_share_cap = (cash - net_equity) / shares
+    if per_share_cap > price:
+        per_share_cap = price
+    if div_ps > per_share_cap:
+        div_ps = per_share_cap
+    if div_ps < _SR.dividend_min_per_share:
+        return 0.0
+
+    return div_ps * shares
 
 
 # ---------------------------------------------------------------------------

@@ -3290,15 +3290,43 @@ Displays detailed stock metrics panel with labels:
 ### AI auto-dividend — FUN_00040fd5 (ostock4.cpp line 39327)
 
 For competitor corps (type 3) only. Asserts corp type == 3. Uses CEO
-personality index (`person+0x4c`) to influence payout ratio. Considers
-corp cash vs debt: if cash exceeds a threshold over debt, pays higher
-dividend. Random factor from `cfg_random(0x3c)` (0–59) scales the
-earnings-based component. If zero dividend would result, small chance
-(`1/(100-personality)`) of paying a random amount anyway.
+personality index (`person+0x4c`) to influence payout ratio.
 
-Caps dividend at `share_price / constant` to avoid paying more than
-the stock is worth. Also caps at `(cash - debt_threshold) / total_shares`.
-Minimum payout threshold from `DAT_000a623f`.
+**Decoded algorithm (decomp:39332–39405):**
+
+1. **EPS base**: if `eps > 0`, `base = random(60) × eps / 600.0`
+   (`DAT_000a622b` = 600.0).
+2. **Cash-to-asset ratio**: `ratio = (cash − total_assets) / total_assets`;
+   `threshold = (150 − personality) / 10`.
+   `total_assets` from `FUN_0002d824(corp, 1)` (valuation function using
+   monthly revenue history and person-trait scaling).
+3. **Main path** (ratio > threshold):
+   `amount = total_assets × (ratio − threshold) / total_shares`,
+   capped at `share_price / 5.0` (`DAT_000a622f`).
+   `div = (random(90) + 10) × amount / 100.0` (`DAT_000a6233`),
+   take `max(div, base)`.
+4. **Fallback**: if div == 0 and `random(100 − personality) == 0`,
+   `div = random(300) × share_price / 10000.0` (`DAT_000a6237`).
+5. **Equity cap**: `net_equity = total_assets − investment_value`
+   (`corp+0x7e2`), floored at 20 000 000 (`DAT_000a623b`).
+   If `net_equity > cash`: no dividend. Otherwise
+   `cap = min((cash − net_equity) / total_shares, share_price)`;
+   `div = min(div, cap)`. Pay only if `div ≥ 0.1` (`DAT_000a623f`, f64).
+
+**EXE constants (all Observed):**
+
+| Address   | Type | Value         | Role                     |
+|-----------|------|---------------|--------------------------|
+| 0xa622b   | f32  | 600.0         | EPS divisor              |
+| 0xa622f   | f32  | 5.0           | price cap divisor        |
+| 0xa6233   | f32  | 100.0         | random multiplier divisor|
+| 0xa6237   | f32  | 10 000.0      | fallback divisor         |
+| 0xa623b   | f32  | 20 000 000.0  | net equity floor         |
+| 0xa623f   | f64  | 0.1           | min payout per share     |
+
+**Sim implementation** (`stock.py:compute_ai_dividend`): matches the
+native algorithm. `FUN_0002d824` approximated as `corp.total_assets(firms)`;
+`corp+0x7e2` mapped to `corp.stock_assets`.
 
 ### Tender offer valuation — FUN_00041927 (ostock5.cpp line 39697)
 

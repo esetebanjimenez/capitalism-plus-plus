@@ -247,16 +247,39 @@ class TestDividends:
         assert s.dividend_history[0] == 5000.0
 
     def test_ai_dividend_profitable(self):
+        """R4: native FUN_00040fd5 — surplus cash triggers payout."""
         s = Stock(0, 100_000.0, 10.0)
         rng = Rng(42)
-        div = compute_ai_dividend(s, 500_000.0, 100_000.0, 50_000.0, 50, rng)
+        div = compute_ai_dividend(s, 200_000.0, 25_000_000.0, 0.0, 50_000.0, 50, rng)
         assert div > 0
 
     def test_ai_dividend_unprofitable(self):
+        """Negative earnings + equity floor blocks payout."""
         s = Stock(0, 100_000.0, 10.0)
         rng = Rng(42)
-        div = compute_ai_dividend(s, 100_000.0, 0.0, -10_000.0, 50, rng)
-        assert div <= 0  # usually zero for negative earnings
+        div = compute_ai_dividend(s, 100_000.0, 100_000.0, 0.0, -10_000.0, 50, rng)
+        assert div == 0.0
+
+    def test_ai_dividend_equity_cap(self):
+        """Step 5: net_equity > cash → no dividend."""
+        s = Stock(0, 100_000.0, 10.0)
+        rng = Rng(42)
+        div = compute_ai_dividend(s, 50_000_000.0, 1_000_000.0, 0.0, 100_000.0, 50, rng)
+        assert div == 0.0  # net_equity(50M) > cash(1M)
+
+    def test_ai_dividend_min_per_share(self):
+        """Below 0.1 per share the payout is suppressed."""
+        s = Stock(0, 100_000.0, 10.0)
+        rng = Rng(99)
+        div = compute_ai_dividend(s, 200_000.0, 200_010.0, 0.0, 1.0, 50, rng)
+        assert div == 0.0  # tiny earnings → per-share < 0.1
+
+    def test_ai_dividend_deterministic(self):
+        """Same seed → same result."""
+        def run(seed):
+            s = Stock(0, 100_000.0, 10.0)
+            return compute_ai_dividend(s, 200_000.0, 25_000_000.0, 0.0, 50_000.0, 50, Rng(seed))
+        assert run(42) == run(42)
 
 
 class TestMonthlyYearly:

@@ -868,8 +868,12 @@ class StockRules(StaticModel):
     volume_trade_factor: float
     dilution_issue_factor: float
     issuance_momentum_factor: float
-    dividend_min_payout: float
-    dividend_max_ratio: float
+    dividend_eps_divisor: float
+    dividend_price_cap_divisor: float
+    dividend_random_divisor: float
+    dividend_fallback_divisor: float
+    dividend_equity_floor: float
+    dividend_min_per_share: float
     buyback_float_threshold: float
     buyback_fraction: float
     invest_max_fraction: float
