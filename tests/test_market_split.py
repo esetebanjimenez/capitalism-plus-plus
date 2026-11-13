@@ -598,7 +598,6 @@ class TestN2TownWeightAdj:
         row = tm.product.row
         town.env_factors = (0.0, 0.0, 0.0)
         tm.recompute_weights()
-        sw_zero = tm.score_in_weight
         town.env_factors = (0.0, 3.0, 0.0)
         tm.recompute_weights()
         expected = max(10, min(100 - tm.price_weight, row.w_quality + 3))
