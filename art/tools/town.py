@@ -199,3 +199,7 @@ def build(save):
     for v in range(2):
         save(f"park_{v}", park(v))
     save("plaza", plaza())
+    import towntiles  # #303 native sets, appended so earlier frames keep their place
+
+    for k, im in towntiles.frames(32).items():
+        save(k, im)

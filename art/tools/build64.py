@@ -48,7 +48,8 @@ def extrude(im):
     return c
 
 
-names = sorted(fr)
+names = sorted(n for n in fr if not n.startswith("town_"))
+names += [n for n in fr if n.startswith("town_")]  # #303, appended so no frame moves
 cols = 16
 at = Image.new("RGBA", (cols * CELL, math.ceil(len(names) / cols) * CELL), (0, 0, 0, 0))
 meta = {}

@@ -118,3 +118,19 @@ frames to `ui_atlas` (now 71 frames, earlier frames unchanged). Preview: `docs/a
   `DEFEAT_AI_WON`, `DEFEAT_BANKRUPT`). Goal rows use `icon_goal` and `icon_goal_miss`, with labels from `q_goals`;
   difficulty is a plain rating (no %). The score row and the goal list (divider, heading and rows) can each be hidden, since a game with no goals can still end in bankruptcy (#287). New game (`btn_primary`)
   is the only button: the native game has no Keep playing (#243).
+
+## Native town tiles (#303)
+
+`art/tools/towntiles.py` draws two stand-alone town sets (no road autotiling), at 64 px and a 32 px fallback.
+`build64.py` and `preview.py` append them after every older frame in `terrain_atlas_64` and `terrain_atlas`.
+Run `python3 towntiles.py` to rebuild `docs/art/m2-town-native-preview.png`.
+
+| Frame | Native kind | Where it appears |
+| --- | --- | --- |
+| `town_rural_0` .. `town_rural_7` | `0x3000` .. `0x3007`, index = kind − `0x3000` | outer ring, from the level radius out to level + 4 (rural always rings urban) |
+| `town_urban_0` .. `town_urban_4` | `0x3008` .. `0x300c`, index = kind − `0x3008` | solid core inside the level radius, plus the 1-in-10 corner tiles |
+
+Rural: 0 four houses on crossing paths, 1 three houses and a tree, 2 two houses with gardens, 3 house, vegetable plot and shed,
+4 farmstead, 5 cottage by an orchard, 6 two houses above a pond, 7 grain silos, shed and hay bales.
+Urban: 0 glass tower, 1 tower with helipad, 2 brick mid-rise with mast, 3 shop row over a car park, 4 glass offices and brick annex.
+Frames are in native kind order (rural, then urban). Names follow Esteban's correction in #311.
