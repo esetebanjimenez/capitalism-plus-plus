@@ -352,7 +352,8 @@ played against the year limit, the difficulty rating
 revenue goals open Company, stock price and ownership open Stocks, product
 class and type counts open the product list in Company. When the game ends
 (`GameResult` win or loss) a full-screen result card shows the outcome and
-final score, with New game and Keep playing where the rules allow it.
+final score, with a New game button only (the native game exits after its
+result screen, #243). Bankruptcy is a fourth ending (#287).
 
 ## Data the facade must expose
 
