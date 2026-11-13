@@ -1325,11 +1325,13 @@ and brand move by ±1. The roll odds depend on a game setting and on how
 supply compares with demand.
 
 **Weights.** Each town-product has three weights that sum to 100:
-- **Price weight** = one of the product's consumer-decision
-  percentages + a town adjustment, clamped to 20–90.
-- **Score-in weight** = another of the product's percentages + a town
-  adjustment. It is at least 10 and at most 100 − price weight.
+- **Price weight** = product `w_price` + town env_price adjustment,
+  clamped to 20–90. The town adjustment comes from `Town.env_factors[0]`
+  (random -3..+3 at creation, drifting monthly; #223).
+- **Score-in weight** = product `w_quality` + town env_score_in
+  (`Town.env_factors[1]`). At least 10 and at most 100 − price weight.
 - **Brand weight** = 100 − price weight − score-in weight.
+Weights are recomputed monthly by `TownMarket.recompute_weights()`.
 
 **Gap.** For a link compared with a reference (or with a rival), each
 factor where the link is better (or worse) adds to a gap:
@@ -3664,7 +3666,9 @@ At the start of each month:
 > increase/take, even-day supply sum (R15), and the N10 cross-ownership
 > price swap (#217). K1 market share uses the prorated projection (#219).
 > K2 price-weighted unmet demand (`gap × ref_price`) is tracked alongside
-> the quantity gap (#221). The full N8 brand build-up system is implemented
+> the quantity gap (#221). N2 per-town weight adjustments from
+> `Town.env_factors` are applied and recomputed monthly (#223).
+> The full N8 brand build-up system is implemented
 > with per-(town, brand_key) BrandRecords (#171, #213). Brand perception
 > is per-(town, corp) with monthly N9 awareness updates.
 

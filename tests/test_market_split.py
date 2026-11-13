@@ -573,3 +573,61 @@ class TestK2UnmetDemandValue:
         eco.monthly()
         assert tm.last_month_unmet_demand_value_sum == 42.0
         assert tm.unmet_demand_value_sum == 0.0
+
+
+class TestN2TownWeightAdj:
+    """N2: per-town env factors adjust consumer-split weights."""
+
+    def test_env_factors_shift_price_weight(self):
+        sim, town = bread_town()
+        eco = sim.economy
+        tm = eco.town_market(town, "Bread")
+        row = tm.product.row
+        town.env_factors = (0.0, 0.0, 0.0)
+        tm.recompute_weights()
+        pw_zero = tm.price_weight
+        assert pw_zero == max(20, min(90, row.w_price))
+        town.env_factors = (3.0, 0.0, 0.0)
+        tm.recompute_weights()
+        assert tm.price_weight == max(20, min(90, row.w_price + 3))
+
+    def test_env_factors_shift_score_in_weight(self):
+        sim, town = bread_town()
+        eco = sim.economy
+        tm = eco.town_market(town, "Bread")
+        row = tm.product.row
+        town.env_factors = (0.0, 0.0, 0.0)
+        tm.recompute_weights()
+        sw_zero = tm.score_in_weight
+        town.env_factors = (0.0, 3.0, 0.0)
+        tm.recompute_weights()
+        expected = max(10, min(100 - tm.price_weight, row.w_quality + 3))
+        assert tm.score_in_weight == expected
+
+    def test_price_weight_clamped_20_90(self):
+        sim, town = bread_town()
+        eco = sim.economy
+        tm = eco.town_market(town, "Bread")
+        town.env_factors = (-100.0, 0.0, 0.0)
+        tm.recompute_weights()
+        assert tm.price_weight == 20
+        town.env_factors = (100.0, 0.0, 0.0)
+        tm.recompute_weights()
+        assert tm.price_weight == 90
+
+    def test_weights_sum_to_100(self):
+        sim, town = bread_town()
+        eco = sim.economy
+        tm = eco.town_market(town, "Bread")
+        town.env_factors = (2.0, -1.0, 0.0)
+        tm.recompute_weights()
+        assert tm.price_weight + tm.score_in_weight + tm.brand_weight == 100
+
+    def test_monthly_recomputes_weights(self):
+        sim, town = bread_town()
+        eco = sim.economy
+        tm = eco.town_market(town, "Bread")
+        town.env_factors = (3.0, 0.0, 0.0)
+        old_pw = tm.price_weight
+        eco.monthly()
+        assert tm.price_weight != old_pw
