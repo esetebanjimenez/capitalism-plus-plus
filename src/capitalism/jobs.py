@@ -814,8 +814,8 @@ class Advertising(Job):
         if product is not None:
             self.product = product
             self.targets[product.id] = self.budget
-            # design.md slice 5: no stock, no sale, no brand gain, no ad effect. Only live
-            # consumer links whose seller holds stock on the campaign tick gain brand.
+            # Sim-specific: native FUN_0005136e selects products/budgets but does
+            # NOT directly increment awareness; the sim adds a per-campaign gain.
             corp = self.firm.owner
             if corp is not None:
                 from .links import BrandRecord, brand_key

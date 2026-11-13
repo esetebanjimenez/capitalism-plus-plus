@@ -4325,7 +4325,11 @@ perception updater, called with the sold count.
   `_brand_buildup()`, `_monthly_awareness()`, `read_brand()`,
   `_recount_corp_brands()`. Published highs (`max_score_in`, `max_score`)
   in `Market.monthly()`. Advertising updates brand record awareness
-  (`jobs.py:Advertising.commit_campaign`).
+  (`jobs.py:Advertising.commit_campaign`); this is **sim-specific** — native
+  `FUN_0005136e` selects products and budgets but does not directly
+  increment awareness (awareness grows only through the monthly N9 loop).
+  Constants: `brand_max` = 100 (from N9 `0xaa0c8`), `brand_start` = 0
+  (BSS-zeroed records).
 
 ### Monthly tick — oitem4.cpp (line 78628)
 

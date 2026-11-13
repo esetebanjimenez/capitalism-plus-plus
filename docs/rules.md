@@ -179,10 +179,10 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 
 | Key | Value | Units | Reference |
 |---|---|---|---|
-| `ad_brand_per_100k` | 1 **provisional** | brand points / $100k / month | design.md slice 5 call 8 |
-| `brand_max` | 100 **provisional** | brand | design.md slice 5 call 8 |
+| `ad_brand_per_100k` | 1 | brand points / $100k / month | Sim-specific: no native ad-to-awareness path (FUN_0005136e selects products only) |
+| `brand_max` | 100 | brand | N9 awareness cap 0xaa0c8 = 100 (Observed) |
 | `brand_nudge` | 0.1 | brand points / sale | Product links — brand perception |
-| `brand_start` | 0 **provisional** | brand | design.md slice 5 — new link brand |
+| `brand_start` | 0 | brand | Native BrandRecord starts zeroed (BSS); Observed |
 | `oversupply_div` | 20 **provisional** | divisor | design.md slice 5 call 6 |
 | `price_base` | 100 **provisional** | score | design.md slice 5 call 2 |
 | `price_slope` | 50 **provisional** | score / price ratio | design.md slice 5 call 2 |
