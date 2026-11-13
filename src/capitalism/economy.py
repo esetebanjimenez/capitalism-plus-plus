@@ -54,7 +54,7 @@ from .tables import (
     PRODUCT_RULES,
     STOCK_RULES,
 )
-from .world import TileCategory
+from .world import FOREST_PLACE, GRASS_PLACE, TileCategory
 
 if TYPE_CHECKING:
     from .calendar import Calendar
@@ -434,7 +434,12 @@ class Economy:
         firm = FIRM_CLASSES[firm_type](
             slot, owner, x, y, tile, town, self.world.land_value(x, y), self.calendar.day_serial
         )
+        if tile.kind == TileCategory.TOWN:
+            firm.place_kind, firm.place_town = tile.town_kind, tile.ref
+        else:
+            firm.place_kind = FOREST_PLACE if tile.kind == TileCategory.FOREST_HILL else GRASS_PLACE
         tile.kind = TileCategory.FIRM
+        tile.town_kind = 0
         tile.ref = slot
         if slot == len(self.firms):
             self.firms.append(firm)
@@ -470,8 +475,14 @@ class Economy:
             owner.land_assets = max(0.0, owner.land_assets)
         self.firms[firm.id] = None
         tile = self.world.tile_at(firm.x, firm.y)
-        tile.kind = TileCategory.GRASSLAND
-        tile.ref = -1
+        if firm.place_town >= 0:  # the town tile under the firm comes back
+            tile.kind, tile.town_kind, tile.ref = (
+                TileCategory.TOWN,
+                firm.place_kind,
+                firm.place_town,
+            )
+        else:
+            tile.kind, tile.town_kind, tile.ref = TileCategory.GRASSLAND, 0, -1
 
     def link_b2b(self, seller: Job, buyer: Job) -> Link:
         return self.market.add_link(seller, buyer)

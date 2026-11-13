@@ -179,7 +179,7 @@ class Sim:
             if town.stagger_slot == slot:
                 self.town_slots_hit.add(slot)
                 if town.monthly_tick(self.rng, detailed=self.detailed_cities):
-                    self.world.spread_town(town, self.rng)
+                    self.world.spread_town(town, self.rng, self.economy.firms)
 
     def _month_pass(self) -> None:
         # 1. GNP index adjustment

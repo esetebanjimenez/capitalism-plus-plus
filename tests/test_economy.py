@@ -207,7 +207,7 @@ def test_setup_jitter_is_reproducible_seed_1():
         f"{p.state.tech_level}:{p.state.score_jitter}" for p in sim.economy.catalog.products
     )
     assert hashlib.sha256(blob.encode()).hexdigest() == (
-        "f80f3ecf65310e8983e76fe8f35ef784d135fb9c3a929f1ec0bcc70c94ae2d3c"
+        "68c3973173e9800f8175bb0cd940691d0804934bef20cb080b35e42bfbf847d5"
     )
     for p in sim.economy.catalog.products:
         assert p.state.tech_level >= 0
@@ -564,14 +564,14 @@ def _run_chain(seed: int = 1, days: int = 120):
     return sim, chain
 
 
-def test_bread_chain_end_to_end_seed_1():  # hash moved with native N3/N7 market formulas
+def test_bread_chain_end_to_end_seed_1():  # hash moved with N3/N7 formulas and #302 town spread
     sim, chain = _run_chain()
     link = chain.store_link
-    assert sim.state_hash() == ("bb9efb37033aa4465d67a002bb399d770064c0169759dac4090079da3c2ab5bd")
-    assert sum(link.money_month) == pytest.approx(2019.269895614562, abs=1e-3)
+    assert sim.state_hash() == ("90e6c0b63a92dd36904363eebf81c9a56773aba48f13185b201af64380e15d15")
+    assert sum(link.money_month) == pytest.approx(5673.744543052876, abs=1e-3)
     assert chain.store_sales.unit_cost == pytest.approx(1.5, abs=1e-6)
     assert link.brand == pytest.approx(0.0, abs=1e-6)
-    assert chain.store_sales.quality == pytest.approx(13.16639678227366, abs=1e-5)
+    assert chain.store_sales.quality == pytest.approx(13.722423470266442, abs=1e-5)
     assert all(link.units_month[m] > 0 for m in (1, 2, 3))
 
 
@@ -592,19 +592,21 @@ def test_bread_chain_monthly_accounting():
         results[month] = chain_month_profit(chain, month - 1)
     r = results[4]  # month after April closes; ledger index remains zero-based April = 3
     assert r["overhead"] == pytest.approx(300000.0)  # 2 factories + dept store, $100k/mo each
-    assert r["revenue"] == pytest.approx(687.1559858399077, abs=0.01)
+    assert r["revenue"] == pytest.approx(
+        2115.2682768393247, abs=0.01
+    )  # moved with #302 (founding spread shifts RNG)
     assert (r["wages"], r["overhead"]) == (167_910, 300_000)
     assert r["training"] == pytest.approx(16_791, abs=1e-6)
     for job, qty, charge in zip(
         (chain.wheat_buy, chain.flour_buy, chain.bread_buy),
-        (396.0, 405.0, 454.80205383512657),
-        (0.4158, 0.7087500000000001, 1.7055077018817248),
+        (1251.0, 1260.0, 1409.15983039618),
+        (1.3135499999999998, 2.205, 5.284349363985675),
         strict=True,
     ):
         assert job.received_month[3] == pytest.approx(qty)
         assert job.freight_month[3] == pytest.approx(charge)
-    assert r["freight"] == pytest.approx(2.830057701881725)
-    assert r["profit"] == pytest.approx(-484056.274071862, abs=0.01)
+    assert r["freight"] == pytest.approx(8.802899363985675)
+    assert r["profit"] == pytest.approx(-482719.63462252467, abs=0.01)
     assert r["profit"] == pytest.approx(
         r["revenue"] - r["wages"] - r["training"] - r["overhead"] - r["freight"] - r["wheat"]
     )

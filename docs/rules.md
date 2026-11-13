@@ -106,6 +106,8 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `pop_tier_noise` | 30000 | people | Towns and cities — initial population noise |
 | `pop_unemp_scale` | 100 | scalar | Binary FUN_0004b4de: additive pop growth (capplus_decompiled.c:46505) |
 | `pop_unemp_target` | 4 | pct | Binary FUN_0004b4de: additive pop growth (capplus_decompiled.c:46505) |
+| `rural_kind_base` | 12296 | tile kind | FUN_0004c334 (decomp:47149-47292), techspec 'Town spread': cfg_random(5) + 0x3008 |
+| `rural_variants` | 5 | count | FUN_0004c334 (decomp:47149-47292), techspec 'Town spread': rural 0x3008-0x300c |
 | `simple_labor_cost` | 100 | index | Towns and cities — simplified mode |
 | `simple_labor_quality` | 100 | index | Towns and cities — simplified mode |
 | `simple_level` | 3 | level | Towns and cities — simplified mode |
@@ -114,8 +116,12 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `simple_unemployment` | 2 | percentage points | Towns and cities — simplified mode |
 | `small_pop` | 750000 | people | Binary FUN_0004b4de: additive pop growth (capplus_decompiled.c:46505) |
 | `spend_floor` | 1 **provisional** | index | Towns and cities — consumer spending floor (design.md provisional) |
+| `spread_fringe` | 4 | tiles | FUN_0004c334 (decomp:47149-47292), techspec 'Town spread': scan side 2 x (level + 4) + 1 |
+| `spread_overlap_odds` | 10 | 1 in n | FUN_0004c334 (decomp:47149-47292), techspec 'Town spread': cfg_random(10) == 0 |
 | `unemp_hi` | 10 | percentage points | Towns and cities — unemployment clamp |
 | `unemp_lo` | 2 | percentage points | Towns and cities — unemployment clamp |
+| `urban_kind_base` | 12288 | tile kind | FUN_0004c334 (decomp:47149-47292), techspec 'Town spread': cfg_random(8) + 0x3000 |
+| `urban_variants` | 8 | count | FUN_0004c334 (decomp:47149-47292), techspec 'Town spread': urban 0x3000-0x3007 |
 
 ## 3 — Product catalog and demand
 

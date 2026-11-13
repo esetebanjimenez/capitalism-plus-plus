@@ -66,6 +66,7 @@ class Town:
         "population",
         "ring_index",
         "rolling_gnp_growth",
+        "spread_blocked",
         "stagger_slot",
         "tier",
         "unemployment",
@@ -98,6 +99,9 @@ class Town:
         self.x = x
         self.y = y
         self.stagger_slot = stagger_slot
+        # Native abort flag town+0x1d: set when spread meets another town's tile; it
+        # stops all later spread and level-ups (FUN_0004c334, decomp:46538).
+        self.spread_blocked = False
         self.population = population
         self.per_capita_gnp = per_capita_gnp
         self.level = level
@@ -206,7 +210,8 @@ class Town:
             self.unemployment = unemp_people * g.pop_unemp_scale / new_pop
         self.population = max(0.0, new_pop)
         # Native: +1 level per tick once pop >= level_pop_per_sq x L^2; never down, no cap.
-        if self.population >= level_up_population(self.level):
+        # The abort flag (town+0x1d) is checked first (decomp:46538).
+        if not self.spread_blocked and self.population >= level_up_population(self.level):
             self.level += 1
             levelled_up = True
 
