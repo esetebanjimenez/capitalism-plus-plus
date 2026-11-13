@@ -4283,7 +4283,10 @@ increase/take (`proj_qty < 2 × proj_flow`, N7), and sums supply on even
 `day_serial` only (N10). Link fields `quantity_prev` and `flow_prev` support
 the monthly projection. N7 processing order is phased (all trims, then all
 reduces, then per-link increase/take) rather than per-link sequential as in
-the native. The N10 price swap is not yet implemented. N8 brand build-up is
+the native. The N10 price swap is now implemented in `_sum_supply()`: for each
+pair of live links sharing `corp_id`, if one's `owner_corp_id` matches the group
+and the other's does not, the cross-owned link adopts the native owner's price
+(#217). N8 brand build-up is
 now implemented: per-(town, brand_key) `BrandRecord` with per-corp awareness
 and cell arrays in `links.py`. Corp fields decoded: `corp+0x68[town]` =
 distinct products per (corp, town); `corp+0x80[town]` = distinct classes per

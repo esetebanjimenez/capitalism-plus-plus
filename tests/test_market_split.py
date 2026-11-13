@@ -423,6 +423,59 @@ class TestMonthlyRoll:
 
 
 # ---------------------------------------------------------------------------
+# N10 price swap between cross-owned links
+# ---------------------------------------------------------------------------
+
+
+class TestN10PriceSwap:
+    """N10: when two consumer links share corp_id but differ on owner_corp_id,
+    the cross-owned link adopts the native owner's price."""
+
+    @staticmethod
+    def _setup(sim, town):
+        eco = sim.economy
+        corp_a = eco.add_corp("A")
+        corp_b = eco.add_corp("B")
+        link_a = _link_in_town(sim, town, corp_a, quality=50, price=10.0)
+        link_b = _link_in_town(sim, town, corp_b, quality=50, price=20.0)
+        return eco, link_a, link_b
+
+    def test_swap_fires_on_cross_ownership(self):
+        sim, town = bread_town()
+        eco, link_a, link_b = self._setup(sim, town)
+        tm = eco.town_market(town, "Bread")
+        # Simulate cross-ownership: both grouped under corp_b,
+        # but link_a is owned by corp_a (the cross-owned one).
+        link_a.corp_id = link_b.seller.firm.owner.id
+        link_b.corp_id = link_b.seller.firm.owner.id
+        link_b.owner_corp_id = link_b.seller.firm.owner.id
+        # link_a.owner_corp_id stays as corp_a's id (different from corp_id)
+        eco.market._sum_supply(tm)
+        assert link_a.price == pytest.approx(20.0)
+        assert link_b.price == pytest.approx(20.0)
+
+    def test_no_swap_when_same_owner(self):
+        sim, town = bread_town()
+        eco, link_a, link_b = self._setup(sim, town)
+        tm = eco.town_market(town, "Bread")
+        # Same corp group and same owner — no swap.
+        link_a.corp_id = link_a.seller.firm.owner.id
+        link_b.corp_id = link_b.seller.firm.owner.id
+        eco.market._sum_supply(tm)
+        assert link_a.price == pytest.approx(10.0)
+        assert link_b.price == pytest.approx(20.0)
+
+    def test_supply_total_unaffected(self):
+        sim, town = bread_town()
+        eco, link_a, link_b = self._setup(sim, town)
+        tm = eco.town_market(town, "Bread")
+        link_a.quantity = 5.0
+        link_b.quantity = 7.0
+        eco.market._sum_supply(tm)
+        assert tm.supply_today == pytest.approx(12.0)
+
+
+# ---------------------------------------------------------------------------
 # K1 prorated market-share projection
 # ---------------------------------------------------------------------------
 

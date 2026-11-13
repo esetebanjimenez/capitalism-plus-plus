@@ -1251,11 +1251,14 @@ whose score worsens.
 town-product supply total, then walks the circular list summing
 quantity for the links in the same town. The walk stops when it gets
 back to the visiting link, so that link's own quantity isn't added in
-this walk. The walk also applies a price swap: if another link has the
-same field-12 as this link, that link's field-0a equals this link's
-field-12, and that link's field-12 differs from this link's field-0a,
-this link copies the other link's unit price. (Field-12 is used as the
-owning corporation's index elsewhere.)
+this walk. The walk also applies a **price swap** between cross-owned
+links: if `other.corp_id == link.corp_id` and `link.corp_id ==
+other.owner_corp_id` and `other.corp_id != link.owner_corp_id`, the
+cross-owned link copies the native owner's unit price. This detects
+the case where a retailer (owned by corp A) sells in the same town as
+a producer (owned by corp B), both grouped under corp B — the
+retailer adopts the producer's price. Implemented in
+`links.py:_sum_supply()` (#217).
 
 ### Score calculation (quality + brand)
 
