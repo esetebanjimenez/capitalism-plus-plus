@@ -1569,6 +1569,70 @@ Called with firm-type filters by 5 AI strategy functions:
 - Dept Store (type 1), Factory (type 2), Farm (type 4),
   SW Developer+Publisher (types 8,9), Factory+Mine+Oil Well (types 2,6,7).
 
+### Town choice
+
+How the AI picks which town to build in. Each build path uses a
+different strategy; the site search within the chosen town uses
+`FUN_0002dc7c` (see Location below).
+
+#### Demand scoring — FUN_0002e2d9 (dept stores)
+
+Used by `FUN_0002e244` (dept store build, type 1). For each town,
+counts products that pass a demand-threshold gate (`FUN_0006d986`).
+The threshold depends on `character_type`:
+
+| character_type | Label | Threshold | Min qualifying |
+| --- | --- | --- | --- |
+| 0 | Conservative | 11 | 2 |
+| 1 | Moderate | 9 | 1 |
+| 2 | Aggressive | 7 | 1 |
+| 3 | Very Aggressive | 5 | 0 |
+
+Formula: `threshold = (4 - character_type) * 2 + 3`.
+Minimum qualifying count: `(4 - character_type) / 2` (integer division).
+
+Product qualification (`FUN_0006d986`): product must have demand ≥
+threshold in the town, supply/demand balance favourable, product
+eligible for the corp, and cost viable.
+
+Picks the town with the highest qualifying-product count. Ties not
+broken — first town wins.
+
+#### Education-labor scoring — FUN_0002ee8d (R&D, software)
+
+Used by `FUN_0002ebaf` (R&D, type 3) and `FUN_0002eb77` (software,
+types 8–9). Scores each town:
+
+```
+score = education * 2.0 - labor_cost
+```
+
+Where `education` = `town+0x43` and `labor_cost` = `town+0x3B`.
+
+EXE bytes at FUN_0002ee8d: `FLD DWORD [EAX+0x43]`, `FMUL DWORD
+[0xa46cc]`, `FSUB DWORD [EAX+0x3B]`. Constant `0xa46cc` = 2.0 (f32).
+
+Ties broken randomly: on equal score, the new town replaces the current
+best with probability 1/3 (`cfg_random(3) == 0`).
+
+#### Random town (factories)
+
+`FUN_0002e7e8` (factory build, type 2) selects a town via
+`cfg_random(town_count)` — uniform random, no scoring.
+
+#### Resource-based (extraction, types 5–7)
+
+`FUN_0002e3e0` determines the build site from resource deposit
+locations on the map, not from town preference. The town is implicit:
+whichever town's territory contains the deposit.
+
+#### Untapped market — FUN_0002d58f (fallback)
+
+The last-resort diversification function (see below) also serves as a
+town-choice fallback in the expansion cascade. For each product the
+corp doesn't supply, it scans towns for zero market share and builds
+there.
+
 ### Location (FUN_0002dc7c)
 
 Via `FUN_0002dc2c` (near city) / `FUN_0002dc5a` (near town).
