@@ -32,7 +32,7 @@ and any rule it turns out to need goes to its own sim PR.
 
 | Query | Inputs | Returns | Used by |
 |---|---|---|---|
-| `map` | none | `width`, `height`, `map_rev`, per tile `kind`, `ref`; towns `id`, `name`, `x`, `y`, `level`, `radius`, `block_level` (from `town_footprints`; levels past the table use its top row); firms `id`, `x`, `y`, `type_id`, `owner` | Map view, footprint |
+| `map` | none | `width`, `height`, `map_rev`, per tile `kind`, `ref`; towns `id`, `name`, `x`, `y`, `level` (`radius` and `block_level` from `town_footprints` are legacy; the client draws the urban and rural tile kinds from #302 instead); firms `id`, `x`, `y`, `type_id`, `owner` | Map view, town tiles |
 | `map_objects` | `since` (a `map_rev`, default -1) | `map_rev`, towns and firms as in `map`, and `changes`: `[[index, kind, ref], ...]` for tiles changed after `since`. When `since` is -1 or older than the last 64 revisions, `changes` is null and `kind` and `ref` hold the whole map | Map view redraw |
 | `overlay` | `layer`: `land_value`, `soil`, `rainfall`, `climate` or `ownership` | One value per tile (firm owner per firm for `ownership`), plus `min` and `max` for the legend | Map overlays |
 | `tile` | `x`, `y` | `kind`, `soil`, `rainfall`, `moisture`, `climate`, `land_value` (`World.land_value`), `can_build` (`World.can_build`), nearest `town` id | Tile card |
