@@ -50,3 +50,24 @@ def test_sim_runs_under_pyodide():
     build_bread_chain(sim, town)
     sim.advance_days(10)
     assert f"hash {sim.state_hash()[:16]}" in r.stdout
+
+
+@pytest.mark.skipif(
+    shutil.which("node") is None or not (WEB / "node_modules" / "pyodide").exists(),
+    reason="node or web/node_modules/pyodide not installed (npm install --prefix web)",
+)
+def test_client_worker_logic_under_pyodide():
+    """client/src/sim engine + boot under Pyodide: 10 days, one build ok, one refused."""
+    subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "pyodide_bundle.py")], check=True, cwd=ROOT
+    )
+    r = subprocess.run(
+        ["node", str(WEB / "worker-smoke.mjs")],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=600,
+        check=False,
+    )
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "PASS worker" in r.stdout

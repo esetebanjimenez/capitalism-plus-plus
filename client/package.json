@@ -9,9 +9,12 @@
     "preview": "vite preview --port 4173 --strictPort",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "check": "tsc --noEmit && vitest run && vite build",
+    "check": "tsc --noEmit && vitest run && npm run build",
     "screenshot": "node scripts/screenshot.mjs",
-    "bench": "node scripts/bench.mjs"
+    "bench": "node scripts/bench.mjs",
+    "bundle": "python3 ../scripts/pyodide_bundle.py public/capitalism.zip",
+    "predev": "npm run bundle",
+    "prebuild": "npm run bundle"
   },
   "dependencies": {
     "pixi.js": "^8.6.6"

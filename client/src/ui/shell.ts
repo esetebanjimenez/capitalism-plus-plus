@@ -1,5 +1,11 @@
 import "./shell.css";
 import { SHEET_SHARE, SheetHeight, isDesktop, sheetPt } from "./layout";
+import type { Speed } from "../sim/protocol";
+
+/** Labels for the speed picker and the speed button (0 = paused, 4 = max). */
+export const SPEED_LABELS: Record<Speed, string> = { 0: "Pause", 1: "1", 2: "2", 3: "3", 4: "Max" };
+
+const LONG_PRESS_MS = 450;
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -47,6 +53,10 @@ export class Shell {
   private readonly date = el("span", "pill-date");
   private readonly cash = el("span", "pill-cash");
   private readonly speed = el("button", "pill-speed ui-btn_primary");
+  private readonly speedIcon = el("span", "ui-icon_pause_on");
+  private readonly speedNum = el("span", "speed-num");
+  private readonly speedMore = el("button", "speed-more");
+  private readonly picker = el("div", "speed-picker ui-card_float");
   private readonly menuBtn = el("button", "menu-btn ui-btn_secondary");
   private readonly badge = el("span", "badge ui-badge");
   private readonly toasts = el("div", "toasts");
@@ -58,18 +68,21 @@ export class Shell {
   private readonly actionsEl = el("footer", "panel-actions");
   private spec: PanelSpec | null = null;
   private height: SheetHeight = "peek";
-  private paused = true;
+  private speedNow: Speed = 0;
 
   /** Called whenever a panel opens, closes or changes height (null = closed). */
   onLayout: (h: SheetHeight | null) => void = () => {};
   onMenu: () => void = () => {};
+  /** Tap on the speed button: pause or resume. */
   onSpeed: () => void = () => {};
+  /** A speed chosen in the picker. */
+  onSpeedPick: (s: Speed) => void = () => {};
 
   constructor(parent: HTMLElement) {
     this.speed.setAttribute("aria-label", "Pause or resume");
-    this.speed.append(el("span", "ui-icon_pause_on"));
-    this.speed.onclick = () => this.onSpeed();
-    this.pill.append(el("span", "ui-icon_cal"), this.date, el("span", "ui-icon_cash"), this.cash, this.speed);
+    this.speed.append(this.speedIcon, this.speedNum);
+    this.speedPicker();
+    this.pill.append(el("span", "ui-icon_cal"), this.date, el("span", "ui-icon_cash"), this.cash, this.speed, this.speedMore, this.picker);
     this.menuBtn.setAttribute("aria-label", "Menu");
     this.menuBtn.append(el("span", "ui-icon_menu"), this.badge);
     this.menuBtn.onclick = () => this.onMenu();
@@ -87,15 +100,31 @@ export class Shell {
     parent.append(this.root);
 
     this.dragSheet();
-    window.addEventListener("keydown", (e) => e.key === "Escape" && this.close());
+    window.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      if (!this.picker.hidden) this.showPicker(false);
+      else this.close();
+    });
     window.addEventListener("resize", () => this.layout());
+    this.layout();
   }
 
-  setStatus(year: number, month: number, day: number, cash: number, paused = this.paused): void {
+  setStatus(year: number, month: number, day: number, cash: number): void {
     this.date.textContent = `${day} ${MONTHS[month - 1]} ${year}`;
     this.cash.textContent = `${cash < 0 ? "\u2212" : ""}$${Math.round(Math.abs(cash)).toLocaleString("en-US")}`;
-    this.paused = paused;
-    this.speed.firstElementChild!.className = paused ? "ui-icon_pause_on" : "ui-icon_play_on";
+  }
+
+  /** Show the current speed on the speed button: pause, play (1) or fast-forward (2, 3, max). */
+  setSpeed(speed: Speed): void {
+    this.speedNow = speed;
+    this.speedIcon.className = speed === 0 ? "ui-icon_pause_on" : speed === 1 ? "ui-icon_play_on" : "ui-icon_ff_on";
+    this.speedNum.textContent = speed >= 2 ? SPEED_LABELS[speed] : "";
+    this.speed.setAttribute("aria-label", speed === 0 ? "Paused; resume" : `Speed ${SPEED_LABELS[speed]}; pause`);
+    for (const b of Array.from(this.picker.children) as HTMLElement[]) b.classList.toggle("on", Number(b.dataset.speed) === speed);
+  }
+
+  get currentSpeed(): Speed {
+    return this.speedNow;
   }
 
   setBadge(n: number): void {
@@ -103,10 +132,51 @@ export class Shell {
     this.badge.hidden = n === 0;
   }
 
-  toast(text: string): void {
-    const t = el("div", "toast ui-card_float", text);
+  toast(text: string, kind: "info" | "error" = "info"): void {
+    const t = el("div", `toast ${kind === "error" ? "toast-error ui-toast_error" : "ui-card_float"}`, text);
     this.toasts.append(t);
     setTimeout(() => t.remove(), 4000);
+  }
+
+  /** Speed picker: long-press (right click on desktop) the speed button, or its arrow on desktop. */
+  private speedPicker(): void {
+    this.showPicker(false);
+    this.picker.setAttribute("role", "menu");
+    for (const s of [0, 1, 2, 3, 4] as Speed[]) {
+      const b = el("button", "speed-opt", SPEED_LABELS[s]);
+      b.dataset.speed = String(s);
+      b.onclick = () => {
+        this.showPicker(false);
+        this.onSpeedPick(s);
+      };
+      this.picker.append(b);
+    }
+    this.speedMore.setAttribute("aria-label", "Choose speed");
+    this.speedMore.append(el("span", "ui-icon_down"));
+    this.speedMore.onclick = () => this.showPicker(this.picker.hidden);
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let long = false;
+    this.speed.addEventListener("pointerdown", () => {
+      long = false;
+      timer = setTimeout(() => ((long = true), this.showPicker(true)), LONG_PRESS_MS);
+    });
+    const cancel = () => timer && clearTimeout(timer);
+    this.speed.addEventListener("pointerup", cancel);
+    this.speed.addEventListener("pointerleave", cancel);
+    this.speed.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      this.showPicker(true);
+    });
+    this.speed.onclick = () => {
+      if (long) return;
+      this.showPicker(false);
+      this.onSpeed();
+    };
+  }
+
+  private showPicker(open: boolean): void {
+    this.picker.hidden = !open;
+    this.root.classList.toggle("picker-open", open);
   }
 
   get current(): PanelSpec | null {

@@ -14,7 +14,11 @@ import { parseMap } from "./mapdata";
 import { loadUiAtlas } from "./ui/atlas";
 import { firmCard, menuPanel, tileCard, townCard } from "./ui/cards";
 import { Pick, panToShow, pickAt, visibleMapRect } from "./ui/layout";
+import { LoadingOverlay, showSimError } from "./ui/overlay";
 import { Shell } from "./ui/shell";
+import { SimClient, type WorkerPort } from "./sim/client";
+import type { Speed } from "./sim/protocol";
+import { DEFAULT_SETUP } from "./sim/setup";
 
 interface AtlasJson {
   tile: number;
@@ -144,7 +148,7 @@ async function boot() {
   await loadUiAtlas(resolution);
   const shell = new Shell(document.body);
   if (map.info) shell.setStatus(map.info.year, map.info.month, map.info.day, map.info.cash);
-  shell.onSpeed = () => shell.toast("The sim starts running in the browser with the next PR.");
+  startSim(shell);
   shell.onMenu = () => shell.open(menuPanel((name) => (shell.close(), shell.toast(`${name} comes in a later PR.`))));
   let selected: { x: number; y: number } | null = null;
   const ptPerWorld = () => view.zoom / resolution;
@@ -245,3 +249,53 @@ boot().catch((err) => {
   document.getElementById("hud")!.textContent = String(err);
   throw err;
 });
+
+/**
+ * Boots the sim worker and wires the status pill, speed controls and keyboard to it
+ * (docs/m2-ux-spec.md "Shared rules" and "Default state"). The map is still the sample
+ * map until the live map lands (#249).
+ */
+function startSim(shell: Shell): SimClient {
+  const loading = new LoadingOverlay();
+  const worker = new Worker(new URL("./sim/worker.ts", import.meta.url), { type: "module" });
+  const sim = new SimClient(worker as unknown as WorkerPort, DEFAULT_SETUP, new URL("capitalism.zip", document.baseURI).href);
+  (window as unknown as { __sim: SimClient }).__sim = sim;
+  let resumeTo: Speed = 1;
+  const setSpeed = (s: Speed) => {
+    if (s !== 0) resumeTo = s;
+    sim.setSpeed(s);
+    shell.setSpeed(s);
+  };
+  sim.onProgress = (stage, done, total) => loading.set(stage, done, total);
+  sim.onTick = (t) => {
+    shell.setStatus(t.year, t.month, t.day, t.cash);
+    shell.setSpeed(t.speed);
+    shell.setBadge(t.unread_important);
+  };
+  sim.onCmdResult = (r) => {
+    if (!r.ok) shell.toast(r.error ?? "That didn't work.", "error");
+  };
+  sim.onError = (message, traceback) => {
+    loading.remove();
+    showSimError(message, traceback);
+  };
+  sim.ready.then((t) => {
+    loading.remove();
+    sim.onTick(t);
+    document.title = "Capitalism++";
+  });
+  shell.setSpeed(0);
+  shell.onSpeed = () => setSpeed(sim.speed === 0 ? resumeTo : 0);
+  shell.onSpeedPick = (s) => setSpeed(s);
+  window.addEventListener("keydown", (e) => {
+    const t = e.target as HTMLElement | null;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+    if (e.key === " ") {
+      e.preventDefault();
+      shell.onSpeed();
+    } else if (e.key >= "1" && e.key <= "4") {
+      setSpeed(Number(e.key) as Speed);
+    }
+  });
+  return sim;
+}
