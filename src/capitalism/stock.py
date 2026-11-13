@@ -318,9 +318,8 @@ def compute_ai_dividend(
         div_ps = max(div_ps, main)
 
     # Step 4: fallback — rare dividend even when cash-poor
-    if div_ps == 0.0 and personality < 100:
-        if rng.randint(0, 99 - personality) == 0:
-            div_ps = rng.randint(0, 299) * price / _SR.dividend_fallback_divisor
+    if div_ps == 0.0 and personality < 100 and rng.randint(0, 99 - personality) == 0:
+        div_ps = rng.randint(0, 299) * price / _SR.dividend_fallback_divisor
 
     # Step 5: equity cap and minimum-payout gate
     net_equity = total_assets - investment_value
