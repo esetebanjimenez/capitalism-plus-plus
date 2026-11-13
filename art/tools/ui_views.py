@@ -12,7 +12,8 @@ writes docs/art/m2-views-preview.png.
   value tip in `card_float`.
 - #178 win/loss card: one `card` layout; the headline band `end_band_<outcome>` and emblem `icon_end_<outcome>`
   (shown at 2x, 32 pt) change per outcome. Goal rows use `icon_goal` and `icon_goal_miss`.
-  New game is `btn_primary`; Keep playing is an optional `btn_secondary` the client can hide."""
+  New game is `btn_primary` and is the only button (#243). Bankrupt (#289) uses a grey band and a cracked
+  coin; its score row can be hidden (#287)."""
 
 import json
 import math
@@ -201,11 +202,30 @@ VIEW_ICON = {  # 16x16, same keys as ui_concept.ICON plus 'm' = MGREY
         "..#####.........",
         "................",
     ],
+    "end_bankrupt": [
+        "................",
+        "................",
+        "..........##....",
+        "...####..#oo#...",
+        "..#oonn#.#nno#..",
+        ".#onnoo##oono#..",
+        ".#onoo##oooono#.",
+        "#onoo#.#oooono#.",
+        "#onoo#..#ooono#.",
+        "#onooo#..#ono#..",
+        ".#onooo#.#nno#..",
+        ".#onnoo#.#oo#...",
+        "..#oon#...##....",
+        "...###..........",
+        "................",
+        "................",
+    ],
 }
 OUTCOMES = {  # result_name: (key, band colour, headline)
     "VICTORY": ("win", "GREEN", "Goals achieved"),
     "DEFEAT_DEADLINE": ("time", "AMBER", "Out of time"),
     "DEFEAT_AI_WON": ("rival", "RED", "A rival got there first"),
+    "DEFEAT_BANKRUPT": ("bankrupt", "MGREY", "Bankrupt"),
 }
 KEYS = dict(KEY, m="MGREY")
 
@@ -263,11 +283,13 @@ def frames():
     f["plate_level"] = (level_badge(), [4, 4, 4, 4])
     f["plate_pulse"] = (pulse_ring(), [6, 6, 6, 6])
     for k in VIEW_ICON:
-        f["icon_" + k] = (vicon(k), None)
+        if k != "end_bankrupt":  # added later (#289); appended below so earlier frames keep their place
+            f["icon_" + k] = (vicon(k), None)
     f["chart_dot"] = (dot(), None)
     f["chart_dot_sel"] = (dot(True), None)
     for k, col, _ in OUTCOMES.values():
         f["end_band_" + k] = (band(col), [6, 6, 6, 6])
+    f["icon_end_bankrupt"] = (vicon("end_bankrupt"), None)
     return f
 
 
@@ -302,7 +324,7 @@ def short(v):
 
 
 def preview(S=2):
-    W, H = 1180, 1180
+    W, H = 1180, 1130
     im = Image.new("RGBA", (W * S, H * S), rgb("DGREY"))
     d = ImageDraw.Draw(im)
     fr = {k: v for k, v in frames().items()}
@@ -467,7 +489,7 @@ def preview(S=2):
     head(
         20,
         y1,
-        "#178 Win/loss card: one layout, three outcomes; optional Keep playing shown hidden on the third",
+        "#178/#289 Win/loss card: one layout, four outcomes; New game only; score row hidden on Bankrupt",
     )
     goals = [
         ("Reach $50M net worth", True),
@@ -475,16 +497,17 @@ def preview(S=2):
         ("Market share 30% in Bread", None),
     ]
     for c, (res, (k, col, hl)) in enumerate(OUTCOMES.items()):
-        x, y, w, h = 20 + c * 386, y1 + 28, 370, 500
+        x, y, w, h = 20 + c * 290, y1 + 28, 280, 440
         put(nine(card(16, 16), [6, 6, 6, 7], w, h), x, y)
         put(nine(fr["end_band_" + k][0], [6, 6, 6, 6], w - 24, 96), x + 12, y + 12)
         put(fr["icon_end_" + k][0], x + w / 2 - 16, y + 22, 2)
         txt(x + w / 2, y + 80, hl, "CREAM", 17, True, "mm")
         stats = [
-            ("Final score", "8,420" if c == 0 else ("3,115" if c == 1 else "4,960")),
+            ("Final score", ["8,420", "3,115", "4,960", None][c]),
             ("Years played", "12" if c != 1 else "20"),
             ("Difficulty", "120"),
         ]
+        stats = [r for r in stats if r[1] is not None]  # score row is hideable
         for i, (a, b) in enumerate(stats):
             yy = y + 126 + i * 28
             txt(x + 24, yy, a, "MGREY", 12, False)
@@ -505,11 +528,8 @@ def preview(S=2):
             )
             txt(x + 48, yy, g, "INK" if met else "MGREY", 12, False)
         bw = w - 48
-        put(nine(button(16, 16, "primary"), [6, 6, 6, 8], bw, 46), x + 24, y + h - 130)
-        txt(x + w / 2, y + h - 107, "New game", "CREAM", 14, True, "mm")
-        if c != 2:
-            put(nine(button(16, 16, "secondary"), [6, 6, 6, 8], bw, 46), x + 24, y + h - 72)
-            txt(x + w / 2, y + h - 49, "Keep playing (optional)", "INK", 14, True, "mm")
+        put(nine(button(16, 16, "primary"), [6, 6, 6, 8], bw, 46), x + 24, y + h - 72)
+        txt(x + w / 2, y + h - 49, "New game", "CREAM", 14, True, "mm")
     im.convert("RGB").save(P("docs", "art", "m2-views-preview.png"), optimize=True)
 
 

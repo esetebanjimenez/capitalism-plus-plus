@@ -113,6 +113,8 @@ frames to `ui_atlas` (now 71 frames, earlier frames unchanged). Preview: `docs/a
 - **Charts (#178):** style in `art/charts.json`: one orange 2 pt line, sand grid, ink zero line when the
   range crosses 0, short money labels, `chart_dot` on the last point, `chart_dot_sel` and a `card_float`
   tip on the tapped point; a single point is a dot alone.
-- **Win/loss card (#178):** one `card` layout; `end_band_win|time|rival` (green, amber, red) and
-  `icon_end_win|time|rival` (shown at 2×) change per outcome. Goal rows use `icon_goal` and
-  `icon_goal_miss`, with labels from `q_goals`; difficulty is a plain rating (no %). New game is `btn_primary`; Keep playing is an optional `btn_secondary` the client can hide.
+- **Win/loss card (#178, #289):** one `card` layout; `end_band_win|time|rival|bankrupt` (green, amber, red,
+  grey) and `icon_end_win|time|rival|bankrupt` (shown at 2×) change per outcome (`VICTORY`, `DEFEAT_DEADLINE`,
+  `DEFEAT_AI_WON`, `DEFEAT_BANKRUPT`). Goal rows use `icon_goal` and `icon_goal_miss`, with labels from `q_goals`;
+  difficulty is a plain rating (no %). The score row can be hidden (Bankrupt, #287). New game (`btn_primary`)
+  is the only button: the native game has no Keep playing (#243).
