@@ -2628,18 +2628,23 @@ This gives ten discrete steps from 295/300 to 304/300 (`0x127` = 295,
 clamped to the minimum for the current tier (floor clamp: if gnp <
 floor[tier], gnp = floor[tier]).
 
-**Tier upgrade (dead code in native):** Raw x87 disassembly confirmed the
-decompiler output — the comparison IS `gnp < 3.0`, not `tier < 3`. The
-instruction sequence is: `FLD dword [ebx+0x31]` (loads gnp), `FCOMP dword
-[0xa6ECE]` (compares against 3.0 f32), `JNB` (skips INC if gnp >= 3.0),
-`INC byte [ebx+0x2c]` (tier++). Since upgrade also requires `gnp >=
-threshold[tier]` (minimum 10), and 10 > 3.0, both conditions can never hold
-simultaneously: the native tier upgrade never fires. This is almost
-certainly a bug — the developer intended `tier < 3` (to cap at tier 3) but
-the generated code compares gnp against the float 3.0 instead. The sim
-implements the intended behavior: `while tier < 3 and gnp > threshold[tier]:
-tier += 1`. Raw shorts ×200 match DB dollar values (init formula uses
-`×20000/100`).
+Tier upgrade guard (raw x87 disassembly, 0x4B677–0x4B685):
+```
+FLD  dword [ebx+0x31]      ; gnp
+FCOMP dword [0xa6ECE]      ; 3.0 (f32)
+FNSTSW AX / SAHF
+JNB  +3                    ; skip if gnp >= 3.0
+INC  byte [ebx+0x2c]       ; tier++
+```
+The native upgrade condition is `gnp >= threshold[tier] && gnp < 3.0`.
+Thresholds are {10, 35, 70, 100}, so `gnp >= 10` and `gnp < 3.0` can
+never both hold: the tier increment is dead code. **Bug:** the guard
+was almost certainly meant to read `tier < 3` (cap at tier 3), not
+`gnp < 3.0`. The float 3.0 sits at `0xa6ECE`, four bytes after the
+`0xa6ECA` = 300.0 divisor used in the GNP walk — the compiler or the
+developer picked the wrong operand.
+
+Raw shorts ×200 match DB dollar values (init formula uses `×20000/100`).
 
 ### Economic climate thresholds
 
