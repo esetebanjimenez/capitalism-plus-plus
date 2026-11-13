@@ -1382,10 +1382,10 @@ the monthly cycle below). There is no update while A is below 1.
    P is one of the product's consumer-decision percentages. The top
    score-in and top score are the product's highest values, published
    each month.
-2. Per-town penalties: raw loses 3 × (count − 1) for one per-town count
-   under corporate branding, and for a second per-town count under
-   corporate and range branding. What the two counts measure wasn't
-   identified. raw is floored at 0.
+2. Per-town penalties: raw loses 3 × (products_per_town − 1) under
+   corporate branding, and 3 × (classes_per_town − 1) under corporate
+   and range branding (`corp+0x68[town]` and `corp+0x80[town]`,
+   recomputed monthly by `FUN_00032733`). raw is floored at 0.
 3. Target: `A × raw / 50 − A`, so the target runs from −A to +A.
 4. Step: if the target is at or below the current value, the step is
    −0.1. Otherwise it is +0.1 under unique branding, or 0.1 divided by
@@ -1395,8 +1395,14 @@ the monthly cycle below). There is no update while A is below 1.
 
 The value always moves in the direction of the target; it doesn't stop
 at the target. Consistently high scores therefore raise brand, and low
-scores lower it. How the brand value feeds back into the link score was
-lost in the decompile.
+scores lower it. Brand feeds back into the link score via
+`FUN_0006d67d` mode 1: `round(awareness) + round(cell)`.
+
+**Advertising and brand:** the native advertising campaign function
+(`FUN_0005136e`) selects products and budgets but does not directly
+increment brand awareness. Awareness grows only through the monthly
+N9 formula above. The sim adds a per-campaign awareness gain
+(`ad_brand_per_100k`); this is a sim-specific mechanic.
 
 ### AI firm type preferences by strategy mode
 
