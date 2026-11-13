@@ -10,6 +10,7 @@ from __future__ import annotations
 from enum import IntEnum
 from typing import TYPE_CHECKING
 
+from .economy import CORP_AI
 from .jobs import CAT_SALES
 from .tables import FIRM_SECTORS, JOB_TYPES, PRODUCT_CLASSES, SCORING_RULES, SetupOptions
 
@@ -417,7 +418,14 @@ class GoalChecker:
                 return self.result
 
         if setup.year_limit == 0 and day_serial % int(_SR.ai_goal_check_interval) == 0:
-            pass
+            # gamelogic.md "Goal checking timing": in untimed games any AI
+            # corp meeting every goal ends the game with the player losing.
+            for corp in economy.corps:
+                if corp is None or corp.corp_type != CORP_AI:
+                    continue
+                if check_goals(self.goals, economy, corp.id)[0]:
+                    self.result = GameResult.DEFEAT_AI_WON
+                    return self.result
 
         return GameResult.IN_PROGRESS
 

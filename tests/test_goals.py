@@ -271,6 +271,30 @@ class TestGoalChecker:
         result = checker.daily(sim.economy, 0, 1990, setup)
         assert result == GameResult.IN_PROGRESS
 
+    def _ai_rich(self, year_limit: int):
+        from capitalism.economy import CORP_AI
+        from capitalism.scenario import bread_town
+
+        sim, _ = bread_town()
+        sim.economy.add_corp("Player")  # id 0, nets nothing
+        ai = sim.economy.add_corp("Rival", CORP_AI)
+        ai.ledger.cash = 1e12
+        gc = GoalConfig()
+        gc.corp_net_worth = 100_000.0  # $ millions
+        setup = SetupOptions()
+        setup.year_limit = year_limit
+        return GoalChecker(gc), sim, setup
+
+    def test_ai_meets_goals_untimed_defeats_player(self):
+        checker, sim, setup = self._ai_rich(0)
+        assert checker.daily(sim.economy, 6, 1990, setup) == GameResult.IN_PROGRESS
+        assert checker.daily(sim.economy, 7, 1990, setup) == GameResult.DEFEAT_AI_WON
+        assert checker.result == GameResult.DEFEAT_AI_WON
+
+    def test_ai_goal_check_skipped_with_year_limit(self):
+        checker, sim, setup = self._ai_rich(10)
+        assert checker.daily(sim.economy, 7, 1990, setup) == GameResult.IN_PROGRESS
+
     def test_yearly_deadline_defeat(self):
         gc = GoalConfig()
         gc.personal_wealth = 999_999_999_999.0
