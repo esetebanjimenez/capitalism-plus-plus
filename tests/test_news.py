@@ -123,6 +123,7 @@ class TestNewsTypes:
 
     def test_all_types_have_category(self):
         from capitalism.news import _NEWS_CATEGORY
+
         for nt in NewsType:
             assert nt in _NEWS_CATEGORY, f"{nt.name} missing from _NEWS_CATEGORY"
 
@@ -176,9 +177,15 @@ class TestFrequency:
             corps_l, firms_l = _test_corps_and_firms()
             corps_m, firms_m = _test_corps_and_firms()
             for day in range(3650):
-                if random_events_daily(rng_low, FREQ_LOW, day, log_low, corps_l, firms_l) is not None:
+                if (
+                    random_events_daily(rng_low, FREQ_LOW, day, log_low, corps_l, firms_l)
+                    is not None
+                ):
                     fired_low += 1
-                if random_events_daily(rng_med, FREQ_MEDIUM, day, log_med, corps_m, firms_m) is not None:
+                if (
+                    random_events_daily(rng_med, FREQ_MEDIUM, day, log_med, corps_m, firms_m)
+                    is not None
+                ):
                     fired_med += 1
         assert fired_med > fired_low
 
@@ -383,18 +390,21 @@ class TestInventoryLoss:
 class TestEconomyIntegration:
     def test_news_log_on_economy(self):
         from capitalism.scenario import bread_town
+
         sim, _ = bread_town()
         assert len(sim.economy.news_log) == 0
         assert sim.economy.event_frequency == 0
 
     def test_events_disabled_by_default(self):
         from capitalism.scenario import bread_town
+
         sim, _ = bread_town()
         sim.advance_days(365)
         assert len(sim.economy.news_log) == 0
 
     def test_events_with_frequency(self):
         from capitalism.scenario import bread_town
+
         sim, _ = bread_town()
         sim.economy.event_frequency = FREQ_HIGH
         sim.advance_days(365)
@@ -402,17 +412,20 @@ class TestEconomyIntegration:
 
     def test_setup_options_event_frequency(self):
         from capitalism.tables import SetupOptions
+
         opts = SetupOptions(event_frequency=2)
         assert opts.event_frequency == 2
 
     def test_setup_options_default(self):
         from capitalism.tables import SetupOptions
+
         opts = SetupOptions()
         assert opts.event_frequency == 0
 
     def test_setup_frequency_propagates(self):
         from capitalism.sim import Sim
         from capitalism.tables import MAP_RULES
+
         sim = Sim(seed=1, target_cities=MAP_RULES.default_cities)
         assert sim.economy.event_frequency == 0
         sim.setup.event_frequency = 2

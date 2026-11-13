@@ -47,15 +47,15 @@ MODE_FIRM_TYPES: dict[int, tuple[int, ...]] = {
 
 # CEO skill used to score each firm type (techspec FUN_0007a2e4, cross-wired)
 FIRM_TYPE_SKILL: dict[int, int] = {
-    1: SKILL_MANUFACTURING,   # Store → manufacturing (cross-wired)
-    2: SKILL_RETAILING,       # Factory → retailing (cross-wired)
-    3: SKILL_RND,             # R&D Center → R&D
-    4: SKILL_FARMING,         # Farm → farming
-    5: SKILL_RAW_MATERIAL,    # Logging Camp → raw material
-    6: SKILL_RAW_MATERIAL,    # Mine → raw material
-    7: SKILL_RAW_MATERIAL,    # Oil Well → raw material
-    8: SKILL_RND,             # Software Developer → R&D
-    9: SKILL_RND,             # Software Publisher → R&D
+    1: SKILL_MANUFACTURING,  # Store → manufacturing (cross-wired)
+    2: SKILL_RETAILING,  # Factory → retailing (cross-wired)
+    3: SKILL_RND,  # R&D Center → R&D
+    4: SKILL_FARMING,  # Farm → farming
+    5: SKILL_RAW_MATERIAL,  # Logging Camp → raw material
+    6: SKILL_RAW_MATERIAL,  # Mine → raw material
+    7: SKILL_RAW_MATERIAL,  # Oil Well → raw material
+    8: SKILL_RND,  # Software Developer → R&D
+    9: SKILL_RND,  # Software Publisher → R&D
     10: SKILL_MANUFACTURING,  # Restaurant → manufacturing (store category)
 }
 
@@ -273,6 +273,7 @@ def ai_raise_cash(eco: Economy, corp: Corporation, target: float) -> bool:
 
 # --- NPC spawning -----------------------------------------------------------
 
+
 def _round_2sig(value: float) -> float:
     """Round to 2 significant digits (FUN_00090865 with params 2, 0)."""
     if value == 0:
@@ -313,7 +314,8 @@ def try_spawn_competitor(eco: Economy, day_serial: int) -> Corporation | None:
         return None
 
     available = [
-        p for p in eco.all_persons()
+        p
+        for p in eco.all_persons()
         if p.state == STATE_ACTIVE and p.role == ROLE_INDEPENDENT and p.cooldown == 0
     ]
     if not available:
@@ -328,6 +330,7 @@ def try_spawn_competitor(eco: Economy, day_serial: int) -> Corporation | None:
     person = rng.choice(available)
 
     from .economy import CORP_AI
+
     corp = eco.add_corp(person.name, CORP_AI)
     person.link_to_corp(corp.id, as_ceo=True)
 
@@ -351,6 +354,7 @@ def try_spawn_competitor(eco: Economy, day_serial: int) -> Corporation | None:
 
 
 # --- Daily AI dispatch -------------------------------------------------------
+
 
 def ai_daily(eco: Economy, corp: Corporation, day_serial: int) -> None:
     """Run all AI decision checks for one corporation on one day."""
@@ -420,6 +424,7 @@ def ai_daily(eco: Economy, corp: Corporation, day_serial: int) -> None:
 def _find_ceo(eco: Economy, corp: Corporation) -> Person | None:
     """Find the person linked as CEO to this corporation."""
     from .person import ROLE_CEO, STATE_LINKED
+
     for p in eco.all_persons():
         if p.corp_id == corp.id and p.state == STATE_LINKED and p.role == ROLE_CEO:
             return p
@@ -491,9 +496,7 @@ def _pick_town(eco: Economy, corp: Corporation) -> Town | None:
     return max(towns, key=lambda t: t.population)
 
 
-def _skill_based_pick(
-    eco: Economy, corp: Corporation, ceo: Person, ai: AIState
-) -> int | None:
+def _skill_based_pick(eco: Economy, corp: Corporation, ceo: Person, ai: AIState) -> int | None:
     """Pick a firm type based on CEO's expertise skills (techspec FUN_0007a2e4)."""
     type_list = MODE_FIRM_TYPES.get(ai.mode, ())
     candidates: list[tuple[float, int]] = []
@@ -513,15 +516,15 @@ def _skill_based_pick(
 def _random_firm_type(rng: Rng, ai: AIState) -> int | None:
     """Pick a random firm type from the mode's available types."""
     type_list = MODE_FIRM_TYPES.get(ai.mode, ())
-    available = [t for t in type_list if t not in ai.build_cooldowns and t not in ai.retry_cooldowns]
+    available = [
+        t for t in type_list if t not in ai.build_cooldowns and t not in ai.retry_cooldowns
+    ]
     if not available:
         return None
     return rng.choice(available)
 
 
-def _vertical_integration(
-    eco: Economy, corp: Corporation, ai: AIState, day_serial: int
-) -> None:
+def _vertical_integration(eco: Economy, corp: Corporation, ai: AIState, day_serial: int) -> None:
     """Vertical integration: build retail for unsold products (gamelogic.md Vertical integration)."""
     rng = eco.rng
     town = _pick_town(eco, corp)
@@ -569,9 +572,7 @@ def _check_mode_transition(
             ai.dormant_start_day = day_serial
 
 
-def _check_bankruptcy(
-    eco: Economy, corp: Corporation, ai: AIState, day_serial: int
-) -> None:
+def _check_bankruptcy(eco: Economy, corp: Corporation, ai: AIState, day_serial: int) -> None:
     """Bankruptcy check (gamelogic.md Bankruptcy check)."""
     age_days = day_serial - ai.mode_start_day
     if age_days < _AR.bankruptcy_age_threshold * 365:
@@ -585,9 +586,7 @@ def _check_bankruptcy(
         # Mark as bankrupt — the corporation stays but is inactive
 
 
-def _random_build(
-    eco: Economy, corp: Corporation, ai: AIState, day_serial: int
-) -> None:
+def _random_build(eco: Economy, corp: Corporation, ai: AIState, day_serial: int) -> None:
     """1/1000 random build in a random town (techspec FUN_000316b4).
 
     Native builds type 0xb (TV) or 0xd (Newspaper) from the Government
@@ -601,10 +600,7 @@ def _random_build(
     town = rng.choice(towns)
     firm_type = 1  # Department Store
     cap = RANDOM_BUILD_CAP.get(town.level, 2)
-    count = sum(
-        1 for f in eco.firms
-        if f is not None and f.type_id == firm_type and f.town is town
-    )
+    count = sum(1 for f in eco.firms if f is not None and f.type_id == firm_type and f.town is town)
     if count >= cap:
         return
     firm = ai_build_firm(eco, corp, firm_type, town, rng)
@@ -632,9 +628,7 @@ def _grant_tech(corp: Corporation, product: object) -> None:
         corp.add_technology(product, product.state.tech_level)
 
 
-def _configure_new_firm(
-    eco: Economy, corp: Corporation, firm: object, rng: Rng
-) -> None:
+def _configure_new_firm(eco: Economy, corp: Corporation, firm: object, rng: Rng) -> None:
     """Configure a newly built AI firm with jobs (R18, techspec FUN_0002b895).
 
     The native AI selects a product group from the plan library and copies
@@ -651,9 +645,9 @@ def _configure_new_firm(
 
     if ft in (1, 10):
         candidates = [
-            p for p in cat.products
-            if isinstance(p, ConsumerProduct) and p.state.available
-            and p.row.demand_per_1000 > 0
+            p
+            for p in cat.products
+            if isinstance(p, ConsumerProduct) and p.state.available and p.row.demand_per_1000 > 0
         ]
         if not candidates:
             return
@@ -667,8 +661,7 @@ def _configure_new_firm(
         recipes = [
             (cat.by_id[pid], rec)
             for pid, rec in cat.recipes.items()
-            if isinstance(cat.by_id[pid], ConsumerProduct)
-            and cat.by_id[pid].state.available
+            if isinstance(cat.by_id[pid], ConsumerProduct) and cat.by_id[pid].state.available
         ]
         if not recipes:
             return
@@ -686,10 +679,7 @@ def _configure_new_firm(
         firm.link_slots(_MFG_SLOT, _SALES_SLOT)
 
     elif ft == 3:
-        candidates = [
-            p for p in cat.products
-            if p.state.available and not corp.has_technology(p)
-        ]
+        candidates = [p for p in cat.products if p.state.available and not corp.has_technology(p)]
         if not candidates:
             candidates = [p for p in cat.products if p.state.available]
         if not candidates:
@@ -698,8 +688,7 @@ def _configure_new_firm(
 
     elif ft == 4:
         candidates = [
-            p for p in cat.products
-            if isinstance(p, (Crop, Livestock)) and p.state.available
+            p for p in cat.products if isinstance(p, (Crop, Livestock)) and p.state.available
         ]
         if not candidates:
             return

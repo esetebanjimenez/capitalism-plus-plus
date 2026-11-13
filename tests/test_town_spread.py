@@ -17,8 +17,15 @@ def _small_world(rng, *, level=1):
     from capitalism.town import Town
 
     town = Town(
-        id=0, name="Test", tier=0, x=10, y=10, stagger_slot=0,
-        population=0.0, per_capita_gnp=10.0, level=level,
+        id=0,
+        name="Test",
+        tier=0,
+        x=10,
+        y=10,
+        stagger_slot=0,
+        population=0.0,
+        per_capita_gnp=10.0,
+        level=level,
     )
     world.towns = [town]
     center = world.tile_at(10, 10)
@@ -33,8 +40,7 @@ def test_spread_paints_town_tiles():
     world, town = _small_world(rng, level=3)
     world.spread_town(town, rng)
     town_count = sum(
-        1 for y in range(20) for x in range(20)
-        if world.tile_at(x, y).kind == TileCategory.TOWN
+        1 for y in range(20) for x in range(20) if world.tile_at(x, y).kind == TileCategory.TOWN
     )
     assert town_count > 1
 
@@ -80,9 +86,15 @@ def test_monthly_tick_returns_true_on_level_up():
 
     rng = Rng(1)
     town = Town(
-        id=0, name="Big", tier=0, x=5, y=5, stagger_slot=0,
+        id=0,
+        name="Big",
+        tier=0,
+        x=5,
+        y=5,
+        stagger_slot=0,
         population=float(level_up_population(1)) + 1000.0,
-        per_capita_gnp=10.0, level=1,
+        per_capita_gnp=10.0,
+        level=1,
     )
     result = town.monthly_tick(rng, detailed=False)
     assert result is True
@@ -95,8 +107,15 @@ def test_monthly_tick_returns_false_no_level_up():
 
     rng = Rng(1)
     town = Town(
-        id=0, name="Small", tier=0, x=5, y=5, stagger_slot=0,
-        population=100.0, per_capita_gnp=10.0, level=1,
+        id=0,
+        name="Small",
+        tier=0,
+        x=5,
+        y=5,
+        stagger_slot=0,
+        population=100.0,
+        per_capita_gnp=10.0,
+        level=1,
     )
     result = town.monthly_tick(rng, detailed=False)
     assert result is False

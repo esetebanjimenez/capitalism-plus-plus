@@ -23,6 +23,7 @@ _ER = EVENT_RULES
 # News categories (filter buckets for the News Report panel)
 # ---------------------------------------------------------------------------
 
+
 class NewsCategory(IntEnum):
     NORMAL = 0
     FINANCIAL = 1
@@ -33,6 +34,7 @@ class NewsCategory(IntEnum):
 # ---------------------------------------------------------------------------
 # News event types (28 distinct types)
 # ---------------------------------------------------------------------------
+
 
 class NewsType(IntEnum):
     FIRM_OPENED = 1
@@ -96,20 +98,23 @@ _NEWS_CATEGORY: dict[NewsType, NewsCategory] = {
     NewsType.ECONOMIC_DOWNTURN: NewsCategory.SPECIAL,
 }
 
-_UNIMPORTANT: frozenset[NewsType] = frozenset({
-    NewsType.FIRM_OPENED,
-    NewsType.FIRM_CLOSED,
-    NewsType.NEW_COMPETITOR,
-    NewsType.BANKRUPTCY,
-    NewsType.BANK_LOAN,
-    NewsType.LOAN_REPAID,
-    NewsType.SHARES_ISSUED,
-})
+_UNIMPORTANT: frozenset[NewsType] = frozenset(
+    {
+        NewsType.FIRM_OPENED,
+        NewsType.FIRM_CLOSED,
+        NewsType.NEW_COMPETITOR,
+        NewsType.BANKRUPTCY,
+        NewsType.BANK_LOAN,
+        NewsType.LOAN_REPAID,
+        NewsType.SHARES_ISSUED,
+    }
+)
 
 
 # ---------------------------------------------------------------------------
 # NewsItem
 # ---------------------------------------------------------------------------
+
 
 class NewsItem:
     __slots__ = (
@@ -139,6 +144,7 @@ class NewsItem:
 # ---------------------------------------------------------------------------
 # NewsLog — circular buffer
 # ---------------------------------------------------------------------------
+
 
 class NewsLog:
     __slots__ = ("_buffer", "_capacity")
@@ -236,6 +242,7 @@ def random_events_daily(
 # Individual event implementations
 # ---------------------------------------------------------------------------
 
+
 def _event_livestock_disease(
     rng: Rng,
     day_serial: int,
@@ -247,8 +254,10 @@ def _event_livestock_disease(
         return None
     corp = rng.choice(corps)
     farm_firms = [
-        f for f in firms
-        if f is not None and getattr(f, "corp_id", None) == corp.id
+        f
+        for f in firms
+        if f is not None
+        and getattr(f, "corp_id", None) == corp.id
         and getattr(f, "type_name", "") == "Farm"
     ]
     if not farm_firms:
@@ -310,8 +319,10 @@ def _event_crop_failure(
         return None
     corp = rng.choice(corps)
     farm_firms = [
-        f for f in firms
-        if f is not None and getattr(f, "corp_id", None) == corp.id
+        f
+        for f in firms
+        if f is not None
+        and getattr(f, "corp_id", None) == corp.id
         and getattr(f, "type_name", "") == "Farm"
     ]
     if not farm_firms:
@@ -345,11 +356,11 @@ def _event_rnd_breakthrough(
     firms: list,
 ) -> NewsItem | None:
     rnd_firms = [
-        f for f in firms
-        if f is not None and getattr(f, "type_name", "") == "ResearchCentre"
+        f for f in firms if f is not None and getattr(f, "type_name", "") == "ResearchCentre"
     ]
     active = [
-        f for f in rnd_firms
+        f
+        for f in rnd_firms
         if any(
             getattr(j, "stage", 0) == 1 and getattr(j, "product", None) is not None
             for j in f.jobs()
@@ -359,7 +370,8 @@ def _event_rnd_breakthrough(
         return None
     firm = rng.choice(active)
     research_jobs = [
-        j for j in firm.jobs()
+        j
+        for j in firm.jobs()
         if getattr(j, "stage", 0) == 1 and getattr(j, "product", None) is not None
     ]
     if not research_jobs:
@@ -395,8 +407,10 @@ def _event_inventory_loss(
         return None
     corp = rng.choice(corps)
     stores = [
-        f for f in firms
-        if f is not None and getattr(f, "corp_id", None) == corp.id
+        f
+        for f in firms
+        if f is not None
+        and getattr(f, "corp_id", None) == corp.id
         and getattr(f, "type_name", "") == "DepartmentStore"
     ]
     if not stores:

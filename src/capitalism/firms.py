@@ -68,7 +68,6 @@ def decode_links(mask: int) -> list[tuple[int, int]]:
     return [e for i, e in enumerate(SLOT_EDGES) if mask >> i & 1]
 
 
-
 class InsufficientFunds(ValueError):
     """A build the owner can't pay for in cash (audit B3)."""
 
@@ -278,8 +277,7 @@ class Firm:
         new_lv = eco.world.land_value(self.x, self.y)
         delta = new_lv - self.land_value
         if delta != 0.0 and self.owner is not None:
-            for arr in (self.owner.ledger.month, self.owner.ledger.year,
-                        self.owner.ledger.total):
+            for arr in (self.owner.ledger.month, self.owner.ledger.year, self.owner.ledger.total):
                 arr[CAT_LAND_VALUE] += delta
             self.owner.land_assets += delta
         self.land_value = new_lv
@@ -402,7 +400,9 @@ class MediaFirm(Firm):
         rng = eco.rng
 
         # Step 1: reputation drift — random(61) - 30 → range [-30, +30]
-        self.reputation += rng.randint(0, r.media_reputation_drift_range - 1) - r.media_reputation_drift_offset
+        self.reputation += (
+            rng.randint(0, r.media_reputation_drift_range - 1) - r.media_reputation_drift_offset
+        )
 
         # Step 2: low-audience boost
         if self.audience < r.media_low_audience_threshold:
@@ -417,13 +417,19 @@ class MediaFirm(Firm):
 
         # Step 5: audience delta
         delta = (
-            rng.randint(0, r.media_audience_delta_range - 1) + self.reputation - r.media_audience_delta_offset
+            rng.randint(0, r.media_audience_delta_range - 1)
+            + self.reputation
+            - r.media_audience_delta_offset
         ) / r.media_audience_delta_divisor
 
         # Step 6: zero-sum competition — steal from other media firms in same town
         competitors = [
-            f for f in eco.firms
-            if f is not None and f is not self and isinstance(f, MediaFirm) and f.town.id == self.town.id
+            f
+            for f in eco.firms
+            if f is not None
+            and f is not self
+            and isinstance(f, MediaFirm)
+            and f.town.id == self.town.id
         ]
         if delta > 0 and competitors:
             steal = delta * r.media_competition_steal_factor
@@ -457,9 +463,12 @@ class MediaFirm(Firm):
         revenue_base = pop * ad_base / 100.0
         seasonal = town.gnp_growth_pct[(town.ring_index - 1) % 12]
         audience_factor = self.audience / 100.0 + r.media_revenue_audience_addend
-        revenue = (revenue_base / r.media_revenue_base_divisor
-                   * ((seasonal + town_factor) * audience_factor / 100.0)
-                   / 100.0)
+        revenue = (
+            revenue_base
+            / r.media_revenue_base_divisor
+            * ((seasonal + town_factor) * audience_factor / 100.0)
+            / 100.0
+        )
         return max(r.media_revenue_floor, revenue)
 
     def monthly(self, eco: Economy) -> None:

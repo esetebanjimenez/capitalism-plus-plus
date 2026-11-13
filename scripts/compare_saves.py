@@ -34,8 +34,13 @@ def game_date_to_date(gd) -> date:
 def load_town(pt: ParsedTown) -> Town:
     """Create a sim Town from parsed save data."""
     env = (float(pt.env_factors[0]), float(pt.env_factors[1]), float(pt.env_factors[2]))
-    climate_map = {0: Climate.BOOM, 1: Climate.PROSPEROUS, 2: Climate.NORMAL,
-                   3: Climate.RECESSION, 4: Climate.PANIC}
+    climate_map = {
+        0: Climate.BOOM,
+        1: Climate.PROSPEROUS,
+        2: Climate.NORMAL,
+        3: Climate.RECESSION,
+        4: Climate.PANIC,
+    }
     town = Town(
         id=pt.index,
         name=pt.name,
@@ -101,13 +106,19 @@ def compare_towns(
                 err_pct = 0.0
             flag = " ***" if abs(err_pct) > 5.0 else ""
             if label == "population":
-                print(f"{name:<14} {label:<18} {val_a:>12,.0f} {val_b:>12,.0f} {val_sim:>12,.0f} {delta_real:>+10,.0f} {delta_sim:>+10,.0f} {err_pct:>+7.1f}%{flag}")
+                print(
+                    f"{name:<14} {label:<18} {val_a:>12,.0f} {val_b:>12,.0f} {val_sim:>12,.0f} {delta_real:>+10,.0f} {delta_sim:>+10,.0f} {err_pct:>+7.1f}%{flag}"
+                )
             else:
-                print(f"{name:<14} {label:<18} {val_a:>12.1f} {val_b:>12.1f} {val_sim:>12.1f} {delta_real:>+10.1f} {delta_sim:>+10.1f} {err_pct:>+7.1f}%{flag}")
+                print(
+                    f"{name:<14} {label:<18} {val_a:>12.1f} {val_b:>12.1f} {val_sim:>12.1f} {delta_real:>+10.1f} {delta_sim:>+10.1f} {err_pct:>+7.1f}%{flag}"
+                )
 
         # Level
         if st.level != pt_b.level:
-            print(f"{name:<14} {'level':<18} {pt_a.level:>12} {pt_b.level:>12} {st.level:>12} {'':>10} {'':>10}  MISMATCH")
+            print(
+                f"{name:<14} {'level':<18} {pt_a.level:>12} {pt_b.level:>12} {st.level:>12} {'':>10} {'':>10}  MISMATCH"
+            )
         print()
 
 
@@ -144,12 +155,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.verbose:
         print("=== Save A towns (loaded into sim) ===")
         for t in sim_towns:
-            print(f"  {t.name}: pop={t.population:,.0f} gnp={t.per_capita_gnp:,.0f}"
-                  f" unemp={t.unemployment:.1f}% level={t.level}")
+            print(
+                f"  {t.name}: pop={t.population:,.0f} gnp={t.per_capita_gnp:,.0f}"
+                f" unemp={t.unemployment:.1f}% level={t.level}"
+            )
         print()
 
     # Advance day by day, running town monthly ticks on stagger boundaries
     from capitalism.tables import STAGGER_MOD
+
     months_ticked = 0
     for _ in range(days_between):
         month_rolled, _year_rolled = cal.advance()
@@ -159,8 +173,7 @@ def main(argv: list[str] | None = None) -> int:
                 town.monthly_tick(rng, detailed=False)
                 months_ticked += 1
 
-    print(f"Sim advanced to {cal.year}-{cal.month:02d}-{cal.day:02d}"
-          f" (serial {cal.day_serial})")
+    print(f"Sim advanced to {cal.year}-{cal.month:02d}-{cal.day:02d} (serial {cal.day_serial})")
     print(f"Town monthly ticks fired: {months_ticked}")
     print()
 
@@ -168,13 +181,17 @@ def main(argv: list[str] | None = None) -> int:
     if args.verbose:
         print("=== Sim towns (after advance) ===")
         for t in sim_towns:
-            print(f"  {t.name}: pop={t.population:,.0f} gnp={t.per_capita_gnp:,.0f}"
-                  f" unemp={t.unemployment:.1f}% level={t.level}")
+            print(
+                f"  {t.name}: pop={t.population:,.0f} gnp={t.per_capita_gnp:,.0f}"
+                f" unemp={t.unemployment:.1f}% level={t.level}"
+            )
         print()
         print("=== Save B towns (expected) ===")
         for t in state_b.towns:
-            print(f"  {t.name}: pop={t.population:,.0f} gnp={t.gnp_per_capita:,.0f}"
-                  f" unemp={t.unemployment:.1f}% level={t.level}")
+            print(
+                f"  {t.name}: pop={t.population:,.0f} gnp={t.gnp_per_capita:,.0f}"
+                f" unemp={t.unemployment:.1f}% level={t.level}"
+            )
         print()
 
     print("=== Town Comparison: Save A → Save B vs Save A → Sim ===")

@@ -308,7 +308,9 @@ def test_flour_factory_fed_by_seaport_30_days_seed_1():
     assert mfg.stock == pytest.approx(960000.0)  # filled to ceiling (capacity × 8 at rating 1)
     # Wheat at $0.10 plus each day's wages spread over that day's output.
     assert mfg.unit_cost == pytest.approx(0.1129, abs=1e-4)
-    assert mfg.quality == pytest.approx(35.45)  # 50 import × 70% + skill 5 × 30% (job_tech catches up weekly)
+    assert mfg.quality == pytest.approx(
+        35.45
+    )  # 50 import × 70% + skill 5 × 30% (job_tech catches up weekly)
     assert buy.stock == pytest.approx(4800000.0)
 
 

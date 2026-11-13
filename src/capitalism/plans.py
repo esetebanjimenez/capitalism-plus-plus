@@ -155,10 +155,7 @@ def apply_plan(plan: Plan, firm: Firm, eco: Economy) -> None:
     if not plan.valid:
         raise ValueError("cannot apply an invalid plan")
     if plan.firm_type != firm.type_id:
-        raise ValueError(
-            f"plan is for firm type {plan.firm_type}, "
-            f"but firm is type {firm.type_id}"
-        )
+        raise ValueError(f"plan is for firm type {plan.firm_type}, but firm is type {firm.type_id}")
 
     firm.links = plan.connection_mask
     for i in range(MAX_SLOTS):

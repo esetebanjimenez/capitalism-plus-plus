@@ -115,9 +115,11 @@ def compare_products(set_items: list[dict[str, str]], db_path: Path) -> tuple[in
     mismatch = 0
     matched_db: set[str] = set()
 
-    print(f"\n{'='*70}")
-    print(f"Product comparison: SET ({len(set_items)} items) vs DB ({len(db_products_by_name)} items)")
-    print(f"{'='*70}\n")
+    print(f"\n{'=' * 70}")
+    print(
+        f"Product comparison: SET ({len(set_items)} items) vs DB ({len(db_products_by_name)} items)"
+    )
+    print(f"{'=' * 70}\n")
 
     field_map = {
         "base_price": ("PRICE", float),
@@ -176,16 +178,13 @@ def compare_products(set_items: list[dict[str, str]], db_path: Path) -> tuple[in
 def compare_firms(set_firms: list[dict[str, str]], db_path: Path) -> tuple[int, int]:
     con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     con.row_factory = sqlite3.Row
-    db_firms = {
-        r["id"]: dict(r)
-        for r in con.execute("SELECT * FROM firm_types ORDER BY id")
-    }
+    db_firms = {r["id"]: dict(r) for r in con.execute("SELECT * FROM firm_types ORDER BY id")}
     ok = 0
     mismatch = 0
 
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(f"Firm type comparison: SET ({len(set_firms)} types) vs DB ({len(db_firms)} types)")
-    print(f"{'='*70}\n")
+    print(f"{'=' * 70}\n")
 
     for i, firm in enumerate(set_firms):
         name = firm.get("NAME", "").strip()
@@ -275,9 +274,7 @@ def export_sqlite(set_path: Path, out_path: Path) -> None:
         if not fields:
             continue
 
-        col_defs = ", ".join(
-            f'"{f}" {_sql_type(t, l, d)}' for f, t, l, d in fields
-        )
+        col_defs = ", ".join(f'"{f}" {_sql_type(t, l, d)}' for f, t, l, d in fields)
         cur.execute(f'CREATE TABLE "{name}" ({col_defs})')
 
         placeholders = ", ".join("?" for _ in fields)
@@ -287,7 +284,7 @@ def export_sqlite(set_path: Path, out_path: Path) -> None:
 
     con.commit()
     row_total = 0
-    for (name, _) in index:
+    for name, _ in index:
         try:
             cnt = cur.execute(f'SELECT COUNT(*) FROM "{name}"').fetchone()[0]
             row_total += cnt
@@ -306,7 +303,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--compare", action="store_true", help="Compare against capitalism.db")
     ap.add_argument("--dump", action="store_true", help="Dump all sections")
     ap.add_argument(
-        "--sqlite", nargs="?", const=SET_DB, type=Path, metavar="OUT",
+        "--sqlite",
+        nargs="?",
+        const=SET_DB,
+        type=Path,
+        metavar="OUT",
         help=f"Export all sections to SQLite (default: {SET_DB})",
     )
     args = ap.parse_args(argv)
@@ -346,9 +347,9 @@ def main(argv: list[str] | None = None) -> int:
             total_ok += ok
             total_mismatch += mis
 
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print(f"Total: {total_ok} matched, {total_mismatch} differences")
-        print(f"{'='*70}")
+        print(f"{'=' * 70}")
         return 1 if total_mismatch > 0 else 0
 
     if not args.dump and not args.compare:

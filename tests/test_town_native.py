@@ -55,8 +55,17 @@ def test_level_never_drops():
 
 @pytest.mark.parametrize(
     ("term", "climate"),
-    [(8.0, 0), (7.99, 1), (4.0, 1), (0.0, 2), (-1.0, 2), (-1.01, 3), (-6.0, 3), (-6.01, 4),
-     (-100_000.0, 4)],
+    [
+        (8.0, 0),
+        (7.99, 1),
+        (4.0, 1),
+        (0.0, 2),
+        (-1.0, 2),
+        (-1.01, 3),
+        (-6.0, 3),
+        (-6.01, 4),
+        (-100_000.0, 4),
+    ],
 )
 def test_climate_thresholds_on_gnp_term(term, climate):
     from capitalism.town import Climate

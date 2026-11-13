@@ -26,6 +26,7 @@ from pathlib import Path
 # Low-level I/O (mirrors the game's read_short / read_int32 / read_blob)
 # ---------------------------------------------------------------------------
 
+
 class BinaryReader:
     __slots__ = ("data", "pos")
 
@@ -128,6 +129,7 @@ class BinaryReader:
 # Data containers
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class SaveHeader:
     scenario_id: int = 0
@@ -193,6 +195,7 @@ class SaveState:
 # Header parser
 # ---------------------------------------------------------------------------
 
+
 def parse_header(r: BinaryReader) -> SaveHeader:
     blob = r.read_blob()  # prefixed: expect 0x6D bytes
     h = SaveHeader()
@@ -213,6 +216,7 @@ def parse_header(r: BinaryReader) -> SaveHeader:
 # ---------------------------------------------------------------------------
 # Section parsers
 # ---------------------------------------------------------------------------
+
 
 def parse_game_date(r: BinaryReader) -> GameDate:
     """Tag 0x1005: g_game_date — prefixed blob (expect 0x41 bytes)."""
@@ -358,12 +362,16 @@ def parse_corporations(r: BinaryReader, state: SaveState) -> list[Corporation]:
         r.skip_blob()  # type-specific: 0x4D
         if len(base) >= 0x18E:
             name = r.read_cstring(base, 0x02, 48)
-            corps.append(Corporation(
-                slot=i, corp_type=corp_type, name=name,
-                cash=struct.unpack_from("<f", base, 0x186)[0],
-                net_worth=struct.unpack_from("<f", base, 0x18A)[0],
-                reputation=0.0,
-            ))
+            corps.append(
+                Corporation(
+                    slot=i,
+                    corp_type=corp_type,
+                    name=name,
+                    cash=struct.unpack_from("<f", base, 0x186)[0],
+                    net_worth=struct.unpack_from("<f", base, 0x18A)[0],
+                    reputation=0.0,
+                )
+            )
     return corps
 
 
@@ -378,19 +386,26 @@ def parse_towns(r: BinaryReader, state: SaveState) -> list[Town]:
     for i in range(count):
         base = r.read_blob()  # 0x173 base struct (prefixed)
         name = base[2:32].split(b"\x00")[0].decode("ascii", errors="replace")
-        population = struct.unpack_from("<f", base, 0x2d)[0]
+        population = struct.unpack_from("<f", base, 0x2D)[0]
         gnp_per_capita = struct.unpack_from("<f", base, 0x31)[0]
         unemployment = struct.unpack_from("<f", base, 0x47)[0]
-        labor_cost = struct.unpack_from("<f", base, 0x3b)[0]
+        labor_cost = struct.unpack_from("<f", base, 0x3B)[0]
         labor_quality = struct.unpack_from("<f", base, 0x43)[0]
-        consumer_spending = struct.unpack_from("<f", base, 0x3f)[0]
+        consumer_spending = struct.unpack_from("<f", base, 0x3F)[0]
         econ_climate = struct.unpack_from("<h", base, 0x39)[0]
-        towns.append(Town(
-            index=i, name=name, population=population,
-            gnp_per_capita=gnp_per_capita, unemployment=unemployment,
-            labor_cost=labor_cost, labor_quality=labor_quality,
-            consumer_spending=consumer_spending, econ_climate=econ_climate,
-        ))
+        towns.append(
+            Town(
+                index=i,
+                name=name,
+                population=population,
+                gnp_per_capita=gnp_per_capita,
+                unemployment=unemployment,
+                labor_cost=labor_cost,
+                labor_quality=labor_quality,
+                consumer_spending=consumer_spending,
+                econ_climate=econ_climate,
+            )
+        )
         r.skip_blob()  # product demands: num_products * 2 bytes (prefixed)
         r.skip_blob()  # per-corp town data: num_corp_slots * 0x1A bytes (prefixed)
 
@@ -401,6 +416,7 @@ def parse_towns(r: BinaryReader, state: SaveState) -> list[Town]:
 # ---------------------------------------------------------------------------
 # Group C parser
 # ---------------------------------------------------------------------------
+
 
 def parse_group_c(r: BinaryReader, state: SaveState) -> None:
     """Parse Group C: tags 0x1015-0x101D."""
@@ -473,6 +489,7 @@ def parse_group_c(r: BinaryReader, state: SaveState) -> None:
 
 debug = False
 
+
 def parse_sav(path: Path) -> SaveState:
     data = path.read_bytes()
     r = BinaryReader(data)
@@ -483,7 +500,7 @@ def parse_sav(path: Path) -> SaveState:
 
     # 2. Version tag (write_short — no prefix)
     state.version_tag = r.read_short()
-    state.is_design_mode = (state.version_tag == -100)
+    state.is_design_mode = state.version_tag == -100
 
     # 3. g_app: prefixed blob (expect 0x2E1 bytes)
     r.skip_blob()
@@ -505,6 +522,7 @@ def parse_sav(path: Path) -> SaveState:
 # ---------------------------------------------------------------------------
 # Display
 # ---------------------------------------------------------------------------
+
 
 def print_state(state: SaveState) -> None:
     h = state.header
@@ -545,8 +563,12 @@ def print_state(state: SaveState) -> None:
         for t in state.towns:
             gnp_total = t.population * t.gnp_per_capita
             print(f"  [{t.index}] {t.name}")
-            print(f"       pop={t.population:,.0f}  GNP/cap={t.gnp_per_capita:,.0f}  GNP={gnp_total:,.0f}")
-            print(f"       unemp={t.unemployment:.1f}%  labor_cost={t.labor_cost:.0f}  labor_qual={t.labor_quality:.0f}")
+            print(
+                f"       pop={t.population:,.0f}  GNP/cap={t.gnp_per_capita:,.0f}  GNP={gnp_total:,.0f}"
+            )
+            print(
+                f"       unemp={t.unemployment:.1f}%  labor_cost={t.labor_cost:.0f}  labor_qual={t.labor_quality:.0f}"
+            )
             print(f"       consumer={t.consumer_spending:.0f}  econ_climate={5 - t.econ_climate}")
         print()
 
@@ -554,6 +576,7 @@ def print_state(state: SaveState) -> None:
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
+
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Parse Capitalism Plus .SAV file")

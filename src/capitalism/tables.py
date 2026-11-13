@@ -623,9 +623,7 @@ def load_competitor_capital() -> dict[int, CompetitorCapitalRow]:
 @lru_cache(maxsize=1)
 def load_strategy_capital() -> dict[int, StrategyCapitalRow]:
     out: dict[int, StrategyCapitalRow] = {}
-    for r in _rows(
-        "SELECT mode, name, cap_min, cap_max, ref FROM strategy_capital ORDER BY mode"
-    ):
+    for r in _rows("SELECT mode, name, cap_min, cap_max, ref FROM strategy_capital ORDER BY mode"):
         out[dict(r)["mode"]] = StrategyCapitalRow(**dict(r))
     return out
 
@@ -928,9 +926,7 @@ def load_livestock_yields() -> dict[int, list[LivestockYieldRow]]:
 
 @lru_cache(maxsize=1)
 def load_livestock_herd_rates() -> dict[int, LivestockHerdRow]:
-    rows = _rows(
-        "SELECT product_id, grow_rate, reproduce_rate, weight FROM livestock_herd_rates"
-    )
+    rows = _rows("SELECT product_id, grow_rate, reproduce_rate, weight FROM livestock_herd_rates")
     return {int(r["product_id"]): LivestockHerdRow(**dict(r)) for r in rows}
 
 

@@ -153,9 +153,7 @@ class Person:
 
     def salary_raise_penalty(self, rng: Rng) -> None:
         """Satisfaction drop when a raise is declined (gamelogic.md Salary raise penalties)."""
-        self.satisfaction -= rng.randint(
-            int(_PR.raise_penalty_min), int(_PR.raise_penalty_max)
-        )
+        self.satisfaction -= rng.randint(int(_PR.raise_penalty_min), int(_PR.raise_penalty_max))
 
     # --- salary and retention ------------------------------------------------
 

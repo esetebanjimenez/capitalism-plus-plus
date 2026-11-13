@@ -137,6 +137,7 @@ class TestDailyPriceMovement:
             for _ in range(30):
                 daily_price_update(s, rng, 1000.0)
             return s.price
+
         assert run(42) == run(42)
 
 
@@ -276,9 +277,11 @@ class TestDividends:
 
     def test_ai_dividend_deterministic(self):
         """Same seed → same result."""
+
         def run(seed):
             s = Stock(0, 100_000.0, 10.0)
             return compute_ai_dividend(s, 200_000.0, 25_000_000.0, 0.0, 50_000.0, 50, Rng(seed))
+
         assert run(42) == run(42)
 
 
@@ -376,7 +379,7 @@ class TestMarkToMarket:
         s1 = Stock(0, 100_000.0, 10.0)
         s2 = Stock(1, 100_000.0, 20.0)
         s1.holdings_corps[2] = 100  # corp 2 holds 100 shares of s1
-        s2.holdings_corps[2] = 50   # corp 2 holds 50 shares of s2
+        s2.holdings_corps[2] = 50  # corp 2 holds 50 shares of s2
         stocks: list[Stock | None] = [s1, s2]
         current, pnl = mark_to_market(stocks, 2, 0.0)
         assert current == pytest.approx(100 * 10.0 + 50 * 20.0)
@@ -396,6 +399,7 @@ class TestEconomyIntegration:
         sim, _ = bread_town(1)
         eco = sim.economy
         from capitalism.economy import CORP_PLAYER
+
         corp = eco.add_corp("Test Corp", CORP_PLAYER)
         assert eco.stocks[corp.id] is not None
         assert eco.stocks[corp.id].corp_id == corp.id
@@ -404,6 +408,7 @@ class TestEconomyIntegration:
         sim, _ = bread_town(1)
         eco = sim.economy
         from capitalism.economy import CORP_GOVERNMENT
+
         corp = eco.add_corp("Gov", CORP_GOVERNMENT)
         assert eco.stocks[corp.id] is None
 
@@ -422,6 +427,7 @@ class TestEconomyIntegration:
             build_bread_chain(sim, town)
             sim.advance_days(60)
             return sim.state_hash()
+
         assert run(1) == run(1)
 
     def test_full_sim_120_days(self):

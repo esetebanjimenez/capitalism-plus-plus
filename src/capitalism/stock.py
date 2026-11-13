@@ -112,7 +112,9 @@ def daily_price_update(stock: Stock, rng: Rng, earnings: float, climate: int = 2
         stock.earnings_momentum += _SR.momentum_up_step
     elif earnings < 0:
         stock.earnings_momentum -= _SR.momentum_down_step
-    stock.earnings_momentum = max(-_SR.momentum_clamp, min(_SR.momentum_clamp, stock.earnings_momentum))
+    stock.earnings_momentum = max(
+        -_SR.momentum_clamp, min(_SR.momentum_clamp, stock.earnings_momentum)
+    )
     change += stock.earnings_momentum * stock.price
 
     # 3. Random spikes/crashes (1/200)
@@ -135,6 +137,7 @@ def daily_price_update(stock: Stock, rng: Rng, earnings: float, climate: int = 2
 # ---------------------------------------------------------------------------
 # Trading
 # ---------------------------------------------------------------------------
+
 
 def price_impact(shares: int, total_shares: int, price: float) -> float:
     """Per-share price impact of a trade (gamelogic.md Price impact)."""
@@ -196,9 +199,7 @@ def buy_back_shares(stock: Stock, quantity: int) -> float:
     return cost
 
 
-def sell_shares(
-    stock: Stock, seller_type: str, seller_id: int, quantity: int
-) -> float:
+def sell_shares(stock: Stock, seller_type: str, seller_id: int, quantity: int) -> float:
     """Sell shares. Returns total proceeds."""
     if quantity <= 0:
         return 0.0
@@ -231,6 +232,7 @@ def sell_shares(
 # Share issuance
 # ---------------------------------------------------------------------------
 
+
 def issue_shares(stock: Stock, new_shares: int) -> float:
     """Issue new shares. Returns gross proceeds (gamelogic.md Share issuance)."""
     if new_shares <= 0:
@@ -250,6 +252,7 @@ def issue_shares(stock: Stock, new_shares: int) -> float:
 # ---------------------------------------------------------------------------
 # Dividends
 # ---------------------------------------------------------------------------
+
 
 def pay_dividend(stock: Stock, total_payout: float) -> dict[str, list[tuple[int, float]]]:
     """Distribute dividends proportionally to all shareholders.
@@ -286,9 +289,13 @@ def pay_dividend(stock: Stock, total_payout: float) -> dict[str, list[tuple[int,
 
 
 def compute_ai_dividend(
-    stock: Stock, total_assets: float, cash: float,
-    investment_value: float, earnings: float,
-    personality: int, rng: Rng,
+    stock: Stock,
+    total_assets: float,
+    cash: float,
+    investment_value: float,
+    earnings: float,
+    personality: int,
+    rng: Rng,
 ) -> float:
     """Native AI dividend (FUN_00040fd5, decomp:39332). Returns total payout."""
     eps = stock.earnings_per_share(earnings)
@@ -339,6 +346,7 @@ def compute_ai_dividend(
 # Monthly / yearly processing
 # ---------------------------------------------------------------------------
 
+
 def stock_monthly(stock: Stock) -> None:
     """Monthly: record average price (gamelogic.md Monthly and yearly history)."""
     if stock.daily_prices:
@@ -364,6 +372,7 @@ def stock_yearly(stock: Stock, annual_earnings: float) -> None:
 # AI trading
 # ---------------------------------------------------------------------------
 
+
 def ai_buyback(stock: Stock, corp_id: int, rng: Rng) -> float:
     """AI buys back own shares if public float is too high (gamelogic.md AI stock trading)."""
     if stock.total_shares <= 0:
@@ -377,9 +386,7 @@ def ai_buyback(stock: Stock, corp_id: int, rng: Rng) -> float:
     return buy_back_shares(stock, target)  # S3: retired, not held
 
 
-def ai_invest(
-    stock: Stock, investor_corp_id: int, surplus_cash: float, rng: Rng
-) -> float:
+def ai_invest(stock: Stock, investor_corp_id: int, surplus_cash: float, rng: Rng) -> float:
     """AI invests surplus cash in another corporation's stock."""
     if surplus_cash <= 0 or stock.price <= 0:
         return 0.0
@@ -397,9 +404,12 @@ def ai_invest(
 # SEC rules
 # ---------------------------------------------------------------------------
 
+
 def check_sec_violation(
-    buyer_corp_id: int, target_stock: Stock,
-    player_person_id: int | None, player_corp_ids: list[int],
+    buyer_corp_id: int,
+    target_stock: Stock,
+    player_person_id: int | None,
+    player_corp_ids: list[int],
 ) -> bool:
     """Return True if trade would violate SEC rules (gamelogic.md Securities regulation)."""
     if player_person_id is not None:
@@ -412,7 +422,11 @@ def check_sec_violation(
 
     # Rule 2: controlled corp buying where main corp already owns
     for pid in player_corp_ids:
-        if pid != buyer_corp_id and target_stock.holdings_corps[pid] > 0 and buyer_corp_id in player_corp_ids:
+        if (
+            pid != buyer_corp_id
+            and target_stock.holdings_corps[pid] > 0
+            and buyer_corp_id in player_corp_ids
+        ):
             return True
 
     return False
@@ -421,6 +435,7 @@ def check_sec_violation(
 # ---------------------------------------------------------------------------
 # Tender offers
 # ---------------------------------------------------------------------------
+
 
 def tender_offer_price(
     stock: Stock, target_is_ceo: bool, personality_trait: int, rng: Rng
@@ -446,6 +461,7 @@ def tender_cooldown_days(target_is_ceo: bool, success: bool, rng: Rng) -> int:
 # ---------------------------------------------------------------------------
 # Mark-to-market (daily AI accounting)
 # ---------------------------------------------------------------------------
+
 
 def mark_to_market(
     stocks: list[Stock | None], corp_id: int, prev_value: float
