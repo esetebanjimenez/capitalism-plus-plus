@@ -620,6 +620,8 @@ class Economy:
             tm.random_walk_refs(self.rng)
             tm.last_month_unmet_demand_sum = tm.unmet_demand_sum
             tm.unmet_demand_sum = 0.0
+            tm.last_month_unmet_demand_value_sum = tm.unmet_demand_value_sum
+            tm.unmet_demand_value_sum = 0.0
 
     def _compute_market_shares(self, days_in_month: int) -> None:
         """K1: prorated market share (native 0xa96b4/0xa99ed = 31).

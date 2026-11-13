@@ -2520,8 +2520,11 @@ side of the product link system. Each day, when an entry's demand
 figure exceeds its supply total, the gap (and the gap × the reference
 price) is booked into the entry's monthly quantity and revenue and into
 the product's totals. Unmet demand therefore counts in the product's
-market total, which is the denominator of market share. (Reading the
-two fields as demand and supply is inferred from how they are used.)
+market total, which is the denominator of market share. The sim tracks
+both the quantity gap (`unmet_demand_sum`) and the price-weighted gap
+(`unmet_demand_value_sum = gap × ref_price`) on `TownMarket`, rolled
+monthly (#221). (Reading the two fields as demand and supply is inferred
+from how they are used.)
 
 ## Stock market
 
@@ -3660,9 +3663,10 @@ At the start of each month:
 > functions, oversupply trim gated on D < S, a projection gate for
 > increase/take, even-day supply sum (R15), and the N10 cross-ownership
 > price swap (#217). K1 market share uses the prorated projection (#219).
-> The full N8 brand build-up system is implemented with per-(town,
-> brand_key) BrandRecords (#171, #213). Brand perception is per-(town,
-> corp) with monthly N9 awareness updates.
+> K2 price-weighted unmet demand (`gap × ref_price`) is tracked alongside
+> the quantity gap (#221). The full N8 brand build-up system is implemented
+> with per-(town, brand_key) BrandRecords (#171, #213). Brand perception
+> is per-(town, corp) with monthly N9 awareness updates.
 
 ### Sales
 

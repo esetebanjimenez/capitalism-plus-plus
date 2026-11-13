@@ -534,3 +534,42 @@ class TestK1Prorate:
         # projected_link = 100, projected_unmet = 100 + 3/31*310 = 130
         # total = 230, share = round(100/230*100) = 43
         assert corp.market_share[link.product.id] == 43
+
+
+class TestK2UnmetDemandValue:
+    """K2: unmet demand accumulates gap * ref_price into value sum."""
+
+    def test_value_sum_accumulates(self):
+        sim, town = bread_town()
+        eco = sim.economy
+        corp = eco.add_corp("T")
+        link = _link_in_town(sim, town, corp, quality=50)
+        tm = eco.town_market(town, "Bread")
+        tm.demand_per_day = 10.0
+        link.quantity = 3.0
+        tm.unmet_demand_value_sum = 0.0
+        tm.unmet_demand_sum = 0.0
+        eco.market.consumer_pass(tm, 2, 1)
+        assert tm.unmet_demand_sum > 0
+        assert tm.unmet_demand_value_sum == pytest.approx(
+            tm.unmet_demand_sum * tm.ref_price
+        )
+
+    def test_value_sum_zero_when_no_demand(self):
+        sim, town = bread_town()
+        eco = sim.economy
+        tm = eco.town_market(town, "Bread")
+        tm.demand_per_day = 0.0
+        tm.unmet_demand_value_sum = 0.0
+        eco.market.consumer_pass(tm, 2, 1)
+        assert tm.unmet_demand_value_sum == 0.0
+
+    def test_value_sum_rolled_monthly(self):
+        sim, town = bread_town()
+        eco = sim.economy
+        tm = eco.town_market(town, "Bread")
+        tm.unmet_demand_value_sum = 42.0
+        tm.last_month_unmet_demand_value_sum = 0.0
+        eco.monthly()
+        assert tm.last_month_unmet_demand_value_sum == 42.0
+        assert tm.unmet_demand_value_sum == 0.0

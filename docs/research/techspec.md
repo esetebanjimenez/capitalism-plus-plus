@@ -4272,8 +4272,11 @@ formula. K1 market share is `Economy._compute_market_shares(days_in_month)`,
 now with the native prorated projection: `projected = this_month + (31 −
 days_in_month) × last_month / 31` (#219). Unmet demand in the denominator
 is prorated the same way via `TownMarket.last_month_unmet_demand_sum`.
-K2 unmet demand is accumulated in `consumer_pass`, and K3 consumer split
-is the N4-N7 transfer system replacing the old score² split.
+K2 unmet demand is accumulated in `consumer_pass`: both the quantity gap
+(`unmet_demand_sum`) and the price-weighted gap (`unmet_demand_value_sum =
+gap × ref_price`, matching the native `+0x8e`/`+0xbe` buckets) are tracked
+and rolled monthly (#221). K3 consumer split is the N4-N7 transfer system
+replacing the old score² split.
 
 **Sim update** (sim-market, PR #205): `consumer_pass` now gates oversupply
 trim on D < S (N7), uses per-factor clamping in `_reduce_gap`/`_increase_gap`/
