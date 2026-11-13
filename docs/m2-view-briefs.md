@@ -170,6 +170,7 @@ There are three ways the game can end, and the card needs a version for each:
 
 - Use one card layout with three headline and colour treatments, not three
   separate screens.
-- Draw a New game button. A Keep playing button is Unknown. We haven't
-  confirmed whether the native game lets you play on after the game ends, so
-  draw it as an optional second button that can be hidden.
+- Draw a New game button only — **no Keep playing button**. The native
+  game exits to the main menu after the result screen; the `else` branch
+  in `FUN_0001cf40` that would clear goals and continue is dead code
+  because `DAT_000b1f17` is always zero (see techspec "Game over handler").
