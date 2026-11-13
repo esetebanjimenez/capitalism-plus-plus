@@ -483,7 +483,7 @@ def preview(S=2):
         stats = [
             ("Final score", "8,420" if c == 0 else ("3,115" if c == 1 else "4,960")),
             ("Years played", "12" if c != 1 else "20"),
-            ("Difficulty", "120%"),
+            ("Difficulty", "120"),
         ]
         for i, (a, b) in enumerate(stats):
             yy = y + 126 + i * 28
