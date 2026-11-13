@@ -251,7 +251,9 @@ class TownMarket:
         """Rebuild ref_score from components (N2, FPU recovery FUN_0004cf68)."""
         row = self.product.row
         if row.w_brand > 0:
-            base = round(self.price_weight * 2.0 * (row.base_price - self.ref_price) / row.base_price)
+            base = round(
+                self.price_weight * 2.0 * (row.base_price - self.ref_price) / row.base_price
+            )
             self.ref_score = max(
                 0.0,
                 base

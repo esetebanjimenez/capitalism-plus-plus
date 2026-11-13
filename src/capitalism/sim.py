@@ -130,7 +130,10 @@ class Sim:
         self._towns_daily()
         self._hook("goals")
         self.goal_checker.daily(
-            self.economy, self.calendar.day_serial, self.calendar.year, self.setup,
+            self.economy,
+            self.calendar.day_serial,
+            self.calendar.year,
+            self.setup,
         )
         if self.calendar.weekday == 5:
             self._hook("weekly_ratings")
@@ -143,7 +146,9 @@ class Sim:
         self.economy.products_daily(product_slot)
         self._hook("natural_resources")
         self.world.discover_resources(
-            self.rng, self.calendar.day_serial, self.calendar.start_serial,
+            self.rng,
+            self.calendar.day_serial,
+            self.calendar.start_serial,
         )
 
         self.history.append(
@@ -220,7 +225,9 @@ class Sim:
         self.economy.stocks_yearly()
         self.economy.yearly()
         self.goal_checker.yearly(
-            self.calendar.year, self.start_year, self.setup.year_limit,
+            self.calendar.year,
+            self.start_year,
+            self.setup.year_limit,
         )
 
     def state_hash(self) -> str:

@@ -52,8 +52,8 @@ class TestIncomeStatement:
     def test_cost_of_sales_composite(self):
         corp = Corporation(0, "Test")
         corp.ledger.post(4, 100.0)  # purchase cost
-        corp.ledger.post(5, 30.0)   # freight cost
-        corp.ledger.post(8, 20.0)   # raw material
+        corp.ledger.post(5, 30.0)  # freight cost
+        corp.ledger.post(8, 20.0)  # raw material
         assert corp.cost_of_sales == 150.0
 
 
@@ -136,7 +136,9 @@ class TestDailyFinance:
         corp.daily_finance(10.0)
         overdraft = 1_000_000.0 * (10.0 + CORPORATION_RULES.overdraft_spread) / 100.0 / 365.0
         debt_on_new = overdraft * 10.0 / 100.0 / 365.0
-        assert corp.ledger.month[CAT_LOAN_INTEREST] == pytest.approx(overdraft + debt_on_new, rel=1e-6)
+        assert corp.ledger.month[CAT_LOAN_INTEREST] == pytest.approx(
+            overdraft + debt_on_new, rel=1e-6
+        )
         assert corp.liabilities == pytest.approx(overdraft, rel=1e-6)
 
     def test_debt_interest(self):

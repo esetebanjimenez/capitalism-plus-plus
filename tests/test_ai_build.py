@@ -165,7 +165,7 @@ def test_configure_factory():
 
     jobs = firm.jobs()
     types = {j.type_id for j in jobs}
-    assert 7 in types   # Manufacturing
+    assert 7 in types  # Manufacturing
     assert 12 in types  # Sales
     assert 10 in types  # Purchasing
     assert len(jobs) >= 3  # at least 1 purchase + mfg + sales
@@ -187,8 +187,7 @@ def test_configure_farm_crop():
     while True:
         test_rng = Rng(rng.randint(0, 10000))
         all_farm = [
-            p for p in cat.products
-            if isinstance(p, (Crop, Livestock)) and p.state.available
+            p for p in cat.products if isinstance(p, (Crop, Livestock)) and p.state.available
         ]
         pick = test_rng.choice(all_farm)
         if isinstance(pick, Crop):
@@ -197,7 +196,7 @@ def test_configure_farm_crop():
 
     jobs = firm.jobs()
     types = {j.type_id for j in jobs}
-    assert 1 in types   # CropGrowing
+    assert 1 in types  # CropGrowing
     assert 12 in types  # Sales
 
 
@@ -214,7 +213,7 @@ def test_configure_mine():
     jobs = firm.jobs()
     assert len(jobs) == 2
     types = {j.type_id for j in jobs}
-    assert 8 in types   # Mining
+    assert 8 in types  # Mining
     assert 12 in types  # Sales
     assert firm.reserve == 100.0
     assert jobs[0].product.id in (1, 2, 3, 4, 5, 7)
@@ -232,7 +231,7 @@ def test_configure_oil_well():
 
     jobs = firm.jobs()
     assert len(jobs) == 2
-    assert jobs[0].type_id == 9   # OilExtraction
+    assert jobs[0].type_id == 9  # OilExtraction
     assert jobs[0].product.id == 6  # Oil
     assert firm.reserve == 100.0
 
@@ -249,7 +248,7 @@ def test_configure_logging_camp():
 
     jobs = firm.jobs()
     assert len(jobs) == 2
-    assert jobs[0].type_id == 4   # Logging
+    assert jobs[0].type_id == 4  # Logging
     assert jobs[0].product.id == 8  # Timber
     assert firm.reserve == 100.0
 

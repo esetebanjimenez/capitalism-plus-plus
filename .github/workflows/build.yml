@@ -17,7 +17,9 @@ jobs:
       - name: Install
         run: pip install -e ".[dev]"
       - name: Lint
-        run: ruff check src tests
+        run: |
+          ruff check src tests
+          ruff format --check .
       - name: Rules doc up to date
         run: python scripts/generate_rules_md.py --check
       - name: Test

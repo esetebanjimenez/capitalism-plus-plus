@@ -147,13 +147,13 @@ def test_ai_build_checks_land_plus_real_setup_cost():
 @pytest.mark.parametrize(
     ("setting", "mode", "lo", "hi"),
     [
-        (0, 0, 55e6, 100e6),    # Low / Establish
-        (0, 2, 55e6, 65e6),     # Low / Retail
-        (1, 0, 220e6, 400e6),   # Moderate / Establish
-        (2, 0, 390e6, 700e6),   # High / Establish
+        (0, 0, 55e6, 100e6),  # Low / Establish
+        (0, 2, 55e6, 65e6),  # Low / Retail
+        (1, 0, 220e6, 400e6),  # Moderate / Establish
+        (2, 0, 390e6, 700e6),  # High / Establish
         (3, 0, 550e6, 1000e6),  # Very High / Establish
         (4, 0, 710e6, 1300e6),  # Extreme / Establish
-        (4, 2, 710e6, 840e6),   # Extreme / Retail
+        (4, 2, 710e6, 840e6),  # Extreme / Retail
     ],
 )
 def test_ai_starting_capital_by_setting(setting, mode, lo, hi):
@@ -172,7 +172,8 @@ def test_facade_build_cost_and_refusal():
     x, y = find_site(api.sim, town)
     api.player.ledger.cash = 10.0
     opt = next(
-        o for o in api.query("build_options", {"x": x, "y": y})["options"]
+        o
+        for o in api.query("build_options", {"x": x, "y": y})["options"]
         if o["type_id"] == DEPT_STORE
     )
     assert opt["land_value"] == api.sim.world.land_value(x, y)

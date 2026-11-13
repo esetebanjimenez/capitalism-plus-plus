@@ -551,9 +551,7 @@ class TestK2UnmetDemandValue:
         tm.unmet_demand_sum = 0.0
         eco.market.consumer_pass(tm, 2, 1)
         assert tm.unmet_demand_sum > 0
-        assert tm.unmet_demand_value_sum == pytest.approx(
-            tm.unmet_demand_sum * tm.ref_price
-        )
+        assert tm.unmet_demand_value_sum == pytest.approx(tm.unmet_demand_sum * tm.ref_price)
 
     def test_value_sum_zero_when_no_demand(self):
         sim, town = bread_town()
