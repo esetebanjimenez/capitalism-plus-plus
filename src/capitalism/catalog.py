@@ -128,6 +128,7 @@ class ProductState:
     __slots__ = (
         "available",
         "discovered_year",
+        "max_score",
         "max_score_in",
         "obsolete",
         "score",
@@ -141,7 +142,8 @@ class ProductState:
         self.obsolete = False
         self.score = PRODUCT_RULES.score_no_links
         self.score_jitter = 0
-        self.max_score_in = 0.0
+        self.max_score_in = 0
+        self.max_score = 0
         self.available = True
 
 
@@ -263,6 +265,9 @@ class Catalog:
         ]
         self.by_id: dict[int, Product] = {p.id: p for p in self.products}
         self.by_name: dict[str, Product] = {p.name: p for p in self.products}
+        self.class_first_product: dict[int, int] = {}
+        for p in self.products:
+            self.class_first_product.setdefault(p.row.class_id, p.id)
         self.recipes: dict[int, RecipeRow] = dict(load_recipes())
         self.rnd_prereqs: dict[int, list[RndPrereqRow]] = {}
         for pre in load_rnd_prereqs():
