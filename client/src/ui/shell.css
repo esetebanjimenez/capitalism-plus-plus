@@ -13,6 +13,24 @@
 .pill-speed { position: relative; width: 44px; height: 32px; display: grid; place-items: center; }
 /* Tap area reaches 44x44 pt past the 32 pt-tall art (spec: tap targets at least 44 pt). */
 .pill-speed::before { content: ""; position: absolute; left: 0; right: 0; top: -6px; bottom: -6px; }
+.pill-speed { grid-auto-flow: column; gap: 2px; }
+.speed-num { font-size: 12px; font-weight: 800; }
+.speed-num:empty { display: none; }
+/* The picker arrow is a desktop control; phones long-press the speed button. */
+.speed-more { display: none; width: 24px; height: 32px; place-items: center; }
+.shell.desktop .speed-more { display: grid; }
+.speed-picker { position: absolute; left: 0; top: 46px; display: flex; gap: 4px; padding: 4px; }
+.shell.picker-open .toasts { top: calc(max(8px, env(safe-area-inset-top)) + 104px); }
+.speed-opt { min-width: 44px; height: 44px; padding: 0 8px !important; border-radius: 4px; }
+.speed-opt.on { background: #e8742a !important; color: #fff !important; }
+.toast-error { padding: 10px 14px 10px 18px; }
+.sim-overlay { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(16, 19, 26, 0.85); color: #f6ecd4;
+  font: 600 15px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; z-index: 10; }
+.sim-overlay .box { max-width: min(640px, 92vw); padding: 20px; }
+.sim-overlay .bar { height: 8px; margin-top: 10px; background: rgba(246, 236, 212, 0.2); border-radius: 4px; overflow: hidden; }
+.sim-overlay .bar > div { height: 100%; width: 0; background: #e8742a; transition: width 0.2s; }
+.sim-overlay pre { max-height: 60vh; overflow: auto; padding: 10px; background: #000; color: #f6ecd4; font: 12px/1.4 ui-monospace, monospace;
+  white-space: pre-wrap; -webkit-user-select: text; user-select: text; }
 
 .menu-btn { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom));
   width: 48px; height: 48px; display: grid; place-items: center; }

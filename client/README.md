@@ -45,3 +45,14 @@ Chrome there renders WebGL on the CPU (SwiftShader), so frame times are only rel
 https://esetebanjimenez.github.io/capitalism-plus-plus/ (same URL options, for example
 `?mode=baked` or `?art=32`). The HUD's second line shows the average frame time, the
 render call's CPU time and the screen's pixel density.
+
+## Sim in a Web Worker (#246)
+
+`src/sim/worker.ts` boots the pinned Pyodide (314.0.7, from the jsDelivr CDN), loads
+pydantic, unpacks `public/capitalism.zip` (written by `npm run bundle`, which `dev` and
+`build` run first) and creates `capitalism.api.Api.new_game(**DEFAULT_SETUP)`
+(`src/sim/setup.ts`). `src/sim/engine.ts` owns the clock and command queue, and
+`src/sim/client.ts` is the main-thread `SimClient` (`query`, `command -> id`, `onTick`,
+`onCmdResult`). Speeds are target days per second in `src/sim/clock.ts` (provisional:
+1, 3, 8, max). Space pauses and 1–4 set the speed. `web/worker-smoke.mjs` runs the
+engine under Node + Pyodide in the `pyodide-smoke` CI job.
