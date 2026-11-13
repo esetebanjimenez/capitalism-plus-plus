@@ -2626,10 +2626,12 @@ Monthly GNP adjustment (`town_gnp_update`, 0x0004b609):
 This gives ten discrete steps from 295/300 to 304/300 (`0x127` = 295,
 `0xa6eca` = 300; lines 46562-46564), roughly ±1.7% per month. GNP is
 clamped to the minimum for the current tier. If GNP exceeds the tier's
-max, the tier upgrades by one. Unresolved: lines 46565-46572 compare
-dollar GNP with the raw shorts in `DAT_000adae4` and require GNP <
-`0xa6ece` = 3.0 (f32); read literally, the floor never applies and the
-upgrade never fires. Likely an x87 compare misread by the decompiler.
+max, the tier upgrades by one. The `0xa6ece` = 3.0 (f32, confirmed from
+EXE) is most likely a tier-cap compare (`tier < 3`) misattributed to GNP
+by the decompiler's x87 stack reconstruction. With that reading the
+upgrade condition is `gnp >= threshold[tier] && tier < 3`, and the raw
+shorts ×200 match the DB dollar values exactly (init formula uses
+`×20000/100`).
 
 ### Economic climate thresholds
 
