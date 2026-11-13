@@ -115,4 +115,4 @@ frames to `ui_atlas` (now 71 frames, earlier frames unchanged). Preview: `docs/a
   tip on the tapped point; a single point is a dot alone.
 - **Win/loss card (#178):** one `card` layout; `end_band_win|time|rival` (green, amber, red) and
   `icon_end_win|time|rival` (shown at 2×) change per outcome. Goal rows use `icon_goal` and
-  `icon_goal_miss`. New game is `btn_primary`; Keep playing is an optional `btn_secondary` the client can hide.
+  `icon_goal_miss`, with labels from `q_goals`; difficulty is a plain rating (no %). New game is `btn_primary`; Keep playing is an optional `btn_secondary` the client can hide.
