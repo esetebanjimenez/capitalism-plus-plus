@@ -116,3 +116,18 @@ frames to `ui_atlas` (now 71 frames, earlier frames unchanged). Preview: `docs/a
 - **Win/loss card (#178):** one `card` layout; `end_band_win|time|rival` (green, amber, red) and
   `icon_end_win|time|rival` (shown at 2×) change per outcome. Goal rows use `icon_goal` and
   `icon_goal_miss`, with labels from `q_goals`; difficulty is a plain rating (no %). New game is `btn_primary`; Keep playing is an optional `btn_secondary` the client can hide.
+
+## Native town tiles (#303)
+
+`art/tools/towntiles.py` draws two stand-alone town sets (no road autotiling), at 64 px and a 32 px fallback.
+`build64.py` and `preview.py` append them after every older frame in `terrain_atlas_64` and `terrain_atlas`.
+Run `python3 towntiles.py` to rebuild `docs/art/m2-town-native-preview.png`.
+
+| Frame | Native kind | Where it appears |
+| --- | --- | --- |
+| `town_urban_0` .. `town_urban_7` | `0x3000` .. `0x3007` (large town), index = kind − `0x3000` | ring, from the level radius out to level + 4 |
+| `town_rural_0` .. `town_rural_4` | `0x3008` .. `0x300c` (small town), index = kind − `0x3008` | solid core inside the level radius, plus the 1-in-10 corner tiles |
+
+Urban: 0 glass tower, 1 tower with helipad, 2 tan mid-rise, 3 brick mid-rise with mast, 4 two mid-rises and a tree,
+5 shop row over a car park, 6 glass offices and brick annex, 7 tower with plaza.
+Rural: 0 four houses on crossing paths, 1 three houses and a tree, 2 two houses with gardens, 3 house, vegetable plot and shed, 4 farmstead.

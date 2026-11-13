@@ -32,9 +32,11 @@ import firms
 
 firms.build(saver("firms"), saver("flags"))
 flags = sorted(n for n in fr if n.startswith("flag_"))
-names = sorted(n for n in fr if n not in flags)
+late = [n for n in fr if n.startswith("town_")]  # #303, appended after the flags so no frame moves
+names = sorted(n for n in fr if n not in flags and n not in late)
 cols = 16
-ncell = len(names) + math.ceil(len(flags) / 8)
+fcell = len(names) + math.ceil(len(flags) / 8)
+ncell = fcell + len(late)
 at = Image.new("RGBA", (cols * 32, math.ceil(ncell / cols) * 32), (0, 0, 0, 0))
 meta = {}
 for i, n in enumerate(names):
@@ -48,6 +50,10 @@ for j, n in enumerate(flags):  # 8 x 12 flags, eight to a 32 px cell (4 x 2 grid
     y = (c // cols) * 32 + (k // 4) * 12
     at.paste(fr[n], (x, y))
     meta[n] = dict(x=x, y=y, w=8, h=12)
+for j, n in enumerate(late):
+    x, y = ((fcell + j) % cols) * 32, ((fcell + j) // cols) * 32
+    at.paste(fr[n], (x, y))
+    meta[n] = dict(x=x, y=y, w=32, h=32)
 os.makedirs("../atlas", exist_ok=True)
 at.save("../atlas/terrain_atlas.png")
 json.dump(dict(tile=32, frames=meta), open("../atlas/terrain_atlas.json", "w"), indent=1)

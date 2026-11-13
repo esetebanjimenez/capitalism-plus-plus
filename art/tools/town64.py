@@ -270,4 +270,7 @@ def build():
     for v in range(2):
         fr[f"park_{v}"] = park(v)
     fr["plaza"] = plaza()
+    import towntiles  # #303 native sets, appended so earlier frames keep their place
+
+    fr.update(towntiles.frames(N))
     return fr
