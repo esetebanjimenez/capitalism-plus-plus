@@ -1569,6 +1569,70 @@ Called with firm-type filters by 5 AI strategy functions:
 - Dept Store (type 1), Factory (type 2), Farm (type 4),
   SW Developer+Publisher (types 8,9), Factory+Mine+Oil Well (types 2,6,7).
 
+### Town choice
+
+How the AI picks which town to build in. Each build path uses a
+different strategy; the site search within the chosen town uses
+`FUN_0002dc7c` (see Location below).
+
+#### Demand scoring — FUN_0002e2d9 (dept stores)
+
+Used by `FUN_0002e244` (dept store build, type 1). For each town,
+counts products that pass a demand-threshold gate (`FUN_0006d986`).
+The threshold depends on `character_type`:
+
+| character_type | Label | Threshold | Min qualifying |
+| --- | --- | --- | --- |
+| 0 | Conservative | 11 | 2 |
+| 1 | Moderate | 9 | 1 |
+| 2 | Aggressive | 7 | 1 |
+| 3 | Very Aggressive | 5 | 0 |
+
+Formula: `threshold = (4 - character_type) * 2 + 3`.
+Minimum qualifying count: `(4 - character_type) / 2` (integer division).
+
+Product qualification (`FUN_0006d986`): product must have demand ≥
+threshold in the town, supply/demand balance favourable, product
+eligible for the corp, and cost viable.
+
+Picks the town with the highest qualifying-product count. Ties not
+broken — first town wins.
+
+#### Education-labor scoring — FUN_0002ee8d (R&D, software)
+
+Used by `FUN_0002ebaf` (R&D, type 3) and `FUN_0002eb77` (software,
+types 8–9). Scores each town:
+
+```
+score = education * 2.0 - labor_cost
+```
+
+Where `education` = `town+0x43` and `labor_cost` = `town+0x3B`.
+
+EXE bytes at FUN_0002ee8d: `FLD DWORD [EAX+0x43]`, `FMUL DWORD
+[0xa46cc]`, `FSUB DWORD [EAX+0x3B]`. Constant `0xa46cc` = 2.0 (f32).
+
+Ties broken randomly: on equal score, the new town replaces the current
+best with probability 1/3 (`cfg_random(3) == 0`).
+
+#### Random town (factories)
+
+`FUN_0002e7e8` (factory build, type 2) selects a town via
+`cfg_random(town_count)` — uniform random, no scoring.
+
+#### Resource-based (extraction, types 5–7)
+
+`FUN_0002e3e0` determines the build site from resource deposit
+locations on the map, not from town preference. The town is implicit:
+whichever town's territory contains the deposit.
+
+#### Untapped market — FUN_0002d58f (fallback)
+
+The last-resort diversification function (see below) also serves as a
+town-choice fallback in the expansion cascade. For each product the
+corp doesn't supply, it scans towns for zero market share and builds
+there.
+
 ### Location (FUN_0002dc7c)
 
 Via `FUN_0002dc2c` (near city) / `FUN_0002dc5a` (near town).
@@ -2608,17 +2672,52 @@ city placement.
 | 6     | 4,000,000          |
 
 On level-up `town_pop_growth` calls `FUN_0004c334` (0x0004c334, line
-47128; body lines 47149-47201): each tile within distance <= level of
-the centre gets a 1-in-10 chance to become a town tile. `level + 4` is
-the `map_land_value` decay radius (lines 43438-43439), not the painted
-footprint. No separate town demand radius was found.
+47128; body lines 47149-47292). The function scans a square of side
+`2 × (level + 4) + 1` centred on the town, not just the level radius.
+`FUN_00090746` is rounded Euclidean integer distance:
+`FUN_000906f8(dx² + dy²)` returns `round(sqrt(n))` via odd-number
+subtraction (decomp:105102-105122).
 
-**Implementation:** `World.spread_town()` in `world.py`. `FUN_00090746`
-is Euclidean integer distance (`isqrt(dx² + dy²)`). Tiles with Euclidean
-distance < level are painted unconditionally; Chebyshev-fringe tiles
-(Chebyshev <= level, Euclidean >= level) get a 1-in-10 chance. TOWN and
-FIRM tiles are never overwritten. `monthly_tick` returns True on
-level-up; `sim.py:_towns_daily` calls `spread_town`.
+Three zones determine what happens to each tile:
+
+**Core** (Euclidean distance < level): every eligible tile is converted
+unconditionally to a **rural** town tile (`cfg_random(5) + 0x3008`,
+range 0x3008-0x300c). Eligible tiles: grassland (0x2000-0x2004) and
+urban town tiles (0x3000-0x3007). Urban-to-rural conversion means
+previously-fringe tiles get absorbed as the town grows inward.
+
+**Chebyshev overlap** (Euclidean ≥ level, Chebyshev ≤ level): 1-in-10
+chance (`cfg_random(10) == 0`) to enter the core path and become a
+rural tile.
+
+**Outer fringe** (Euclidean ≥ level, Chebyshev > level, up to
+level + 4): **urban** town tiles (`cfg_random(8) + 0x3000`, range
+0x3000-0x3007). Only grassland is converted — urban tiles are not
+re-converted. Beyond level + 4, a 1-in-10 roll is required.
+
+Tiles never converted: forest/hill (0x2013-0x201e), ocean
+(0x202d-0x2030), another town's tiles. Encountering another town's
+tile sets `town+0x1d` = 1 (abort flag), which halts the scan and
+prevents all future spread calls for this town (checked at
+decomp:46538).
+
+Firms on eligible tiles: if the firm has no workforce (`firm+0x4c == 0`),
+its `place_kind` (firm+0x4a) is updated to the new tile kind.
+
+**Callers:** (1) `town_pop_growth` (`FUN_0004b490`, decomp:46538-46542):
+monthly, when `population ≥ level² × 160,000` and abort flag is clear;
+increments level by 1. (2) Town initialisation (decomp:46371-46378):
+loops until level matches population.
+
+**Implementation:** `World.spread_town()` in `world.py`.
+
+Sim mismatches vs native:
+- Sim converts forest/hill tiles; native preserves them.
+- Sim has no outer fringe (urban zone from level to level+4).
+- Sim has no urban/rural tile distinction (only TOWN).
+- Sim has no abort flag — towns can overlap.
+- Sim uses `isqrt` (floor); native uses rounded sqrt.
+- Sim does not update firm `place_kind`.
 
 ### Population growth (0x0004b4de)
 

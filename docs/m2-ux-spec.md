@@ -143,19 +143,22 @@ Two levels: far (1 px per tile overview, no sprites) and standard. There is
 no closer zoom, and no zoomed-out viewing step for now. Pinch or mouse
 wheel switches between them. Pan by one-finger drag or mouse drag.
 
-**Town footprint (visual only).** The sim stores a town as one tile, so the
-footprint is drawn by the client and changes no rule. By `Town.level`:
-levels 1 to 2 draw the town tile only, levels 3 to 4 a 3 × 3 area centred on
-it, levels 5 to 6 a 5 × 5 area. At 3 × 3, roads form a plus through the
-centre. At 5 × 5, roads run along rows and columns 1 and 3 (a # shape)
-and the town's own centre tile is a plaza. City blocks fill the rest; roof style is chosen per tile
-from the town id so a town keeps its look, and the block level steps up at
-levels 3 and 5. The radius per level lives in a small DB table so it can be
-retuned. Firms always win: ring tiles stay buildable, a firm tile never gets
-a block drawn on it, and tapping a ring tile opens the real tile card with
-Build. This is a design call; the reference draws a town as one tile in 13
-variants (`docs/gamelogic.md`, tile categories) and shows a
-town's reach through land value.
+**Town tiles (from the sim).** Towns are real map tiles, as in the original
+(decided on #279, sim work in #302). Each level-up spreads the town: a solid
+core of **rural** town tiles (5 variants) within the level radius, and a
+scattered ring of **urban** town tiles (8 variants) out to level + 4
+(techspec "Town spread", `FUN_0004c334`). Forest, hills and ocean are never
+converted, and a town stops spreading for good once it touches another
+town. The client draws exactly what `map` / `map_objects` report for each
+tile. There's no drawn footprint, no radius table and no block-level step.
+The town-name plate sits on the town's centre tile (`towns[].x, y`).
+
+Firms can stand on town tiles. In the original, firm placement scans town
+tiles, and town demand only reaches firms whose tile is a town tile
+(techspec, `FUN_0002dc7c`, `item_move_quantity`). So whether a town tile is
+buildable follows the sim's `can_build` after #302, never a client rule. A
+firm tile draws the firm on top. Tapping any town tile opens the real tile
+card, with Build when the sim allows it.
 
 **Overlays** (a toggle in the map's corner, one at a time, drawn on the standard zoom): none, land value
 (`World.land_value(x, y)`), soil, rainfall, climate (`Tile.soil`,
@@ -352,7 +355,8 @@ played against the year limit, the difficulty rating
 revenue goals open Company, stock price and ownership open Stocks, product
 class and type counts open the product list in Company. When the game ends
 (`GameResult` win or loss) a full-screen result card shows the outcome and
-final score, with New game and Keep playing where the rules allow it.
+final score, with a New game button only (the native game exits after its
+result screen, #243). Bankruptcy is a fourth ending (#287).
 
 ## Data the facade must expose
 
@@ -381,6 +385,22 @@ Commands: `build_firm`, `demolish_firm`, `add_job`, `remove_job`,
 point for one of these yet (for example demolish or remove link), the
 facade adds a thin wrapper over existing state changes, and any rule it
 would need goes to its own PR, not this milestone.
+
+## Default game (M2 only)
+
+With no setup screen, every new game in M2 starts from one fixed setup
+(decided on #278, built in #290). This is for M2 testing only, so the Goals
+screen and the win/loss card have something to show:
+
+- Untimed (no year limit), so the 7-day rival goal check can end the game.
+- 3 competitors. All other options keep their `SetupOptions` defaults.
+- A new random seed for each new game, shown on the Goals screen so bug
+  reports can quote it. Tests and the CI boot use a fixed seed.
+- Two goals: corporation net worth of $50,000,000 and 3 product types made.
+  These are tuning numbers, not native values.
+
+The release goes back to the original's defaults, with no goals and no year
+limit (#291).
 
 ## Out of scope for this spec
 

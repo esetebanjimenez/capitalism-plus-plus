@@ -151,25 +151,32 @@ rating, and the goal list with a met tick or an unmet mark on each row
 
 ### How the rules work
 
-There are three ways the game can end, and the card needs a version for each:
+There are four ways the game can end (the four game-over paths in the #243
+answer), and the card needs a version for each:
 
 | `result_name` | When | Card headline idea |
 |---|---|---|
 | `VICTORY` | Checked every 2 game-days: every active goal is met | Goals achieved |
 | `DEFEAT_DEADLINE` | Checked at year end, when a year limit is set: the years have run out and the goals weren't met | Out of time |
 | `DEFEAT_AI_WON` | Checked every 7 game-days, only when there's no year limit: a competitor met every goal first | A rival got there first |
+| `DEFEAT_BANKRUPT` (not in the sim yet, #287) | The player's cash is negative at the monthly check and the player chooses Declare bankruptcy | Bankrupt |
 
-- The sim doesn't run the competitor check yet (`GoalChecker.daily` has the
-  7-day branch empty). That's issue #241. Draw the card anyway.
-- A game with no goals never ends, so it never shows the card.
+- The competitor check is in the sim since #241 (PR #244).
+- Bankruptcy can end any game, with or without goals. In a game with no
+  goals it's the only ending. The card then shows no goal list.
+- Before bankruptcy, the player gets a five-choice prompt: borrow, issue
+  shares, sell stocks, close firms, or declare bankruptcy (gamelogic.md
+  "Bankruptcy"). The first four open existing screens. The prompt is a
+  dialog, not this card, and is specified in #287.
 - The score is 0 when the game was marked as cheated. The card still shows it.
 - In timed games, when 1 to 5 years are left, the year end brings a warning
   ("X years left to achieve the goal"). That's a toast, not this card.
 
 ### What the art should do
 
-- Use one card layout with three headline and colour treatments, not three
-  separate screens.
+- Use one card layout with four headline and colour treatments, not
+  separate screens. Bankrupt needs its own band and emblem. Whether a score
+  shows on it is open research in #287, so make the score row hideable.
 - Draw a New game button only — **no Keep playing button**. The native
   game exits to the main menu after the result screen; the `else` branch
   in `FUN_0001cf40` that would clear goals and continue is dead code
