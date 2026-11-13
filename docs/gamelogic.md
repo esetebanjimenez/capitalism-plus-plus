@@ -3647,18 +3647,22 @@ At the start of each month:
 - Running totals are shifted to make room for the new month
 - Market share percentages are recomputed by summing quantities across
   all links for each product, grouped by corporation. Each corporation's
-  sum (this month plus the unexpired part of last month, prorated over
-  31 days) is divided by the product's market total, which includes
-  unmet demand. The result is rounded and capped at 100. This table is
-  used for display and goals; it doesn't drive the split between
-  sellers
+  sum is prorated: `projected = this_month + (31 − days_in_month) ×
+  last_month / 31` (native constants `0xa96b4`, `0xa99ed` = 31). For
+  31-day months the factor is 0; shorter months get a boost from last
+  month to normalize to a 31-day equivalent. The product's market total
+  (including prorated unmet demand) is the denominator. The result is
+  rounded and capped at 100. Implemented in
+  `economy.py:_compute_market_shares()` (#219). This table is used for
+  display and goals; it doesn't drive the split between sellers
 
 > **Sim status:** The consumer split (R11) now uses per-factor clamped gap
 > functions, oversupply trim gated on D < S, a projection gate for
 > increase/take, even-day supply sum (R15), and the N10 cross-ownership
-> price swap (#217). The full N8 brand build-up system is implemented
-> with per-(town, brand_key) BrandRecords (#171, #213). Brand perception
-> is per-(town, corp) with monthly N9 awareness updates.
+> price swap (#217). K1 market share uses the prorated projection (#219).
+> The full N8 brand build-up system is implemented with per-(town,
+> brand_key) BrandRecords (#171, #213). Brand perception is per-(town,
+> corp) with monthly N9 awareness updates.
 
 ### Sales
 
