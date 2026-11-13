@@ -256,3 +256,25 @@ def test_town_footprint_for_levels_1_to_8():
     rows = [town_footprint(lv) for lv in range(1, 9)]
     assert all(set(r) == {"radius", "block_level"} for r in rows)
     assert rows[6] == rows[7] == town_footprint(6)  # past the table: its top row
+
+
+def test_new_game_setup_and_goals():
+    api = Api.new_game(
+        seed=7,
+        setup={"competitors": 3, "year_limit": 0},
+        goals={"corp_net_worth": 50, "num_product_types": 3},
+    )
+    assert api.sim.setup.competitors == 3 and api.sim.setup.year_limit == 0
+    g = api.query("goals")
+    assert g["seed"] == 7 and g["year_limit"] == 0
+    assert {r["name"]: r["target"] for r in g["goals"]} == {
+        "corp_net_worth": 50,
+        "num_product_types": 3,
+    }
+    assert api.sim.goal_checker.goals.has_any_goal
+    for bad in ({"setup": {"seed": 2}}, {"setup": {"competitors": 99}}, {"goals": {"nope": 1}}):
+        try:
+            Api.new_game(**bad)
+        except ValueError:
+            continue
+        raise AssertionError(bad)
