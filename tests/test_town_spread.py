@@ -1,90 +1,160 @@
-"""T4: Town spreads on level-up (native FUN_0004c334)."""
+"""T4: town spread on level-up (native FUN_0004c334, #302)."""
 
 from capitalism.rng import Rng
-from capitalism.world import TileCategory, World
+from capitalism.tables import TOWN_SPREAD
+from capitalism.town import Town, level_up_population
+from capitalism.world import (
+    GRASS_PLACE,
+    RURAL_KINDS,
+    URBAN_KINDS,
+    Tile,
+    TileCategory,
+    World,
+    round_dist,
+)
+
+N = 30
+C = 15
 
 
-def _small_world(rng, *, level=1):
-    """20×20 grassland world with one town at centre."""
-    world = World(width=20, height=20)
-    world.tiles = [
-        World.__new__(World)  # dummy — overwritten below
-        for _ in range(20 * 20)
-    ]
-    from capitalism.world import Tile
-
-    world.tiles = [Tile(kind=TileCategory.GRASSLAND) for _ in range(20 * 20)]
-    from capitalism.town import Town
-
+def _world(level: int = 1) -> tuple[World, Town]:
+    """30x30 grassland with one town at the centre."""
+    world = World(width=N, height=N)
+    world.tiles = [Tile(kind=TileCategory.GRASSLAND) for _ in range(N * N)]
     town = Town(
         id=0,
         name="Test",
         tier=0,
-        x=10,
-        y=10,
+        x=C,
+        y=C,
         stagger_slot=0,
         population=0.0,
         per_capita_gnp=10.0,
         level=level,
     )
     world.towns = [town]
-    center = world.tile_at(10, 10)
-    center.kind = TileCategory.TOWN
-    center.ref = 0
+    centre = world.tile_at(C, C)
+    centre.kind, centre.town_kind, centre.ref = TileCategory.TOWN, min(RURAL_KINDS), 0
     return world, town
 
 
-def test_spread_paints_town_tiles():
-    """After spread_town, some tiles near the centre become TOWN."""
-    rng = Rng(42)
-    world, town = _small_world(rng, level=3)
-    world.spread_town(town, rng)
-    town_count = sum(
-        1 for y in range(20) for x in range(20) if world.tile_at(x, y).kind == TileCategory.TOWN
+def _cheb(x: int, y: int) -> int:
+    return max(abs(x - C), abs(y - C))
+
+
+def test_round_dist_rounds():
+    assert [round_dist(1, 1), round_dist(1, 2), round_dist(2, 2), round_dist(3, 0)] == [1, 2, 3, 3]
+
+
+def test_db_constants():
+    assert (TOWN_SPREAD.spread_fringe, TOWN_SPREAD.spread_overlap_odds) == (4, 10)
+    assert list(URBAN_KINDS) == list(range(0x3000, 0x3008))
+    assert list(RURAL_KINDS) == list(range(0x3008, 0x300D))
+
+
+def test_three_zones_seed_42():
+    world, town = _world(level=3)
+    world.spread_town(town, Rng(42))
+    lv, reach = 3, 3 + 4
+    overlap_rural = 0
+    for y in range(N):
+        for x in range(N):
+            t = world.tile_at(x, y)
+            d, c = round_dist(x - C, y - C), _cheb(x, y)
+            if c > reach:
+                assert t.kind == TileCategory.GRASSLAND  # outside the scan square
+            elif c > lv:
+                assert t.kind == TileCategory.TOWN and t.town_kind in URBAN_KINDS  # outer fringe
+            elif d < lv:
+                assert t.kind == TileCategory.TOWN and t.town_kind in RURAL_KINDS  # core
+            else:
+                assert t.kind in (TileCategory.TOWN, TileCategory.GRASSLAND)  # overlap
+                if t.kind == TileCategory.TOWN:
+                    assert t.town_kind in RURAL_KINDS
+                    overlap_rural += 1
+            if t.kind == TileCategory.TOWN:
+                assert t.ref == town.id
+    overlap = sum(
+        1
+        for y in range(N)
+        for x in range(N)
+        if _cheb(x, y) <= lv and round_dist(x - C, y - C) >= lv
     )
-    assert town_count > 1
+    assert overlap_rural < overlap  # 1-in-10, not all
 
 
-def test_spread_respects_level_radius():
-    """No tile beyond Chebyshev distance > level gets painted."""
-    rng = Rng(42)
-    world, town = _small_world(rng, level=2)
+def test_core_absorbs_urban_and_fringe_keeps_urban():
+    world, town = _world(level=2)
+    rng = Rng(7)
     world.spread_town(town, rng)
-    cx, cy, lv = town.x, town.y, town.level
-    for y in range(20):
-        for x in range(20):
-            if world.tile_at(x, y).kind == TileCategory.TOWN and (x, y) != (cx, cy):
-                assert abs(x - cx) <= lv and abs(y - cy) <= lv
-
-
-def test_spread_does_not_overwrite_firm():
-    """FIRM tiles are never overwritten."""
-    rng = Rng(42)
-    world, town = _small_world(rng, level=3)
-    firm_tile = world.tile_at(11, 10)
-    firm_tile.kind = TileCategory.FIRM
-    firm_tile.ref = 99
+    ring = world.tile_at(C + 3, C)  # Chebyshev 3 > 2: urban
+    assert ring.town_kind in URBAN_KINDS
+    kept = world.tile_at(C + 5, C).town_kind  # stays fringe at level 3
+    town.level = 3
     world.spread_town(town, rng)
-    assert world.tile_at(11, 10).kind == TileCategory.FIRM
-    assert world.tile_at(11, 10).ref == 99
+    assert world.tile_at(C + 2, C).town_kind in RURAL_KINDS  # core at level 3 (d=2<3)
+    assert world.tile_at(C + 5, C).town_kind == kept  # urban not re-converted
 
 
-def test_spread_does_not_overwrite_existing_town():
-    """Existing TOWN tiles keep their ref."""
-    rng = Rng(42)
-    world, town = _small_world(rng, level=3)
-    other_tile = world.tile_at(9, 10)
-    other_tile.kind = TileCategory.TOWN
-    other_tile.ref = 5
-    world.spread_town(town, rng)
-    assert world.tile_at(9, 10).ref == 5
+def test_forest_and_water_never_convert():
+    world, town = _world(level=3)
+    world.tile_at(C + 1, C).kind = TileCategory.FOREST_HILL
+    world.tile_at(C + 5, C).kind = TileCategory.FOREST_HILL
+    world.tile_at(C, C + 1).kind = TileCategory.WATER
+    world.tile_at(C, C + 5).kind = TileCategory.DEEP_OCEAN
+    world.spread_town(town, Rng(42))
+    assert world.tile_at(C + 1, C).kind == TileCategory.FOREST_HILL
+    assert world.tile_at(C + 5, C).kind == TileCategory.FOREST_HILL
+    assert world.tile_at(C, C + 1).kind == TileCategory.WATER
+    assert world.tile_at(C, C + 5).kind == TileCategory.DEEP_OCEAN
+
+
+def test_other_town_sets_abort_flag_and_blocks_level_up():
+    world, town = _world(level=2)
+    other = world.tile_at(C + 4, C + 4)  # inside the scan square, last rows
+    other.kind, other.town_kind, other.ref = TileCategory.TOWN, min(URBAN_KINDS), 5
+    world.spread_town(town, Rng(42))
+    assert town.spread_blocked
+    assert other.ref == 5
+    # The scan stopped on that tile: nothing after it (row order) was painted.
+    assert world.tile_at(C + 5, C + 4).kind == TileCategory.GRASSLAND
+    assert world.tile_at(C, C + 5).kind == TileCategory.GRASSLAND
+    # Later spreads do nothing, and the monthly level-up is skipped.
+    before = [t.kind for t in world.tiles]
+    town.level = 3
+    world.spread_town(town, Rng(1))
+    assert [t.kind for t in world.tiles] == before
+    town.level = 1
+    town.population = float(level_up_population(1)) + 1000.0
+    assert town.monthly_tick(Rng(1), detailed=False) is False and town.level == 1
+
+
+class _Firm:
+    def __init__(self, workforce: int) -> None:
+        self.workforce = workforce
+        self.place_kind = GRASS_PLACE
+        self.place_town = -1
+
+
+def test_firm_place_kind_follows_spread_only_without_workforce():
+    world, town = _world(level=3)
+    idle, busy = _Firm(0), _Firm(5)
+    for i, (x, f) in enumerate(((C + 1, idle), (C - 1, busy))):
+        t = world.tile_at(x, C)
+        t.kind, t.ref = TileCategory.FIRM, i
+    world.spread_town(town, Rng(42), [idle, busy])
+    assert idle.place_kind in RURAL_KINDS and idle.place_town == town.id
+    assert busy.place_kind == GRASS_PLACE and busy.place_town == -1
+    assert world.tile_at(C + 1, C).kind == TileCategory.FIRM  # the firm stays on top
+
+
+def test_town_tiles_are_buildable():
+    world, town = _world(level=3)
+    world.spread_town(town, Rng(42))
+    assert world.can_build(C, C) and world.can_build(C + 6, C)
 
 
 def test_monthly_tick_returns_true_on_level_up():
-    """monthly_tick returns True when the town levels up."""
-    from capitalism.town import Town, level_up_population
-
-    rng = Rng(1)
     town = Town(
         id=0,
         name="Big",
@@ -96,38 +166,5 @@ def test_monthly_tick_returns_true_on_level_up():
         per_capita_gnp=10.0,
         level=1,
     )
-    result = town.monthly_tick(rng, detailed=False)
-    assert result is True
+    assert town.monthly_tick(Rng(1), detailed=False) is True
     assert town.level == 2
-
-
-def test_monthly_tick_returns_false_no_level_up():
-    """monthly_tick returns False when no level-up."""
-    from capitalism.town import Town
-
-    rng = Rng(1)
-    town = Town(
-        id=0,
-        name="Small",
-        tier=0,
-        x=5,
-        y=5,
-        stagger_slot=0,
-        population=100.0,
-        per_capita_gnp=10.0,
-        level=1,
-    )
-    result = town.monthly_tick(rng, detailed=False)
-    assert result is False
-    assert town.level == 1
-
-
-def test_can_build_blocked_by_spread():
-    """Tiles marked TOWN by spread_town block building."""
-    rng = Rng(42)
-    world, town = _small_world(rng, level=3)
-    world.spread_town(town, rng)
-    for y in range(20):
-        for x in range(20):
-            if world.tile_at(x, y).kind == TileCategory.TOWN:
-                assert not world.can_build(x, y)

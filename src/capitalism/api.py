@@ -23,6 +23,7 @@ from .plans import PlanLibrary, apply_plan, capture
 from .sim import Sim
 from .tables import FIRM_TYPES, JOB_TYPES, TOWN_FOOTPRINTS
 from .town import Town
+from .world import TileCategory
 
 PLAYER = 0
 Json = dict[str, Any]
@@ -68,7 +69,7 @@ class Api:
         self.map_rev = 0
         self._map_sig = self._map_signature()
         self._map_tiles = self._tile_snapshot()
-        self._map_changes: list[tuple[int, dict[int, tuple[int, int]]]] = []
+        self._map_changes: list[tuple[int, dict[int, tuple[int, int, int]]]] = []
 
     @classmethod
     def new_game(
@@ -181,8 +182,24 @@ class Api:
         towns = tuple((t.id, t.level) for t in self.sim.towns)
         return firms, towns
 
-    def _tile_snapshot(self) -> list[tuple[int, int]]:
-        return [(int(t.kind), t.ref) for t in self.sim.world.tiles]
+    def _town_kinds(self) -> list[int]:
+        """Native town tile kind per tile (urban 0x3000-0x3007, rural 0x3008-0x300c), else 0.
+        A firm tile reports the town kind it stands on."""
+        firms = self.eco.firms
+        out = []
+        for t in self.sim.world.tiles:
+            if t.kind == TileCategory.FIRM:
+                f = firms[t.ref] if 0 <= t.ref < len(firms) else None
+                out.append(f.place_kind if f is not None and f.place_town >= 0 else 0)
+            else:
+                out.append(t.town_kind)
+        return out
+
+    def _tile_snapshot(self) -> list[tuple[int, int, int]]:
+        return [
+            (int(t.kind), t.ref, tk)
+            for t, tk in zip(self.sim.world.tiles, self._town_kinds(), strict=True)
+        ]
 
     def sync_map(self) -> int:
         """Bump `map_rev` if a firm was built or removed or a town changed level
@@ -226,27 +243,29 @@ class Api:
             "height": w.height,
             "kind": [int(t.kind) for t in w.tiles],
             "ref": [t.ref for t in w.tiles],
+            "town_kind": self._town_kinds(),
             **self._map_objects(),
         }
 
     def q_map_objects(self, since: int = -1) -> Json:
         """Towns and firms plus the tiles changed since map_rev `since`, as
-        `changes: [[index, kind, ref], ...]`. When `since` is older than the kept
+        `changes: [[index, kind, ref, town_kind], ...]`. When `since` is older than the kept
         history (or -1), `changes` is null and `kind` / `ref` hold the whole map."""
         objs = self._map_objects()
         rev = objs["map_rev"]
         oldest = self._map_changes[0][0] if self._map_changes else rev + 1
         if since == rev or (0 <= since < rev and since >= oldest - 1):
-            merged: dict[int, tuple[int, int]] = {}
+            merged: dict[int, tuple[int, int, int]] = {}
             for r, changed in self._map_changes:
                 if r > since:
                     merged.update(changed)
-            objs["changes"] = [[i, k, ref] for i, (k, ref) in sorted(merged.items())]
+            objs["changes"] = [[i, *v] for i, v in sorted(merged.items())]
         else:
             objs["changes"] = None
             tiles = self.sim.world.tiles
             objs["kind"] = [int(t.kind) for t in tiles]
             objs["ref"] = [t.ref for t in tiles]
+            objs["town_kind"] = self._town_kinds()
         return objs
 
     def _map_objects(self) -> Json:
@@ -308,6 +327,7 @@ class Api:
             "x": x,
             "y": y,
             "kind": int(t.kind),
+            "town_kind": self._town_kinds()[y * w.width + x],
             "soil": t.soil,
             "rainfall": t.rainfall,
             "moisture": t.moisture,

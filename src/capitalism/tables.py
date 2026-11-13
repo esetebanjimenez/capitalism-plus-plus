@@ -77,6 +77,15 @@ class LandValueRules(StaticModel):
     small_town_level_max: int
 
 
+class TownSpread(StaticModel):
+    spread_fringe: int
+    spread_overlap_odds: int
+    rural_kind_base: int
+    rural_variants: int
+    urban_kind_base: int
+    urban_variants: int
+
+
 class LevelRules(StaticModel):
     max_level: int
     pop_per_level_sq: int
@@ -698,6 +707,7 @@ CLIMATE_THRESHOLDS: ClimateThresholds = load_climate_thresholds()
 TOWN_GROWTH: TownGrowth = load_town_growth()
 LAND_VALUE: LandValueRules = load_land_value()
 LEVEL_RULES: LevelRules = load_level_rules()
+TOWN_SPREAD: TownSpread = TownSpread(**{k: int(_rule("towns", k)) for k in TownSpread.model_fields})
 MAP_RULES: MapRules = load_map_rules()
 SIMPLE_CITY: SimpleCity = load_simple_city()
 STAGGER_MOD: int = int(_rule("clock", "stagger_mod"))

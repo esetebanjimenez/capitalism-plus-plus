@@ -174,7 +174,12 @@ def test_map_shape_and_cities_seed_range():
                 for dx in range(-2, 3):
                     if dx == 0 and dy == 0:
                         continue
-                    assert world.tile_at(t.x + dx, t.y + dy).kind == TileCategory.GRASSLAND
+                    # Placed on a 5x5 grass block; the founding spread (#302) may
+                    # have turned some of it into town tiles since.
+                    assert world.tile_at(t.x + dx, t.y + dy).kind in (
+                        TileCategory.GRASSLAND,
+                        TileCategory.TOWN,
+                    )
         for i, a in enumerate(world.towns):
             for b in world.towns[i + 1 :]:
                 assert not (abs(a.x - b.x) < 15 and abs(a.y - b.y) < 15)
@@ -188,10 +193,10 @@ def test_map_determinism():
 
 
 def test_land_value_floor_and_centre():
-    sim = Sim(seed=3, target_cities=5)
+    sim = Sim(seed=1, target_cities=5)  # seed 3 has only level-2 towns since #302
     assert sim.world.land_value(0, 0) >= 500_000
     assert sim.towns
-    t = max(sim.towns, key=lambda tw: tw.level * tw.per_capita_gnp)
+    t = max(sim.towns, key=lambda tw: tw.population * tw.per_capita_gnp)
     centre = sim.world.land_value(t.x, t.y)
     edge = sim.world.land_value(t.x + t.level + 4, t.y)
     assert centre >= 500_000

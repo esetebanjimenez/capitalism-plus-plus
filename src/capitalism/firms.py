@@ -128,6 +128,8 @@ class Firm:
         "ledger",
         "links",
         "owner",
+        "place_kind",
+        "place_town",
         "row",
         "size",
         "slots",
@@ -164,6 +166,15 @@ class Firm:
         self.land_value = land_value
         self.created_serial = created_serial
         self.weight_rate = 0
+        # Native firm+0x4a: the kind of tile the firm stands on (town spread can change
+        # it while the firm has no workforce), and the town that owns that tile.
+        self.place_kind = 0
+        self.place_town = -1
+
+    @property
+    def workforce(self) -> int:
+        """Staff across all jobs (native firm+0x4c)."""
+        return sum(j.staff for j in self.slots if j is not None)
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(id={self.id}, town={self.town.name!r})"
