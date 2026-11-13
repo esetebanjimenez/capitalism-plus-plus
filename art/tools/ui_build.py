@@ -8,6 +8,7 @@ import json, os
 from PIL import Image
 from ui_concept import card, button, slot, handle, badge, icon, ICON, cream, P
 import ui_controls as U
+import ui_views as V
 
 
 def frames():
@@ -41,6 +42,7 @@ def frames():
         f["field_" + k] = (U.field(k), [6, 6, 6, 6])
     f["caret"] = (U.caret(), None)
     f["toast_error"] = (U.toast_error(), [10, 6, 6, 7])
+    f.update(V.frames())  # M2 views: #175, #177, #178 (appended, earlier frames keep their place)
     return f
 
 
