@@ -13,7 +13,8 @@ writes docs/art/m2-views-preview.png.
 - #178 win/loss card: one `card` layout; the headline band `end_band_<outcome>` and emblem `icon_end_<outcome>`
   (shown at 2x, 32 pt) change per outcome. Goal rows use `icon_goal` and `icon_goal_miss`.
   New game is `btn_primary` and is the only button (#243). Bankrupt (#289) uses a grey band and a cracked
-  coin; its score row can be hidden (#287)."""
+  coin. The score row and the whole goal list (divider, heading and rows) can each be hidden (#287): a
+  game with no goals can still end in bankruptcy."""
 
 import json
 import math
@@ -490,7 +491,7 @@ def preview(S=2):
     head(
         20,
         y1,
-        "#178/#289 Win/loss card: one layout, four outcomes; New game only; score row hidden on Bankrupt",
+        "#178/#289 Win/loss card: one layout, four outcomes; New game only; Bankrupt shown with no score and no goals",
     )
     goals = [
         ("Reach $50M net worth", True),
@@ -513,13 +514,17 @@ def preview(S=2):
             yy = y + 126 + i * 28
             txt(x + 24, yy, a, "MGREY", 12, False)
             txt(x + w - 24, yy, b, "INK", 14, True, "ra")
-        d.line(
-            [((x + 24) * S, (y + 214) * S), ((x + w - 24) * S, (y + 214) * S)],
-            fill=rgb("SAND"),
-            width=S,
-        )
-        txt(x + 24, y + 226, "Goals", "INK", 13)
-        for i, (g, met) in enumerate(goals):
+        shown = (
+            goals if c != 3 else []
+        )  # goal list is hideable: a game with no goals can still go bankrupt
+        if shown:
+            d.line(
+                [((x + 24) * S, (y + 214) * S), ((x + w - 24) * S, (y + 214) * S)],
+                fill=rgb("SAND"),
+                width=S,
+            )
+            txt(x + 24, y + 226, "Goals", "INK", 13)
+        for i, (g, met) in enumerate(shown):
             met = met if met is not None else c == 0
             yy = y + 256 + i * 30
             put(

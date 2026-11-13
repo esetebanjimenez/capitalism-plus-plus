@@ -116,5 +116,5 @@ frames to `ui_atlas` (now 71 frames, earlier frames unchanged). Preview: `docs/a
 - **Win/loss card (#178, #289):** one `card` layout; `end_band_win|time|rival|bankrupt` (green, amber, red,
   grey) and `icon_end_win|time|rival|bankrupt` (shown at 2×) change per outcome (`VICTORY`, `DEFEAT_DEADLINE`,
   `DEFEAT_AI_WON`, `DEFEAT_BANKRUPT`). Goal rows use `icon_goal` and `icon_goal_miss`, with labels from `q_goals`;
-  difficulty is a plain rating (no %). The score row can be hidden (Bankrupt, #287). New game (`btn_primary`)
+  difficulty is a plain rating (no %). The score row and the goal list (divider, heading and rows) can each be hidden, since a game with no goals can still end in bankruptcy (#287). New game (`btn_primary`)
   is the only button: the native game has no Keep playing (#243).
