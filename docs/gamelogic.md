@@ -3,6 +3,31 @@
 How the simulation works. This document describes what the game does —
 the rules, the timing, the coefficients — without referencing code.
 
+## Table of contents
+
+1. [Starting a new game](#starting-a-new-game)
+2. [Time and the game clock](#time-and-the-game-clock)
+3. [The three simulation layers](#the-three-simulation-layers)
+4. [Day, month, and year](#day-month-and-year)
+5. [Firm types](#firm-types)
+6. [Firm daily cycle](#firm-daily-cycle)
+7. [Job types](#job-types)
+8. [Job daily cycle](#job-daily-cycle)
+9. [Per-type job behavior](#per-type-job-behavior)
+10. [Financial accounting](#financial-accounting)
+11. [Product links](#product-links)
+12. [AI corporation strategy](#ai-corporation-strategy)
+13. [Plan system](#plan-system)
+14. [Person system](#person-system)
+15. [Towns and cities](#towns-and-cities)
+16. [Stock market](#stock-market)
+17. [Corporation internals](#corporation-internals)
+18. [Product catalog and demand](#product-catalog-and-demand)
+19. [News and random events](#news-and-random-events)
+20. [Resolved open questions](#resolved-open-questions)
+21. [Goals, victory conditions, and scoring](#goals-victory-conditions-and-scoring)
+22. [Map and terrain](#map-and-terrain)
+
 ## Starting a new game
 
 ### Setup dialog
