@@ -2625,12 +2625,20 @@ Monthly GNP adjustment (`town_gnp_update`, 0x0004b609):
 `gnp = gnp * (random(10) + 295) / 300.0`
 This gives ten discrete steps from 295/300 to 304/300 (`0x127` = 295,
 `0xa6eca` = 300; lines 46562-46564), roughly ±1.7% per month. GNP is
-clamped to the minimum for the current tier. If GNP exceeds the tier's
-max, the tier upgrades by one. The `0xa6ece` = 3.0 (f32, confirmed from
-EXE) is most likely a tier-cap compare (`tier < 3`) misattributed to GNP
-by the decompiler's x87 stack reconstruction. With that reading the
-upgrade condition is `gnp >= threshold[tier] && tier < 3`, and the raw
-shorts ×200 match the DB dollar values exactly (init formula uses
+clamped to the minimum for the current tier (floor clamp: if gnp <
+floor[tier], gnp = floor[tier]).
+
+**Tier upgrade (dead code in native):** Raw x87 disassembly confirmed the
+decompiler output — the comparison IS `gnp < 3.0`, not `tier < 3`. The
+instruction sequence is: `FLD dword [ebx+0x31]` (loads gnp), `FCOMP dword
+[0xa6ECE]` (compares against 3.0 f32), `JNB` (skips INC if gnp >= 3.0),
+`INC byte [ebx+0x2c]` (tier++). Since upgrade also requires `gnp >=
+threshold[tier]` (minimum 10), and 10 > 3.0, both conditions can never hold
+simultaneously: the native tier upgrade never fires. This is almost
+certainly a bug — the developer intended `tier < 3` (to cap at tier 3) but
+the generated code compares gnp against the float 3.0 instead. The sim
+implements the intended behavior: `while tier < 3 and gnp > threshold[tier]:
+tier += 1`. Raw shorts ×200 match DB dollar values (init formula uses
 `×20000/100`).
 
 ### Economic climate thresholds
