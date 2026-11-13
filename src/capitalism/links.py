@@ -328,6 +328,7 @@ class Market:
             self._sum_supply(tm)
         unmet = max(0.0, demand - sum(x.quantity for x in live))
         tm.unmet_demand_sum += unmet
+        tm.unmet_demand_value_sum += unmet * tm.ref_price
 
     @staticmethod
     def _sum_supply(tm: TownMarket) -> None:

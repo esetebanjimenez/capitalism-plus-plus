@@ -182,6 +182,7 @@ class TownMarket:
         "brand_weight",
         "demand_per_day",
         "last_month_unmet_demand_sum",
+        "last_month_unmet_demand_value_sum",
         "links",
         "max_score_in",
         "price_weight",
@@ -194,6 +195,7 @@ class TownMarket:
         "supply_today",
         "town",
         "unmet_demand_sum",
+        "unmet_demand_value_sum",
     )
 
     def __init__(self, town: Town, product: Product) -> None:
@@ -212,6 +214,8 @@ class TownMarket:
         self.ref_score = 0.0
         self.unmet_demand_sum = 0.0
         self.last_month_unmet_demand_sum = 0.0
+        self.unmet_demand_value_sum = 0.0
+        self.last_month_unmet_demand_value_sum = 0.0
 
     def recompute(self) -> None:
         self.demand_per_day = daily_demand(self.product, self.town)
