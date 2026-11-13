@@ -4838,13 +4838,27 @@ the goal. Hurry Up!" with singular/plural grammar.
 
 ### Game over handler — FUN_0001cf40 (0x0001cf40, line 10522)
 
-1. If goals active: check FUN_0001ad28 for player
+Called with param_2 = 2 from all four game-over paths: player victory
+(line 9162), AI victory (line 9182 via goto), deadline expired
+(line 9131), and player bankruptcy (line 30978).
+
+1. If goals active (`app+5 != 0`): check FUN_0001ad28 for player
    - Achieved: play "END-WIN" sound
    - Failed: play "END-LOSE" sound
    - Show goal dialog via FUN_00019e99
-2. Show performance chart via FUN_0007e6f2
-3. Based on param_2: 0 → mode 0xb, 1 → set speed 0 + mode 0xc,
-   2 → clear goals flag (app+5 = 0)
+2. Show performance chart via FUN_0007e6f2, wait for user to dismiss
+3. Mode decision (line 10558-10567):
+   ```
+   if (param_2 == 0 || DAT_000b1f17 == '\0')  → g_window.mode = 0xb
+   else if (param_2 == 1)                       → speed 0 + mode 0xc
+   else                                          → clear goals flag (app+5 = 0)
+   ```
+   **Bug/dead code:** `DAT_000b1f17` (VA `0xb1f17`) is BSS-zero and never
+   written anywhere in the decompile, so `DAT_000b1f17 == '\0'` is always
+   true. The first branch always fires: `g_window.mode = 0xb` (exit game
+   loop). The `else` branch that would clear goals and let the game
+   continue is never reached. **The native game does not have a "keep
+   playing" option after any game-over outcome.**
 4. Attempt Hall of Fame entry via FUN_0001d59b
 
 `FUN_0001d0e6` (0x0001d0e6, line 10578): ownership lost handler.
