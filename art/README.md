@@ -97,3 +97,22 @@ screen. There is no separate 48 px set. A type the player can't afford draws its
 with the shortfall in red. The goal-met tick is `icon_goal` (16×16) in `ui_atlas`. Preview:
 `docs/art/m2-build-menu-preview.png`, made by `art/tools/build_menu.py` (cash and land value are example values;
 costs come from `capitalism.db`).
+
+## M2 views: town plate, news and profit icons, charts, win/loss card (#175, #177, #178)
+
+Drawn from `docs/m2-view-briefs.md` sections 2 to 5 by `art/tools/ui_views.py`; `ui_build.py` appends its
+frames to `ui_atlas` (now 71 frames, earlier frames unchanged). Preview: `docs/art/m2-views-preview.png`.
+
+- **Town plate (#175):** the existing `card` nine-slice at 136×24 pt (12 characters at 12 pt bold), name and
+  level as live text. The level sits in `plate_level`, an ink badge that stretches for any number. No owner
+  colour. `plate_pulse` is an orange ring 3 pt outside the plate for the optional level-up pulse.
+- **News (#177):** `icon_nws_normal`, `icon_nws_financial`, `icon_nws_tech`, `icon_nws_special`, one per
+  category. Important items stay a bold row, not an icon.
+- **Profit arrows (#177):** `icon_arr_up` (green) and `icon_arr_down` (red), beside the corporation's
+  operating and other profit only; the figure keeps its own colour.
+- **Charts (#178):** style in `art/charts.json`: one orange 2 pt line, sand grid, ink zero line when the
+  range crosses 0, short money labels, `chart_dot` on the last point, `chart_dot_sel` and a `card_float`
+  tip on the tapped point; a single point is a dot alone.
+- **Win/loss card (#178):** one `card` layout; `end_band_win|time|rival` (green, amber, red) and
+  `icon_end_win|time|rival` (shown at 2×) change per outcome. Goal rows use `icon_goal` and
+  `icon_goal_miss`, with labels from `q_goals`; difficulty is a plain rating (no %). New game is `btn_primary`; Keep playing is an optional `btn_secondary` the client can hide.
