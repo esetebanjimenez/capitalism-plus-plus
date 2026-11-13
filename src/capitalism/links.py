@@ -7,13 +7,18 @@ live-inventory links (department stores in 4a).
 
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from .catalog import Product, TownMarket
 from .tables import LINK_RULES
 
+BRAND_CORPORATE = 0
+BRAND_RANGE = 1
+BRAND_UNIQUE = 2
+
 if TYPE_CHECKING:
-    from .economy import Economy
+    from .economy import Corporation, Economy
     from .jobs import Job
 
 MONTHS = 12
@@ -25,6 +30,32 @@ DEMAND_DIVISOR = 20.0  # DAT_000aa0e3
 SUPPLY_DECAY_CAP = 0.05  # DAT_000aa0e7 (double)
 _IMPORTER_DECAY = {0: 0.025, 1: 0.05}  # corporate, range
 _IMPORTER_DECAY_DEFAULT = 0.1  # unique / other
+
+# Brand build-up constants (FUN_0006d0cd, decomp:78835-78920)
+_BRAND_RAW_DIVISOR = 50.0  # DAT_000a9644
+_BRAND_STEP = 0.1  # DAT_000a9648
+_BRAND_DILUTION_PER = 3  # penalty = (count - 1) * 3
+_BRAND_HIGH_FLOOR = 50  # max(50, published_high)
+
+
+def brand_key(corp: Corporation, product: Product, catalog: object) -> int:
+    """FUN_0006f435: brand record key by strategy (decomp:80647-80665)."""
+    if corp.brand_strategy == BRAND_CORPORATE:
+        return 1
+    if corp.brand_strategy == BRAND_RANGE:
+        return catalog.class_first_product[product.row.class_id]  # type: ignore[union-attr]
+    return product.id
+
+
+class BrandRecord:
+    """Per-(town, brand_key) brand data with per-corp arrays (decomp:78870-78874)."""
+
+    __slots__ = ("awareness", "cell", "rating_cell")
+
+    def __init__(self) -> None:
+        self.awareness: dict[int, float] = {}
+        self.cell: dict[int, float] = {}
+        self.rating_cell: dict[int, float] = {}
 
 
 def link_score(
@@ -146,14 +177,18 @@ class Link:
         self.prev_score = self.score
         self.score = new
 
-    def nudge_brand(self) -> None:
-        r = LINK_RULES
-        target = self.seller.quality
-        if self.brand < target:
-            self.brand = min(target, self.brand + r.brand_nudge)
-        elif self.brand > target:
-            self.brand = max(target, self.brand - r.brand_nudge)
-        self.brand = max(0.0, min(r.brand_max, self.brand))
+    def read_brand(self, market: Market) -> float:
+        """FUN_0006d67d mode 1: round(awareness) + round(cell) (decomp:79090-79094)."""
+        if not self.consumer:
+            return self.brand
+        corp = self.seller.firm.owner
+        if corp is None or self.product.row.w_brand == 0:
+            return 0.0
+        bk = brand_key(corp, self.product, market.catalog)
+        rec = market.brand_records.get((self.buyer.town.id, bk))
+        if rec is None:
+            return 0.0
+        return float(round(rec.awareness.get(corp.id, 0.0)) + round(rec.cell.get(corp.id, 0.0)))
 
 
 def _reduce_gap(link: Link, tm: TownMarket) -> float:
@@ -189,6 +224,8 @@ class Market:
     def __init__(self) -> None:
         self.links: list[Link | None] = []
         self.towns: dict[tuple[int, int], TownMarket] = {}
+        self.brand_records: dict[tuple[int, int], BrandRecord] = {}
+        self.catalog: object = None  # set by Economy after construction
 
     def add_link(self, seller: Job, buyer: Job | TownMarket, price: float | None = None) -> Link:
         slot = next((i for i, x in enumerate(self.links) if x is None), len(self.links))
@@ -212,6 +249,8 @@ class Market:
         day = eco.calendar.day
         for link in self.links:
             if link is not None:
+                if link.consumer:
+                    link.brand = link.read_brand(self)
                 link.adjust_score()
         for key in sorted(self.towns):
             tm = self.towns[key]
@@ -279,8 +318,7 @@ class Market:
             sold = min(cap, x.quantity)
             if sold > 0:
                 seller.sell_to(sold, x)  # type: ignore[attr-defined]
-                x.nudge_brand()
-                self._awareness_gain(x, tm)
+                self._brand_buildup(x, sold, tm)
         if day_serial % 2 == 0:
             self._sum_supply(tm)
         unmet = max(0.0, demand - sum(x.quantity for x in live))
@@ -293,22 +331,77 @@ class Market:
         total = sum(x.quantity for x in live)
         tm.supply_today = max(0.0, total)
 
-    @staticmethod
-    def _awareness_gain(link: Link, tm: TownMarket) -> None:
-        """FUN_00075aec: increment awareness after a consumer sale."""
-        owner = link.seller.firm.owner
-        if owner is None:
+    def _brand_buildup(self, link: Link, count: float, tm: TownMarket) -> None:
+        """FUN_0006d0cd: brand perception update on each sale (decomp:78835-78920)."""
+        corp = link.seller.firm.owner
+        if corp is None or count <= 0:
             return
-        prev = link.units_month[(Link.month_index - 1) % MONTHS]
-        units = prev + 1.0
-        ref = max(units, tm.demand_per_day * 30.0)
-        gain = (RATING_TARGET - link.awareness) * units / ref / 100.0
-        if owner.brand_strategy == 0:
+        if link.product.row.w_brand == 0:
+            return
+        bk = brand_key(corp, link.product, self.catalog)
+        key = (tm.town.id, bk)
+        rec = self.brand_records.get(key)
+        if rec is None:
+            rec = BrandRecord()
+            self.brand_records[key] = rec
+        awareness = rec.awareness.get(corp.id, 0.0)
+        if awareness < 1.0:
+            return
+        cell = rec.cell.get(corp.id, 0.0)
+        ps = link.product.state
+        max_si = max(_BRAND_HIGH_FLOOR, ps.max_score_in)
+        max_sc = max(_BRAND_HIGH_FLOOR, ps.max_score)
+        p = link.product.row.w_quality
+        si = int(link.seller.quality)
+        sc = int(link.score)
+        raw = float((p * 2 * si) // max_si + ((100 - p * 2) * sc) // max_sc)
+        town_id = tm.town.id
+        if corp.brand_strategy == BRAND_CORPORATE:
+            raw -= (corp.products_per_town.get(town_id, 1) - 1) * _BRAND_DILUTION_PER
+        if corp.brand_strategy in (BRAND_CORPORATE, BRAND_RANGE):
+            raw -= (corp.classes_per_town.get(town_id, 1) - 1) * _BRAND_DILUTION_PER
+        raw = max(0.0, raw)
+        target = awareness * raw / _BRAND_RAW_DIVISOR - awareness
+        if target == cell:
+            return
+        if target <= cell:
+            step = -_BRAND_STEP
+        elif corp.brand_strategy == BRAND_UNIQUE:
+            step = _BRAND_STEP
+        else:
+            classes = max(1, corp.classes_per_town.get(town_id, 1))
+            step = _BRAND_STEP / classes
+        demand = max(count, tm.demand_per_day)
+        cell += count * step / demand
+        cell = max(-awareness, min(awareness, cell))
+        rec.cell[corp.id] = cell
+
+    def _monthly_awareness(self, link: Link, tm: TownMarket) -> None:
+        """FUN_00075aec: monthly awareness gain per live link (decomp:85363-85426)."""
+        corp = link.seller.firm.owner
+        if corp is None:
+            return
+        if link.product.row.w_brand == 0:
+            return
+        bk = brand_key(corp, link.product, self.catalog)
+        key = (tm.town.id, bk)
+        rec = self.brand_records.get(key)
+        if rec is None:
+            rec = BrandRecord()
+            self.brand_records[key] = rec
+        prev_month = (Link.month_index - 1) % MONTHS
+        units = link.units_month[prev_month] + 1.0
+        demand = max(units, tm.demand_per_day)
+        rating = rec.rating_cell.get(corp.id, 0.0)
+        gain = (RATING_TARGET - rating) * units / demand / 100.0
+        if corp.brand_strategy == BRAND_CORPORATE:
             gain *= 0.25
-        elif owner.brand_strategy == 1:
+        elif corp.brand_strategy == BRAND_RANGE:
             gain *= 0.5
-        link.awareness += gain
-        tm.demand_per_day = min(tm.demand_per_day + gain, 100.0)
+        rec.rating_cell[corp.id] = rating + gain
+        awareness = rec.awareness.get(corp.id, 0.0) + gain
+        awareness = min(awareness, 100.0)
+        rec.awareness[corp.id] = awareness
 
     def weekly_ratings(self) -> None:
         """Weekday 5: decay oversupplied ratings (FUN_00075988).
@@ -335,8 +428,33 @@ class Market:
                 tm.supply_today -= s_decay
             tm.supply_today = max(-tm.demand_per_day, min(tm.supply_today, tm.demand_per_day))
 
-    def monthly(self, month0: int) -> None:
-        """Monthly roll (ref): save prev, zero the new month's buckets, recompute weight."""
+    def _recount_corp_brands(self, eco: Economy) -> None:
+        """FUN_00032733: recount distinct products and classes per (corp, town)."""
+        for c in eco.corps:
+            c.products_per_town.clear()
+            c.classes_per_town.clear()
+        seen_products: dict[tuple[int, int], set[int]] = defaultdict(set)
+        seen_classes: dict[tuple[int, int], set[int]] = defaultdict(set)
+        for link in self.links:
+            if link is None or not link.consumer:
+                continue
+            corp = link.seller.firm.owner
+            if corp is None:
+                continue
+            town_id = link.buyer.town.id
+            seen_products[(corp.id, town_id)].add(link.product.id)
+            seen_classes[(corp.id, town_id)].add(link.product.row.class_id)
+        for (corp_id, town_id), prods in seen_products.items():
+            if corp_id < len(eco.corps):
+                eco.corps[corp_id].products_per_town[town_id] = len(prods)
+        for (corp_id, town_id), cls in seen_classes.items():
+            if corp_id < len(eco.corps):
+                eco.corps[corp_id].classes_per_town[town_id] = len(cls)
+
+    def monthly(self, month0: int, eco: Economy) -> None:
+        """Monthly roll: save prev, zero buckets, publish highs, awareness (N9)."""
+        product_max_si: dict[int, int] = defaultdict(int)
+        product_max_sc: dict[int, int] = defaultdict(int)
         for link in self.links:
             if link is None:
                 continue
@@ -347,5 +465,23 @@ class Market:
             link.margin_month[month0] = 0.0
             link.update_weight()
             link.quantity_sum = 0.0
+            pid = link.product.id
+            si = int(link.seller.quality)
+            sc = int(link.score)
+            product_max_si[pid] = max(product_max_si[pid], si)
+            product_max_sc[pid] = max(product_max_sc[pid], sc)
+        for pid, v in product_max_si.items():
+            eco.catalog.by_id[pid].state.max_score_in = v
+        for pid, v in product_max_sc.items():
+            eco.catalog.by_id[pid].state.max_score = v
         for tm in self.towns.values():
             tm.max_score_in = max((x.score for x in tm.links), default=0.0)
+            for link in tm.links:
+                if link.live:
+                    self._monthly_awareness(link, tm)
+                    rec = self.brand_records.get(
+                        (tm.town.id, brand_key(link.seller.firm.owner, link.product, self.catalog))
+                    )
+                    if rec is not None and link.seller.firm.owner is not None:
+                        rec.rating_cell.setdefault(link.seller.firm.owner.id, 0.0)
+        self._recount_corp_brands(eco)

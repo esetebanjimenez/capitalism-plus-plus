@@ -3,13 +3,12 @@
 import pytest
 
 from capitalism.economy import (
-    BRAND_CORPORATE,
-    BRAND_UNIQUE,
     CORP_AI,
     CORP_PLAYER,
     Corporation,
 )
 from capitalism.jobs import CAT_LOAN_INTEREST, CAT_SALES
+from capitalism.links import BRAND_CORPORATE, BRAND_UNIQUE
 from capitalism.scenario import bread_town, build_bread_chain
 from capitalism.tables import CORPORATION_RULES
 

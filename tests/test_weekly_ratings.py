@@ -2,8 +2,10 @@
 
 import pytest
 
-from capitalism.economy import BRAND_CORPORATE, BRAND_RANGE, BRAND_UNIQUE
 from capitalism.links import (
+    BRAND_CORPORATE,
+    BRAND_RANGE,
+    BRAND_UNIQUE,
     DEMAND_DIVISOR,
     RATING_GATE,
     SUPPLY_DECAY_CAP,
@@ -142,25 +144,29 @@ def test_supply_capped_at_demand():
     assert tm.supply_today <= tm.demand_per_day
 
 
-def test_awareness_gain_updates_demand():
-    """FUN_00075aec: demand_per_day increases with awareness gain, capped at 100."""
-    from capitalism.links import Market
+def test_monthly_awareness_updates_brand_record():
+    """FUN_00075aec: monthly awareness gain updates brand record, capped at 100."""
+    from capitalism.links import brand_key
 
     sim, town = bread_town()
-    corp = sim.economy.add_corp("P")
+    eco = sim.economy
+    corp = eco.add_corp("P")
     _firm, _job, link = _consumer_link(sim, town, corp)
+    market = eco.market
     tm = link.buyer
-    link.awareness = 0.0
     tm.demand_per_day = 5.0
     link.units_month[(link.month_index - 1) % 12] = 10.0
-    Market._awareness_gain(link, tm)
-    assert link.awareness > 0.0
-    assert tm.demand_per_day > 5.0
-    # Cap: set demand near 100, gain should not exceed 100
-    tm.demand_per_day = 99.99
-    link.awareness = 0.0
-    Market._awareness_gain(link, tm)
-    assert tm.demand_per_day <= 100.0
+    market._monthly_awareness(link, tm)
+    bk = brand_key(corp, link.product, market.catalog)
+    rec = market.brand_records.get((town.id, bk))
+    assert rec is not None
+    assert rec.awareness.get(corp.id, 0.0) > 0.0
+    assert rec.rating_cell.get(corp.id, 0.0) > 0.0
+    # Cap: set awareness near 100, gain should not exceed 100
+    rec.awareness[corp.id] = 99.99
+    rec.rating_cell[corp.id] = 0.0
+    market._monthly_awareness(link, tm)
+    assert rec.awareness[corp.id] <= 100.0
 
 
 def test_weekly_ratings_runs_on_weekday5():

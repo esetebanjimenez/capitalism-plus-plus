@@ -407,7 +407,7 @@ class TestMonthlyRoll:
         corp = eco.add_corp("T")
         link = _link_in_town(sim, town, corp, quality=50)
         link.quantity_sum = 42.0
-        eco.market.monthly(0)
+        eco.market.monthly(0, eco)
         assert link.quantity_prev == 42.0
         assert link.quantity_sum == 0.0
 
@@ -417,6 +417,6 @@ class TestMonthlyRoll:
         corp = eco.add_corp("T")
         link = _link_in_town(sim, town, corp, quality=50)
         link.units_month[0] = 99.0
-        eco.market.monthly(0)
+        eco.market.monthly(0, eco)
         assert link.flow_prev == 99.0
         assert link.units_month[0] == 0.0

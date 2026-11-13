@@ -23,7 +23,7 @@ from .firms import (
     book_asset,
 )
 from .jobs import CAT_LOAN_INTEREST, CAT_SALARIES, CAT_SALES, CAT_STOCK_RETURN, CAT_WRITEOFFS
-from .links import Market
+from .links import BRAND_CORPORATE, Market
 from .news import NewsLog, random_events_daily
 from .person import (
     STATE_ACTIVE,
@@ -67,9 +67,6 @@ CORP_HIRED = 2
 CORP_AI = 3
 CORP_GOVERNMENT = 4
 
-BRAND_CORPORATE = 0
-BRAND_RANGE = 1
-BRAND_UNIQUE = 2
 
 _CR = CORPORATION_RULES
 _PR = PERSON_RULES
@@ -81,6 +78,7 @@ class Corporation:
     __slots__ = (
         "brand_strategy",
         "business_assets",
+        "classes_per_town",
         "corp_type",
         "dividend_auto",
         "dividend_ratio",
@@ -93,6 +91,7 @@ class Corporation:
         "month_history",
         "name",
         "peak_revenue",
+        "products_per_town",
         "stock_assets",
         "technology",
         "training_budget",
@@ -114,6 +113,8 @@ class Corporation:
         # Account 4 (S1): money moved in and out by trades in other corps' stock.
         self.stock_assets = 0.0
         self.brand_strategy = BRAND_CORPORATE
+        self.products_per_town: dict[int, int] = {}
+        self.classes_per_town: dict[int, int] = {}
         self.dividend_ratio = 0
         self.dividend_auto = True
         self.peak_revenue = 0.0
@@ -297,6 +298,7 @@ class Economy:
         self.competitor_capital = 0
         self.firms: list[Firm | None] = []
         self.market = Market()
+        self.market.catalog = self.catalog
         self.interest_rate = _CR.interest_rate_default
         self.interest_rate_history: list[float] = [_CR.interest_rate_default]
         self.ensure_markets()
@@ -610,16 +612,10 @@ class Economy:
             if firm is not None:
                 firm.monthly(self)
         self._compute_market_shares()
-        self.market.monthly(self.calendar.month - 1)
+        self.market.monthly(self.calendar.month - 1, self)
         for tm in self.market.towns.values():
             tm.random_walk_refs(self.rng)
             tm.unmet_demand_sum = 0.0
-        best: dict[int, float] = {}
-        for link in self.market.live_links():
-            pid = link.product.id
-            best[pid] = max(best.get(pid, 0.0), link.score)
-        for p in self.catalog.products:
-            p.state.max_score_in = best.get(p.id, 0.0)
 
     def _compute_market_shares(self) -> None:
         """K1: monthly market share = round(corp_sum × 100 / total), capped 0–100."""

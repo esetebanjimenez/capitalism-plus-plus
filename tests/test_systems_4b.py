@@ -256,9 +256,9 @@ def _record_campaign_brand(monkeypatch, link):
     original = Advertising.commit_campaign
 
     def commit(self, eco):
-        before = link.brand
+        before = link.read_brand(eco.market)
         original(self, eco)
-        seen.append((before, link.brand))
+        seen.append((before, link.read_brand(eco.market)))
 
     monkeypatch.setattr(Advertising, "commit_campaign", commit)
     return seen
