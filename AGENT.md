@@ -153,6 +153,6 @@ issue → branch → implement → tests → docs → PR → CI. Invoke with
 - Use only pre-defined issue labels. If no existing label fits, suggest
   a new one to the user rather than creating it. Notable labels:
   `research` for issues requiring investigation of the original game,
-  `art` for art-related issues.
+  `art` for art-related issues, `development` for implementation work.
 - `MAX_CORPS = 12` throughout the sim.
 - Watcom `__CHP` (float-to-int) maps to Python `round()`.
