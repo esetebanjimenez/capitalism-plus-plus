@@ -303,10 +303,11 @@ advances. The daily batch runs in this order:
    decrement is subtracted from both the awareness and the town's
    demand cell (floored at 0). The town-product supply cell also decays
    each entry by min(supply / 200, 0.05), then is clamped to
-   [−demand, demand]. Awareness grows during daily consumer sales via a
-   gain formula that scales with (30 − current) × recent sales / 100,
-   multiplied by a brand strategy factor (corporate × 0.25, range × 0.5,
-   unique × 1.0).
+   [−demand, demand]. Awareness grows monthly (N9) via a gain formula on
+   the brand record: δ = ((30 − rating_cell) × (last_month_units + 1) /
+   max(units, demand)) / 100, multiplied by a brand strategy factor
+   (corporate × 0.25, range × 0.5, unique × 1.0), added to both
+   rating_cell and awareness, capped at 100.
 7. **Random events.** Skipped when the frequency setting is 0 (the
    default for new games). Otherwise, each day has a probability of
    triggering based on the frequency — lower frequency means rarer
@@ -1243,12 +1244,13 @@ Where:
   decompile. It is believed to come from the job's manufacturing or
   purchasing quality, but that hasn't been confirmed.
 - **brand_rating** is the corporation's brand value in this town for
-  this product. It is looked up in a record chosen by the brand
-  strategy: corporate, range (product class) or unique (product). How
-  the stored brand value is turned into this rating was lost in the
-  decompile.
-- **score_in** is the link's score-in field. The decompile doesn't show
-  whether it holds the product's quality.
+  this product. It is looked up in a per-(town, brand_key) record
+  chosen by the brand strategy: corporate (key = 1), range (key =
+  first product id of the class) or unique (key = product id). The
+  rating is `round(awareness) + round(cell)` (native `FUN_0006d67d`
+  mode 1). Brand builds up per sale through the `_brand_buildup`
+  formula and grows monthly through `_monthly_awareness`.
+- **score_in** is the seller job's quality (product `+0x54` = `w_quality`).
 - **score_in_weight** and **brand_weight** are the town-product weights
   (see Market competition). They start from the product's
   consumer-decision percentages plus a per-town adjustment.

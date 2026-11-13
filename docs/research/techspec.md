@@ -4280,8 +4280,13 @@ increase/take (`proj_qty < 2 × proj_flow`, N7), and sums supply on even
 `day_serial` only (N10). Link fields `quantity_prev` and `flow_prev` support
 the monthly projection. N7 processing order is phased (all trims, then all
 reduces, then per-link increase/take) rather than per-link sequential as in
-the native. The N10 price swap is not yet implemented. N8 brand build-up per
-(town, corp, brand key) is not yet implemented (Unknown corp fields).
+the native. The N10 price swap is not yet implemented. N8 brand build-up is
+now implemented: per-(town, brand_key) `BrandRecord` with per-corp awareness
+and cell arrays in `links.py`. Corp fields decoded: `corp+0x68[town]` =
+distinct products per (corp, town); `corp+0x80[town]` = distinct classes per
+(corp, town), recomputed monthly by `_recount_corp_brands()`. Brand key
+resolved by `brand_key()`: corporate→1, range→class_first_product, unique→
+product_id. Monthly awareness gain (N9) implemented in `_monthly_awareness()`.
 
 ### Sales — oitem4.cpp (lines ~78764–78920)
 
@@ -4311,6 +4316,16 @@ perception updater, called with the sold count.
   Mode 1 (used in `item_adjust_score`): `round(+0x8[product]) + round(+0x38[product])`.
   Mode 2: `round(+0x8[product])`. Mode 3: `round(+0x38[product])`.
   FPU recovery at 0x6d788, 0x6d79b, 0x6d7b5.
+- **Corp fields decoded (2026-11-13):** `corp+0x68[town]` counts distinct
+  products sold by the corp in a town; `corp+0x80[town]` counts distinct
+  product classes. Both are recomputed monthly by `FUN_00032733`
+  (`decomp:29065-29117`), which walks all live consumer links. These are the
+  dilution counts in the brand build-up formula.
+- **Implemented in:** `links.py` — `BrandRecord`, `brand_key()`,
+  `_brand_buildup()`, `_monthly_awareness()`, `read_brand()`,
+  `_recount_corp_brands()`. Published highs (`max_score_in`, `max_score`)
+  in `Market.monthly()`. Advertising updates brand record awareness
+  (`jobs.py:Advertising.commit_campaign`).
 
 ### Monthly tick — oitem4.cpp (line 78628)
 

@@ -816,17 +816,26 @@ class Advertising(Job):
             self.targets[product.id] = self.budget
             # design.md slice 5: no stock, no sale, no brand gain, no ad effect. Only live
             # consumer links whose seller holds stock on the campaign tick gain brand.
-            for link in eco.market.live_links():
-                if (
-                    link.live
-                    and link.seller.firm is self.firm
-                    and link.product is product
-                    and link.seller.stock > 0
-                ):
-                    link.brand = min(
-                        LINK_RULES.brand_max,
-                        link.brand + LINK_RULES.ad_brand_per_100k * self.budget / 100_000,
-                    )
+            corp = self.firm.owner
+            if corp is not None:
+                from .links import BrandRecord, brand_key
+
+                bk = brand_key(corp, product, eco.catalog)
+                gain = LINK_RULES.ad_brand_per_100k * self.budget / 100_000
+                for link in eco.market.live_links():
+                    if (
+                        link.live
+                        and link.seller.firm is self.firm
+                        and link.product is product
+                        and link.seller.stock > 0
+                    ):
+                        key = (link.buyer.town.id, bk)
+                        rec = eco.market.brand_records.get(key)
+                        if rec is None:
+                            rec = BrandRecord()
+                            eco.market.brand_records[key] = rec
+                        aw = rec.awareness.get(corp.id, 0.0)
+                        rec.awareness[corp.id] = min(100.0, aw + gain)
 
     def qualifying(self, sales: Sales) -> bool:
         return (
