@@ -445,19 +445,21 @@ class MediaFirm(Firm):
         self.audience = max(r.media_audience_min, min(r.media_audience_cap, self.audience))
 
     def organic_revenue(self) -> float:
-        """Binary FUN_0006073c: monthly revenue from audience and town economics.
-
-        Seasonal and ad-rate factors are provisional (neutral 100%).
-        """
+        """Binary FUN_0006073c: monthly revenue from audience and town economics."""
         r = ADVERTISING_RULES
         staff = FIRM_RULES.media_staff
+        town = self.town
+        gnp = town.per_capita_gnp
+        pop = town.population
+        town_factor = gnp * 100.0 / r.media_revenue_town_divisor
         reach = staff * self.audience / 100.0
-        ad_base = (self.town.population * 100.0 / r.media_revenue_town_divisor) * reach / 100.0
-        spending = getattr(self.town, "consumer_spending", 100.0) or 100.0
-        revenue_base = spending * ad_base / 100.0
-        seasonal = r.media_revenue_seasonal_neutral
+        ad_base = town_factor * reach / 100.0
+        revenue_base = pop * ad_base / 100.0
+        seasonal = town.gnp_growth_pct[(town.ring_index - 1) % 12]
         audience_factor = self.audience / 100.0 + r.media_revenue_audience_addend
-        revenue = revenue_base / r.media_revenue_base_divisor * (seasonal * audience_factor / 100.0)
+        revenue = (revenue_base / r.media_revenue_base_divisor
+                   * ((seasonal + town_factor) * audience_factor / 100.0)
+                   / 100.0)
         return max(r.media_revenue_floor, revenue)
 
     def monthly(self, eco: Economy) -> None:
