@@ -1,11 +1,11 @@
 """#303: native town tile sets, drawn at 64 px with a 32 px fallback (same palette and style as town64/town).
 
-Native kinds (docs/research/techspec.md "Town spread", gap audit T4):
-- town_rural_0..4  = kinds 0x3008..0x300c ("small town"): the solid core inside the level radius and the
-  1-in-10 corner tiles. Houses with gardens, lanes and small plots, on grass.
-- town_urban_0..7  = kinds 0x3000..0x3007 ("large town"): the ring scattered from level to level + 4.
-  Mid-rise and tower plots on pavement.
-Variant index v = kind - 0x3008 (rural) or kind - 0x3000 (urban). Each tile stands alone (no road
+Native kinds (docs/research/techspec.md "Town spread", gap audit T4; names corrected by Esteban, #311):
+- town_urban_0..4  = kinds 0x3008..0x300c: the solid core inside the level radius and the 1-in-10
+  corner tiles. Towers, mid-rise and shops on pavement.
+- town_rural_0..7  = kinds 0x3000..0x3007: the ring scattered from level to level + 4, so rural always
+  rings urban. Houses, gardens, farms and orchards on grass.
+Variant index v = kind - 0x3008 (urban) or kind - 0x3000 (rural). Each tile stands alone (no road
 autotiling), since native towns scatter single tiles over grass. Frames are appended after the existing
 ones in both terrain atlases, so earlier frames keep their place."""
 
@@ -56,7 +56,7 @@ class Tile:
             s.d.line([(0, i), (s.n - 1, i)], fill=H(C["PAVED"]))
 
 
-# ---------- rural (small town) ----------
+# ---------- rural (0x3000..0x3007, outer ring) ----------
 def house(t, x0, y0, x1, y1, roof, edge):
     """Pitched-roof house seen from above with a short front wall (64 px coords)."""
     big = t.n == 64
@@ -120,7 +120,7 @@ def rural(v):
             house(t, 8, 36, 24, 48, *ROOF[3])
             t.R([0, 56, 63, 60], "SAND")
             tree(t, 38, 34, 16)
-        else:  # farmstead: barn and crop rows
+        elif v == 4:  # farmstead: barn and crop rows
             t.R([4, 6, 28, 30], "RED", "INK")
             t.R([4, 18, 28, 30], "REDD", "INK")
             t.R([12, 26, 20, 30], "BROWND", "INK")
@@ -128,12 +128,40 @@ def rural(v):
             for x in range(37, 59, 4 if t.n == 64 else 6):
                 t.R([x, 6, x + 1, 56], "GRASSD")
             house(t, 6, 38, 26, 54, *ROOF[2])
+        elif v == 5:  # cottage by an orchard
+            house(t, 4, 4, 26, 21, *ROOF[0])
+            t.R([0, 30, 30, 34], "SAND")
+            for yy in (4, 22, 40):
+                for xx in (34, 48):
+                    tree(t, xx, yy, 12)
+            tree(t, 6, 42, 12)
+            tree(t, 18, 46, 10)
+        elif v == 6:  # two houses above a farm pond
+            house(t, 4, 4, 26, 21, *ROOF[2])
+            house(t, 36, 4, 58, 21, *ROOF[1])
+            t.R([0, 30, 63, 33], "SAND")
+            t.E([14, 38, 54, 60], "WATER", "INK")
+            t.d.arc([t.c(20), t.c(42), t.c(40), t.c(54)], 200, 260, fill=H(C["WIN"]))
+            for x, y in ((12, 50), (10, 44), (54, 50)):
+                t.R([x, y, x, y + 4], "TREE")
+        else:  # grain silos, a shed and hay bales by a track
+            t.R([0, 28, 63, 33], "SAND")
+            for x in (6, 20):
+                t.E([x + 2, 6, x + 14, 18], "GRASSD")
+                t.E([x, 4, x + 12, 16], "GREY", "INK")
+                t.E([x + 3, 7, x + 9, 13], "PAVE")
+            t.R([36, 4, 60, 22], "GREYD", "INK")
+            t.R([36, 18, 60, 22], "GREY", "INK")
+            t.R([44, 19, 52, 22], "DARK", "INK")
+            for x, y in ((6, 42), (20, 46), (34, 40), (48, 48)):
+                t.E([x, y, x + 9, y + 9], "TAN", "INK")
+                t.E([x + 3, y + 3, x + 6, y + 6], "TAND")
         return t.im
 
     return make
 
 
-# ---------- urban (large town) ----------
+# ---------- urban (0x3008..0x300c, core) ----------
 def building(t, x0, y0, x1, y1, roof, edge, h, kind="plain"):
     """Flat-roof building: roof rect, thin front edge h px tall (= height), window dots on the edge."""
     big = t.n == 64
@@ -187,42 +215,32 @@ def urban(v):
             building(t, 10, 4, 53, 45, "GLASS", "GLASSD", 8)
         elif v == 1:  # grey tower with helipad
             building(t, 10, 4, 53, 45, "GREY", "GREYD", 8, "heli")
-        elif v == 2:  # tan mid-rise block
-            building(t, 6, 6, 57, 51, "TAN", "TAND", 4)
-        elif v == 3:  # brick mid-rise with a radio mast
+        elif v == 2:  # brick mid-rise with a radio mast
             building(t, 6, 6, 57, 51, "BROWN", "BROWND", 4, "mast")
-        elif v == 4:  # two mid-rises and a courtyard tree
-            building(t, 4, 4, 28, 50, "GREY", "GREYD", 4)
-            building(t, 36, 4, 58, 26, "TAN", "TAND", 4)
-            tree(t, 40, 38, 16)
-        elif v == 5:  # shop row with awnings over a car park
+        elif v == 3:  # shop row with awnings over a car park
             building(t, 4, 4, 58, 24, "TAN", "TAND", 4)
             for x in range(6, 56, 8):
                 t.R([x, 29, x + 6, 31], "RED" if (x // 8) % 2 else "CREAM", "INK")
             parking(t, 4, 38, 59, 59)
-        elif v == 6:  # glass offices and a brick annex
+        else:  # glass offices and a brick annex
             building(t, 4, 4, 34, 52, "GLASS", "GLASSD", 8)
             building(t, 40, 20, 59, 48, "BROWN", "BROWND", 4)
-        else:  # tower block with a plaza and trees
-            building(t, 16, 4, 47, 38, "GREY", "GREYD", 8, "mast")
-            tree(t, 4, 46, 12)
-            tree(t, 48, 46, 12)
-            t.E([26, 48, 38, 60], "WATER", "INK")
         return t.im
 
     return make
 
 
-RURAL = 5
-URBAN = 8
+RURAL = 8
+URBAN = 5
 
 
 def frames(n):
+    """In native kind order: rural 0x3000..0x3007, then urban 0x3008..0x300c."""
     f = {}
-    for v in range(URBAN):
-        f[f"town_urban_{v}"] = urban(v)(n)
     for v in range(RURAL):
         f[f"town_rural_{v}"] = rural(v)(n)
+    for v in range(URBAN):
+        f[f"town_urban_{v}"] = urban(v)(n)
     return f
 
 
@@ -240,7 +258,7 @@ def preview():
     d = ImageDraw.Draw(S)
     d.text(
         (8, 4),
-        "Capitalism++ #303: urban 0x3000-7 (left, ring) and rural 0x3008-c (right, core)",
+        "Capitalism++ #303: rural 0x3000-7 (left, outer ring) and urban 0x3008-c (right, core)",
         fill="white",
         font=f,
     )
@@ -251,7 +269,7 @@ def preview():
         d.text((x, 158), n.replace("town_", ""), fill="white", font=f)
     d.text(
         (8, 176),
-        "Sample spread, level 2: rural core within 2 tiles, urban scattered out to 6",
+        "Sample spread, level 2: urban core within 2 tiles, rural scattered out to 6",
         fill="white",
         font=f,
     )
@@ -263,9 +281,9 @@ def preview():
         for x in range(gx):
             dist = max(abs(x - cx), abs(y - cy))
             if dist < 2:
-                im = fr64[f"town_rural_{r.randrange(RURAL)}"]
-            elif dist < 6 and r.random() < 0.45 - dist * 0.05:
                 im = fr64[f"town_urban_{r.randrange(URBAN)}"]
+            elif dist < 6 and r.random() < 0.45 - dist * 0.05:
+                im = fr64[f"town_rural_{r.randrange(RURAL)}"]
             else:
                 im = grass[g[r.randrange(len(g))]]
             S.alpha_composite(im, (12 + x * 64, 196 + y * 64))

@@ -127,9 +127,10 @@ Run `python3 towntiles.py` to rebuild `docs/art/m2-town-native-preview.png`.
 
 | Frame | Native kind | Where it appears |
 | --- | --- | --- |
-| `town_urban_0` .. `town_urban_7` | `0x3000` .. `0x3007` (large town), index = kind − `0x3000` | ring, from the level radius out to level + 4 |
-| `town_rural_0` .. `town_rural_4` | `0x3008` .. `0x300c` (small town), index = kind − `0x3008` | solid core inside the level radius, plus the 1-in-10 corner tiles |
+| `town_rural_0` .. `town_rural_7` | `0x3000` .. `0x3007`, index = kind − `0x3000` | outer ring, from the level radius out to level + 4 (rural always rings urban) |
+| `town_urban_0` .. `town_urban_4` | `0x3008` .. `0x300c`, index = kind − `0x3008` | solid core inside the level radius, plus the 1-in-10 corner tiles |
 
-Urban: 0 glass tower, 1 tower with helipad, 2 tan mid-rise, 3 brick mid-rise with mast, 4 two mid-rises and a tree,
-5 shop row over a car park, 6 glass offices and brick annex, 7 tower with plaza.
-Rural: 0 four houses on crossing paths, 1 three houses and a tree, 2 two houses with gardens, 3 house, vegetable plot and shed, 4 farmstead.
+Rural: 0 four houses on crossing paths, 1 three houses and a tree, 2 two houses with gardens, 3 house, vegetable plot and shed,
+4 farmstead, 5 cottage by an orchard, 6 two houses above a pond, 7 grain silos, shed and hay bales.
+Urban: 0 glass tower, 1 tower with helipad, 2 brick mid-rise with mast, 3 shop row over a car park, 4 glass offices and brick annex.
+Frames are in native kind order (rural, then urban). Names follow Esteban's correction in #311.

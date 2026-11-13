@@ -1297,79 +1297,79 @@
    "w": 8,
    "h": 12
   },
-  "town_urban_0": {
+  "town_rural_0": {
    "x": 448,
    "y": 384,
    "w": 32,
    "h": 32
   },
-  "town_urban_1": {
+  "town_rural_1": {
    "x": 480,
    "y": 384,
    "w": 32,
    "h": 32
   },
-  "town_urban_2": {
+  "town_rural_2": {
    "x": 0,
    "y": 416,
    "w": 32,
    "h": 32
   },
-  "town_urban_3": {
+  "town_rural_3": {
    "x": 32,
    "y": 416,
    "w": 32,
    "h": 32
   },
-  "town_urban_4": {
+  "town_rural_4": {
    "x": 64,
    "y": 416,
    "w": 32,
    "h": 32
   },
-  "town_urban_5": {
+  "town_rural_5": {
    "x": 96,
    "y": 416,
    "w": 32,
    "h": 32
   },
-  "town_urban_6": {
+  "town_rural_6": {
    "x": 128,
    "y": 416,
    "w": 32,
    "h": 32
   },
-  "town_urban_7": {
+  "town_rural_7": {
    "x": 160,
    "y": 416,
    "w": 32,
    "h": 32
   },
-  "town_rural_0": {
+  "town_urban_0": {
    "x": 192,
    "y": 416,
    "w": 32,
    "h": 32
   },
-  "town_rural_1": {
+  "town_urban_1": {
    "x": 224,
    "y": 416,
    "w": 32,
    "h": 32
   },
-  "town_rural_2": {
+  "town_urban_2": {
    "x": 256,
    "y": 416,
    "w": 32,
    "h": 32
   },
-  "town_rural_3": {
+  "town_urban_3": {
    "x": 288,
    "y": 416,
    "w": 32,
    "h": 32
   },
-  "town_rural_4": {
+  "town_urban_4": {
    "x": 320,
    "y": 416,
    "w": 32,
