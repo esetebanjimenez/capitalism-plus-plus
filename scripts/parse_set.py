@@ -79,14 +79,14 @@ def parse_set(path: Path) -> dict[str, list[dict[str, str]]]:
         try:
             records = parse_dbf_section(data, offset, end)
             result[name] = records
-        except Exception as e:
+        except (struct.error, IndexError, UnicodeDecodeError) as e:
             print(f"  Warning: could not parse {name}: {e}", file=sys.stderr)
     return result
 
 
 def dump_section(name: str, records: list[dict[str, str]]) -> None:
     if not records:
-        print(f"  (empty)")
+        print("  (empty)")
         return
     fields = list(records[0].keys())
     print(f"  Fields: {', '.join(fields)}")
@@ -188,7 +188,6 @@ def compare_firms(set_firms: list[dict[str, str]], db_path: Path) -> tuple[int, 
     print(f"{'='*70}\n")
 
     for i, firm in enumerate(set_firms):
-        code = firm.get("CODE", "").strip()
         name = firm.get("NAME", "").strip()
         firm_id = i + 1
         db_row = db_firms.get(firm_id)
@@ -227,16 +226,98 @@ def compare_firms(set_firms: list[dict[str, str]], db_path: Path) -> tuple[int, 
     return ok, mismatch
 
 
+def _dbf_field_defs(data: bytes, base: int) -> list[tuple[str, str, int, int]]:
+    header_size = struct.unpack_from("<H", data, base + 8)[0]
+    fields: list[tuple[str, str, int, int]] = []
+    pos = base + 32
+    while pos < base + header_size - 1:
+        if data[pos] == 0x0D:
+            break
+        fname = data[pos : pos + 11].split(b"\x00")[0].decode("ascii")
+        ftype = chr(data[pos + 11])
+        flen = data[pos + 16]
+        fdec = data[pos + 17]
+        fields.append((fname, ftype, flen, fdec))
+        pos += 32
+    return fields
+
+
+def _sql_type(ftype: str, flen: int, fdec: int) -> str:
+    if ftype == "N":
+        return "REAL" if fdec > 0 else "INTEGER"
+    return "TEXT"
+
+
+def _coerce(val: str, ftype: str, fdec: int):
+    if not val:
+        return None
+    if ftype == "N":
+        try:
+            return float(val) if fdec > 0 else int(val)
+        except ValueError:
+            return val
+    return val
+
+
+def export_sqlite(set_path: Path, out_path: Path) -> None:
+    data = set_path.read_bytes()
+    index = read_set_index(data)
+    if out_path.exists():
+        out_path.unlink()
+    con = sqlite3.connect(str(out_path))
+    cur = con.cursor()
+    cur.execute("PRAGMA journal_mode=WAL")
+
+    for i, (name, offset) in enumerate(index):
+        end = index[i + 1][1] if i + 1 < len(index) else len(data)
+        fields = _dbf_field_defs(data, offset)
+        records = parse_dbf_section(data, offset, end)
+        if not fields:
+            continue
+
+        col_defs = ", ".join(
+            f'"{f}" {_sql_type(t, l, d)}' for f, t, l, d in fields
+        )
+        cur.execute(f'CREATE TABLE "{name}" ({col_defs})')
+
+        placeholders = ", ".join("?" for _ in fields)
+        for rec in records:
+            vals = [_coerce(rec.get(f, ""), t, d) for f, t, _l, d in fields]
+            cur.execute(f'INSERT INTO "{name}" VALUES ({placeholders})', vals)
+
+    con.commit()
+    row_total = 0
+    for (name, _) in index:
+        try:
+            cnt = cur.execute(f'SELECT COUNT(*) FROM "{name}"').fetchone()[0]
+            row_total += cnt
+        except sqlite3.OperationalError:
+            pass
+    con.close()
+    print(f"Wrote {out_path} ({len(index)} tables, {row_total} rows)")
+
+
+SET_DB = ROOT / "src" / "capitalism" / "data" / "1std_set.db"
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Parse Capitalism Plus .SET file")
     ap.add_argument("set_file", nargs="?", type=Path, default=DEFAULT_SET)
     ap.add_argument("--compare", action="store_true", help="Compare against capitalism.db")
     ap.add_argument("--dump", action="store_true", help="Dump all sections")
+    ap.add_argument(
+        "--sqlite", nargs="?", const=SET_DB, type=Path, metavar="OUT",
+        help=f"Export all sections to SQLite (default: {SET_DB})",
+    )
     args = ap.parse_args(argv)
 
     if not args.set_file.exists():
         print(f"SET file not found: {args.set_file}", file=sys.stderr)
         return 1
+
+    if args.sqlite is not None:
+        export_sqlite(args.set_file, args.sqlite)
+        return 0
 
     print(f"Parsing: {args.set_file}")
     sections = parse_set(args.set_file)
