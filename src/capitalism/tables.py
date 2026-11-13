@@ -756,13 +756,10 @@ class AdvertisingRules(StaticModel):
     ad_revenue_fraction: float
     ad_campaign_every_days: int
     ad_tech_min_exclusive: int
-    media_min_revenue: float
     media_min_audience: float
     media_audience_min: float
     media_government_max: int
-    media_audience_population_div: float
     media_audience_cap: float
-    media_audience_adjust_rate: float
     # Binary FUN_000604d2: reputation-driven audience model
     media_reputation_drift_range: int
     media_reputation_drift_offset: int
@@ -781,7 +778,6 @@ class AdvertisingRules(StaticModel):
     media_revenue_audience_addend: float
     media_revenue_base_divisor: float
     media_revenue_floor: float
-    media_revenue_seasonal_neutral: float
 
 
 class SoftwareRules(StaticModel):

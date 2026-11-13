@@ -141,7 +141,7 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | Key | Value | Units | Reference |
 |---|---|---|---|
 | `link_bits` | 20 | links | design.md slice 4 call 1 — 3×3 neighbour grid |
-| `media_staff` | 20 **provisional** | staff | design.md slice 4 call 5 — media payroll staff (4b) |
+| `media_staff` | 20 | staff | Sim-specific: native firm+0x1ba is per-firm short, not a global constant |
 | `media_wage_mult` | 2 | multiplier | Firm daily cycle — media payroll |
 | `size` | 1 **provisional** | size | design.md slice 4 — size 1 in M1 |
 | `slots` | 9 | slots | Firm-to-job mapping — nine job slots |
@@ -220,22 +220,19 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | Key | Value | Units | Reference |
 |---|---|---|---|
 | `ad_campaign_every_days` | 30 | days | EXE caller of FUN_0005136e: day_serial % 0x1e |
-| `ad_revenue_fraction` | 0.1 **provisional** | fraction of previous month revenue | design.md slice 4b provisional budget rate |
+| `ad_revenue_fraction` | 0.1 | fraction of previous month revenue | Sim approximation: native budget from FUN_0005116d FPU chain, not a simple fraction |
 | `ad_tech_min_exclusive` | 14 | tech level | FUN_0005136e decomp:51323 (0xe < tech_level) |
-| `media_audience_adjust_rate` | 0.1 **provisional** | fraction / month | M1 provisional gradual audience adjustment |
-| `media_audience_cap` | 100 **provisional** | audience | design.md slice 4b provisional audience |
+| `media_audience_cap` | 100 | audience | Sim-specific: no native hard cap; market soft-cap at 90 redistributes excess |
 | `media_audience_delta_divisor` | 200 | divisor | gamelogic.md Media firm economics — audience delta divisor |
 | `media_audience_delta_offset` | 50 | subtracted from draw | gamelogic.md Media firm economics — audience delta offset |
 | `media_audience_delta_range` | 101 | random draw range | gamelogic.md Media firm economics — audience delta range |
-| `media_audience_min` | 10 **provisional** | audience | design.md slice 4b provisional audience |
-| `media_audience_population_div` | 10000 **provisional** | people / audience point | design.md slice 4b provisional audience |
+| `media_audience_min` | 10 | audience | FUN_00060450: random(30)+10 range [10, 39] |
 | `media_competition_steal_factor` | 0.5 | fraction | gamelogic.md Media firm economics — audience zero-sum steal |
-| `media_government_max` | 39 **provisional** | audience | design.md slice 4b government audience |
+| `media_government_max` | 39 | audience | FUN_00060450: random(30)+10 range [10, 39] |
 | `media_high_audience_threshold` | 40 | audience | gamelogic.md Media firm economics — audience high threshold |
 | `media_low_audience_threshold` | 15 | audience | gamelogic.md Media firm economics — audience low threshold |
 | `media_market_cap` | 90 | audience | gamelogic.md Media firm economics — audience market soft-cap |
 | `media_min_audience` | 5 | audience | gamelogic.md Advertising — media partner minimum audience |
-| `media_min_revenue` | 10000 **provisional** | usd / month | design.md slice 4b media partner threshold |
 | `media_reputation_boost_range` | 31 | random draw range | gamelogic.md Media firm economics — audience reputation boost range |
 | `media_reputation_drift_offset` | 30 | subtracted from draw | gamelogic.md Media firm economics — audience reputation drift offset |
 | `media_reputation_drift_range` | 61 | random draw range | gamelogic.md Media firm economics — audience reputation drift range |
@@ -244,7 +241,6 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `media_revenue_audience_addend` | 2 | addend | gamelogic.md Media firm economics — organic revenue audience addend |
 | `media_revenue_base_divisor` | 1000 | divisor | gamelogic.md Media firm economics — organic revenue base divisor |
 | `media_revenue_floor` | 100 | usd / month | gamelogic.md Media firm economics — organic revenue floor |
-| `media_revenue_seasonal_neutral` | 100 **provisional** | percentage | Provisional neutral seasonal factor |
 | `media_revenue_town_divisor` | 20000 | divisor | gamelogic.md Media firm economics — organic revenue town divisor |
 
 ## 7 — Corporation financials

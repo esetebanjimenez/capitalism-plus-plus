@@ -1107,6 +1107,23 @@ This is the CPM (cost per mille) — revenue per thousand units of reach.
 VA 0xA7518 = 5.0. A media firm must have audience > 5.0 to qualify
 as an advertising partner.
 
+#### Implementation status
+
+The sim's `MediaFirm.organic_revenue()` now matches FUN_0006073c:
+- Step 2 uses `per_capita_gnp` (town+0x31), not population.
+- Step 3 uses `population` (town+0x2d), not consumer_spending.
+- Step 4 uses `town.gnp_growth_pct[month] + town_factor` instead of a
+  flat seasonal neutral.
+- The `ad_rate` field (firm+0x1bc) is not yet modeled; the formula
+  omits that multiplier.
+
+Removed provisional constants: `media_min_revenue`, `media_audience_population_div`,
+`media_audience_adjust_rate`, `media_revenue_seasonal_neutral` (all unused
+or replaced by town GNP data). `media_audience_min` (10) and
+`media_government_max` (39) confirmed from FUN_00060450 `random(30)+10`.
+`media_audience_cap` (100) and `ad_revenue_fraction` (0.1) marked as
+sim-specific approximations.
+
 ### 15 job types summary
 
 | Type | Name | Size | Vtable | Source file | Work function |

@@ -748,20 +748,26 @@ per town at approximately 90.
 #### Revenue formula
 
 Revenue depends on four factors: the firm's staff, its audience, the
-town's economic characteristics, and a seasonal component.
+town's economic characteristics, and an economic growth component.
 
 1. **Reach** = staff × audience / 100
-2. **Ad base** = (town economic stat / 200) × reach / 100
-3. **Revenue base** = town purchasing power × ad base / 100
-4. **Revenue** = ad rate × (revenue base / 1,000) × ((seasonal component
-   + town stat / 200) × (audience / 100 + 2) / 100) / 100
+2. **Town factor** = per-capita GNP × 100 / 20,000
+3. **Ad base** = town factor × reach / 100
+4. **Revenue base** = population × ad base / 100
+5. **Growth** = town's monthly GNP growth indicator (the `gnp_growth_pct`
+   ring value: 50 × yearly total-GNP change)
+6. **Revenue** = (revenue base / 1,000) × ((growth + town factor)
+   × (audience / 100 + 2) / 100) / 100
 
 Revenue is floored at 100 — a media firm always earns at least 100 per
 month even with zero audience.
 
-The town's monthly economic time series provides a seasonal component
+The town's monthly GNP growth series provides a cyclical component
 that makes revenue fluctuate with the local economy. Larger, wealthier
 towns generate substantially more media revenue.
+
+Note: the native formula also includes an `ad_rate` multiplier
+(firm+0x1bc), a per-firm short field not yet modeled in the sim.
 
 The **CPM** (cost per mille — revenue per 1,000 units of reach) is
 displayed as: `revenue × 1,000 / revenue_base`.
