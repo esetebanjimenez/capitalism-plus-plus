@@ -429,8 +429,10 @@ class LivestockProcessing(Job):
     def yield_for(self, src: LivestockRaising):
         if self.product is None or src.product is None:
             return None
-        row = LIVESTOCK_YIELDS.get(src.product.id)
-        return row if row is not None and row.product_id == self.product.id else None
+        rows = LIVESTOCK_YIELDS.get(src.product.id)
+        if rows is None:
+            return None
+        return next((r for r in rows if r.product_id == self.product.id), None)
 
     def work(self, eco: Economy) -> bool:
         src = next((j for j in self.source_jobs() if self.yield_for(j) is not None), None)

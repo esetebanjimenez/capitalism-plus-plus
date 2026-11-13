@@ -915,11 +915,15 @@ class CorporationRules(StaticModel):
 
 
 @lru_cache(maxsize=1)
-def load_livestock_yields() -> dict[int, LivestockYieldRow]:
+def load_livestock_yields() -> dict[int, list[LivestockYieldRow]]:
     rows = _rows(
         "SELECT livestock_id, product_id, yield_factor, input_ratio, ref FROM livestock_yields"
     )
-    return {int(r["livestock_id"]): LivestockYieldRow(**dict(r)) for r in rows}
+    out: dict[int, list[LivestockYieldRow]] = {}
+    for r in rows:
+        row = LivestockYieldRow(**dict(r))
+        out.setdefault(row.livestock_id, []).append(row)
+    return out
 
 
 @lru_cache(maxsize=1)

@@ -935,6 +935,11 @@ The bonus comes from the **raising** job's rating, not the processing
 job's. The result is stored as the processing total; monthly, the
 current total rolls to previous and resets.
 
+Byproduct mappings from FARMLIVE: each livestock has 1–3 products
+(e.g. Cattle → Leather + Milk). The `livestock_yields` DB table now
+has multiple entries per livestock (#225). D2 resolved: Chicken
+produces Eggs, not Milk. Yield factors remain provisional.
+
 Always returns 0 — processing is continuous with no completion signal
 and no supply chain pull.
 
@@ -3317,13 +3322,19 @@ to consumers without processing.
 
 **Livestock** (4): Cattle ($500), Chicken ($5), Pig ($150), Sheep ($150).
 Raised on farms, then processed into consumer-grade meat products.
+Each livestock can yield multiple byproducts (decoded from 1STD.SET
+FARMLIVE, #225):
+- Cattle → Leather, Milk
+- Chicken → Eggs
+- Pig → Leather
+- Sheep → Wool, Leather
 
 #### Livestock semi-products (3 products)
 
 Intermediate goods from livestock processing: Leather ($10/lb), Milk
-($1/quart), Wool ($20/lb). Milk is processed into Bottled Milk for
-consumer sale; Leather feeds the apparel chain (shoes, jackets, bags);
-Wool feeds textile manufacturing.
+($1/quart), Wool ($20/lb), Eggs. Milk is processed into Bottled Milk
+for consumer sale; Leather feeds the apparel chain (shoes, jackets,
+bags); Wool feeds textile manufacturing.
 
 #### Semi-products (12 products)
 
