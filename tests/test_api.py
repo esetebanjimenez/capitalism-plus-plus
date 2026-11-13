@@ -215,7 +215,7 @@ def test_map_rev_moves_on_build_and_level_up_only():
     assert rev1 > rev0
     w = api.sim.world.width
     objs = api.query("map_objects", {"since": rev0})
-    assert [y * w + x, int(api.sim.world.tile_at(x, y).kind), fid] in objs["changes"]
+    assert [y * w + x, int(api.sim.world.tile_at(x, y).kind), fid, 0] in objs["changes"]
     assert "kind" not in objs
     # A quiet day: no build, no level change.
     levels = [t.level for t in api.sim.towns]
@@ -224,11 +224,11 @@ def test_map_rev_moves_on_build_and_level_up_only():
     assert api.query("map_objects", {"since": rev1})["changes"] == []
     # Forced level-up repaints through spread_town.
     town.level += 1
-    api.sim.world.spread_town(town, api.sim.rng)
+    api.sim.world.spread_town(town, api.sim.rng, api.eco.firms)
     rev2 = api.status()["map_rev"]
     assert rev2 > rev1
     changes = api.query("map_objects", {"since": rev1})["changes"]
-    assert changes and all(k == int(api.sim.world.tiles[i].kind) for i, k, _ in changes)
+    assert changes and all(k == int(api.sim.world.tiles[i].kind) for i, k, _, _ in changes)
     # Demolish moves it again.
     assert run(api, "demolish_firm", firm=fid)["ok"]
     assert api.status()["map_rev"] > rev2
@@ -256,3 +256,25 @@ def test_town_footprint_for_levels_1_to_8():
     rows = [town_footprint(lv) for lv in range(1, 9)]
     assert all(set(r) == {"radius", "block_level"} for r in rows)
     assert rows[6] == rows[7] == town_footprint(6)  # past the table: its top row
+
+
+def test_new_game_setup_and_goals():
+    api = Api.new_game(
+        seed=7,
+        setup={"competitors": 3, "year_limit": 0},
+        goals={"corp_net_worth": 50, "num_product_types": 3},
+    )
+    assert api.sim.setup.competitors == 3 and api.sim.setup.year_limit == 0
+    g = api.query("goals")
+    assert g["seed"] == 7 and g["year_limit"] == 0
+    assert {r["name"]: r["target"] for r in g["goals"]} == {
+        "corp_net_worth": 50,
+        "num_product_types": 3,
+    }
+    assert api.sim.goal_checker.goals.has_any_goal
+    for bad in ({"setup": {"seed": 2}}, {"setup": {"competitors": 99}}, {"goals": {"nope": 1}}):
+        try:
+            Api.new_game(**bad)
+        except ValueError:
+            continue
+        raise AssertionError(bad)

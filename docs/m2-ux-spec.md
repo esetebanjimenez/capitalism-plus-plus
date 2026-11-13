@@ -143,19 +143,22 @@ Two levels: far (1 px per tile overview, no sprites) and standard. There is
 no closer zoom, and no zoomed-out viewing step for now. Pinch or mouse
 wheel switches between them. Pan by one-finger drag or mouse drag.
 
-**Town footprint (visual only).** The sim stores a town as one tile, so the
-footprint is drawn by the client and changes no rule. By `Town.level`:
-levels 1 to 2 draw the town tile only, levels 3 to 4 a 3 × 3 area centred on
-it, levels 5 to 6 a 5 × 5 area. At 3 × 3, roads form a plus through the
-centre. At 5 × 5, roads run along rows and columns 1 and 3 (a # shape)
-and the town's own centre tile is a plaza. City blocks fill the rest; roof style is chosen per tile
-from the town id so a town keeps its look, and the block level steps up at
-levels 3 and 5. The radius per level lives in a small DB table so it can be
-retuned. Firms always win: ring tiles stay buildable, a firm tile never gets
-a block drawn on it, and tapping a ring tile opens the real tile card with
-Build. This is a design call; the reference draws a town as one tile in 13
-variants (`docs/gamelogic.md`, tile categories) and shows a
-town's reach through land value.
+**Town tiles (from the sim).** Towns are real map tiles, as in the original
+(decided on #279, sim work in #302). Each level-up spreads the town: a solid
+core of **rural** town tiles (5 variants) within the level radius, and a
+scattered ring of **urban** town tiles (8 variants) out to level + 4
+(techspec "Town spread", `FUN_0004c334`). Forest, hills and ocean are never
+converted, and a town stops spreading for good once it touches another
+town. The client draws exactly what `map` / `map_objects` report for each
+tile. There's no drawn footprint, no radius table and no block-level step.
+The town-name plate sits on the town's centre tile (`towns[].x, y`).
+
+Firms can stand on town tiles. In the original, firm placement scans town
+tiles, and town demand only reaches firms whose tile is a town tile
+(techspec, `FUN_0002dc7c`, `item_move_quantity`). So whether a town tile is
+buildable follows the sim's `can_build` after #302, never a client rule. A
+firm tile draws the firm on top. Tapping any town tile opens the real tile
+card, with Build when the sim allows it.
 
 **Overlays** (a toggle in the map's corner, one at a time, drawn on the standard zoom): none, land value
 (`World.land_value(x, y)`), soil, rainfall, climate (`Tile.soil`,

@@ -6,7 +6,7 @@ from enum import IntEnum
 from math import floor, isqrt
 
 from .rng import Rng
-from .tables import CITY_NAME_POOL, LAND_VALUE, MAP_RULES, RAW_RESOURCE_TYPES
+from .tables import CITY_NAME_POOL, LAND_VALUE, MAP_RULES, RAW_RESOURCE_TYPES, TOWN_SPREAD
 from .town import Town
 
 MAP_W = MAP_RULES.width
@@ -17,6 +17,22 @@ CITY_BORDER = MAP_RULES.city_border
 CITY_MIN_DIST = MAP_RULES.city_min_dist
 MAX_CITIES = MAP_RULES.max_cities
 LAND_VALUE_FLOOR = LAND_VALUE.floor
+
+# Native town tile kinds (techspec "Town spread"): urban 0x3000-0x3007, rural 0x3008-0x300c.
+URBAN_BASE = TOWN_SPREAD.urban_kind_base
+RURAL_BASE = TOWN_SPREAD.rural_kind_base
+URBAN_KINDS = range(URBAN_BASE, URBAN_BASE + TOWN_SPREAD.urban_variants)
+RURAL_KINDS = range(RURAL_BASE, RURAL_BASE + TOWN_SPREAD.rural_variants)
+# What a firm stands on when it is not a town tile (native grassland / forest-hill ranges).
+GRASS_PLACE = 0x2000
+FOREST_PLACE = 0x2013
+
+
+def round_dist(dx: int, dy: int) -> int:
+    """Native rounded Euclidean distance round(sqrt(dx² + dy²)) (FUN_00090746)."""
+    n = dx * dx + dy * dy
+    r = isqrt(n)
+    return r + 1 if n - r * r > r else r
 
 
 class TileCategory(IntEnum):
@@ -29,7 +45,19 @@ class TileCategory(IntEnum):
 
 
 class Tile:
-    __slots__ = ("climate", "height", "kind", "moisture", "rainfall", "ref", "resource", "soil")
+    """`town_kind` is the native town tile kind (urban or rural range) for TOWN tiles, else 0."""
+
+    __slots__ = (
+        "climate",
+        "height",
+        "kind",
+        "moisture",
+        "rainfall",
+        "ref",
+        "resource",
+        "soil",
+        "town_kind",
+    )
 
     def __init__(
         self,
@@ -45,6 +73,7 @@ class Tile:
     ) -> None:
         self.kind = kind
         self.ref = ref
+        self.town_kind = 0
         self.rainfall = rainfall
         self.soil = soil
         self.moisture = moisture
@@ -138,31 +167,74 @@ class World:
         """True when a firm may be placed here. Subclasses override the rule."""
         if not (0 <= x < self.width and 0 <= y < self.height):
             return False
-        return self.tile_at(x, y).kind in (TileCategory.GRASSLAND, TileCategory.FOREST_HILL)
+        return self.tile_at(x, y).kind in (
+            TileCategory.GRASSLAND,
+            TileCategory.FOREST_HILL,
+            TileCategory.TOWN,  # urban and rural town tiles (Esteban, #305)
+        )
 
-    def spread_town(self, town: Town, rng: Rng) -> None:
-        """Paint town tiles on level-up (native FUN_0004c334, decomp:47149-47201).
+    def spread_town(self, town: Town, rng: Rng, firms: list | None = None) -> None:
+        """Paint town tiles on level-up (native FUN_0004c334, decomp:47149-47292).
 
-        Each tile within Euclidean distance < level of the centre becomes a
-        TOWN tile unconditionally; tiles in the Chebyshev-only fringe (where
-        Chebyshev distance <= level but Euclidean >= level) get a 1-in-10
-        chance.  TOWN and FIRM tiles are never overwritten.
+        Scans a square of side 2 x (level + 4) + 1 in row order:
+        - core (rounded Euclidean distance < level): grassland and urban tiles
+          become rural (random(5) + 0x3008);
+        - Chebyshev overlap (Euclidean >= level, Chebyshev <= level): 1 in 10
+          takes the core path;
+        - outer fringe (Chebyshev level+1 .. level+4): grassland becomes urban
+          (random(8) + 0x3000); urban tiles are left alone.
+        Forest/hill and ocean are never converted. Meeting another town's tile
+        sets the abort flag, which stops this scan and every later spread.
+        A firm with no workforce on a converted tile takes the new kind as its
+        place kind; the tile stays a FIRM tile. `firms` is the economy's firm
+        list (indexed by FIRM tile ref); without it firm tiles are skipped.
         """
+        if town.spread_blocked:
+            return
         cx, cy, lv = town.x, town.y, town.level
-        x0 = max(0, cx - lv)
-        x1 = min(self.width - 1, cx + lv)
-        y0 = max(0, cy - lv)
-        y1 = min(self.height - 1, cy + lv)
-        for y in range(y0, y1 + 1):
-            for x in range(x0, x1 + 1):
+        reach = lv + TOWN_SPREAD.spread_fringe
+        for y in range(max(0, cy - reach), min(self.height - 1, cy + reach) + 1):
+            for x in range(max(0, cx - reach), min(self.width - 1, cx + reach) + 1):
                 tile = self.tile_at(x, y)
-                if tile.kind in (TileCategory.TOWN, TileCategory.FIRM):
-                    continue
+                firm = None
+                if tile.kind == TileCategory.FIRM:
+                    if firms is None or not 0 <= tile.ref < len(firms):
+                        continue
+                    firm = firms[tile.ref]
+                    if firm is None:
+                        continue
+                    place = firm.place_kind
+                    owner_town = firm.place_town
+                elif tile.kind == TileCategory.TOWN:
+                    place, owner_town = tile.town_kind, tile.ref
+                elif tile.kind == TileCategory.GRASSLAND:
+                    place, owner_town = GRASS_PLACE, -1
+                else:
+                    continue  # forest/hill, water, ocean: never converted
+                is_town = place in URBAN_KINDS or place in RURAL_KINDS
+                if is_town and owner_town != town.id:
+                    town.spread_blocked = True  # native abort flag town+0x1d
+                    return
                 dx, dy = abs(x - cx), abs(y - cy)
-                dist = isqrt(dx * dx + dy * dy)
-                if dist < lv or rng.chance(0.1):
-                    tile.kind = TileCategory.TOWN
-                    tile.ref = town.id
+                if max(dx, dy) > lv:
+                    if place != GRASS_PLACE:
+                        continue
+                    new = URBAN_BASE + rng.randint(0, TOWN_SPREAD.urban_variants - 1)
+                else:
+                    if round_dist(dx, dy) >= lv and rng.randint(
+                        0, TOWN_SPREAD.spread_overlap_odds - 1
+                    ):
+                        continue
+                    if place != GRASS_PLACE and place not in URBAN_KINDS:
+                        continue
+                    new = RURAL_BASE + rng.randint(0, TOWN_SPREAD.rural_variants - 1)
+                if firm is not None:
+                    if firm.workforce == 0:
+                        firm.place_kind, firm.place_town = new, town.id
+                    continue
+                tile.kind = TileCategory.TOWN
+                tile.town_kind = new
+                tile.ref = town.id
 
     def _try_place_deposit(self, rng: Rng, res_id: int, *, notify: bool) -> bool:
         """Try once to place a deposit for product *res_id* at a random tile.
@@ -361,15 +433,28 @@ class World:
                     detailed=self.detailed_cities,
                 )
                 self.towns.append(town)
-                tile = self.tile_at(x, y)
-                tile.kind = TileCategory.TOWN
-                tile.ref = town.id
+                self._found_town(town, rng)
                 used_names.add(entry.name)
                 placed = True
                 consecutive_fail = 0
                 break
             if not placed:
                 consecutive_fail += 1
+
+    def _found_town(self, town: Town, rng: Rng) -> None:
+        """Centre tile, then the native init loop: one spread per level up to the
+        town's starting level (decomp:46371-46378)."""
+        tile = self.tile_at(town.x, town.y)
+        tile.kind = TileCategory.TOWN
+        tile.town_kind = RURAL_BASE  # centre tile kind at founding: not traced (provisional)
+        tile.ref = town.id
+        target = town.level
+        for lv in range(2, target + 1):
+            town.level = lv
+            self.spread_town(town, rng)
+            if town.spread_blocked:
+                break
+        town.level = target
 
     def try_spawn(self, rng: Rng, day_serial: int) -> bool:
         """Month-pass town spawn: 1-in-10, gates from design.md."""
