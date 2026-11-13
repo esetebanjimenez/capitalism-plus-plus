@@ -382,6 +382,22 @@ point for one of these yet (for example demolish or remove link), the
 facade adds a thin wrapper over existing state changes, and any rule it
 would need goes to its own PR, not this milestone.
 
+## Default game (M2 only)
+
+With no setup screen, every new game in M2 starts from one fixed setup
+(decided on #278, built in #290). This is for M2 testing only, so the Goals
+screen and the win/loss card have something to show:
+
+- Untimed (no year limit), so the 7-day rival goal check can end the game.
+- 3 competitors. All other options keep their `SetupOptions` defaults.
+- A new random seed for each new game, shown on the Goals screen so bug
+  reports can quote it. Tests and the CI boot use a fixed seed.
+- Two goals: corporation net worth of $50,000,000 and 3 product types made.
+  These are tuning numbers, not native values.
+
+The release goes back to the original's defaults, with no goals and no year
+limit (#291).
+
 ## Out of scope for this spec
 
 Main menu, new game setup screen, save and load UI, settings, tutorial and
