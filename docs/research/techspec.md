@@ -659,9 +659,19 @@ Steps:
 1. `job_post_wages` (`0x5c690`), every visit. Salary:
    `((target × 2000) / days × labor) / 100`. Posted as category 1.
    Category 3: `salary × (int at firm.links+0x2c) / 100`. Divisor is
-   float 100.0 at `0xa8136`. `firm_labor_factor` (`0x669d7`): global
-   `0xb1b26` when `place_kind` outside `0x3000..0x300c`; inside, rounds
-   a town float.
+   float 100.0 at `0xa8136`. `firm_labor_factor` (`0x669d7`,
+   `decomp:70631-70655`): checks `firm+0x4a` (place_kind) against
+   `0x3000..0x300c` (town tiles). **In-town:** looks up the firm's town
+   via `FUN_0004dd9b(town_array, firm+6)`, reads `town+0x3b`
+   (`labor_cost_index`, float), returns `round()` via `__CHP`.
+   **Non-town:** returns `(int)DAT_000b1b26` = **0** — BSS global at
+   VA `0xb1b26` (object 2 page 17, beyond 16 file-backed pages),
+   zero-initialized, no writes found in the decompile. Non-town firms
+   (resource extraction on map deposits) therefore have zero labor
+   factor and pay zero wages. The education factor `FUN_00066a2f`
+   (`decomp:70663-70687`) has identical structure: in-town reads
+   `town+0x43` (labor_quality), non-town returns `(int)DAT_000b1b28`
+   = 0 (also BSS-zero, also no writes).
 
 2. When `weekday == 2`, `job_train` (`0x5c8c0`). Rating short `+0x13`
    must be 1..9. Accumulator int `+0x20`, progress short `+0x1e`,
@@ -3010,7 +3020,7 @@ binary with Ghidra headless analysis (2026-11-11).
 
 | Location | Lost value | Resolution |
 |---|---|---|
-| `firm_labor_factor` (0x669d7) | Town float field | Reads town `labor_cost_index` (+0x3b). Falls back to global `DAT_000b1b26` when firm is not in a town. |
+| `firm_labor_factor` (0x669d7) | Town float field | Reads town `labor_cost_index` (+0x3b) via `FUN_0004dd9b`. Returns `round(labor_cost_index)`. Falls back to `(int)DAT_000b1b26` = 0 (BSS) when firm is not on a town tile (`place_kind +0x4a` outside `0x3000..0x300c`). |
 | `job_sell` (0x5a1be) | Unit count | Stock count (job+0x2c) as float, capped by sales capacity, rounded to int. |
 | Score when product +0x47 == 0 | Score value | Base quality value from `item_adjust_score`, without town-specific brand/quality weights. |
 | `FUN_000528ec` (0x528ec) | Stock int | Rounds updated livestock stock float (job+0x56) to integer at job+0x2c. |
