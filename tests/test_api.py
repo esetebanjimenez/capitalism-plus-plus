@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from capitalism.api import COMMANDS, QUERIES, Api
+from capitalism.api import COMMANDS, QUERIES, Api, town_footprint
 from capitalism.scenario import bread_town, find_site
 
 STORE, FACTORY = 1, 2
@@ -30,6 +30,7 @@ def roundtrip(obj):
 def test_contract_names():
     assert set(QUERIES) == {
         "map",
+        "map_objects",
         "overlay",
         "tile",
         "build_options",
@@ -106,6 +107,8 @@ def test_queries_are_json_and_do_not_change_state():
     before = api.sim.state_hash()
     calls = [
         ("map", {}),
+        ("map_objects", {"since": -1}),
+        ("map_objects", {"since": 0}),
         ("overlay", {"layer": "land_value"}),
         ("overlay", {"layer": "ownership"}),
         ("tile", {"x": x, "y": y}),
@@ -197,3 +200,59 @@ def test_unread_important_counts_since_serial():
     api = make_api()
     out = api.tick(read_since=10**9)
     assert out["unread_important"] == 0
+
+
+def test_map_rev_moves_on_build_and_level_up_only():
+    api = make_api()
+    before = api.sim.state_hash()
+    rev0 = api.status()["map_rev"]
+    api.query("map_objects", {"since": rev0})
+    assert api.sim.state_hash() == before
+    town = api.sim.towns[0]
+    x, y = find_site(api.sim, town)
+    fid = run(api, "build_firm", firm_type=STORE, x=x, y=y)["result"]["firm"]
+    rev1 = api.status()["map_rev"]
+    assert rev1 > rev0
+    w = api.sim.world.width
+    objs = api.query("map_objects", {"since": rev0})
+    assert [y * w + x, int(api.sim.world.tile_at(x, y).kind), fid] in objs["changes"]
+    assert "kind" not in objs
+    # A quiet day: no build, no level change.
+    levels = [t.level for t in api.sim.towns]
+    assert api.tick()["map_rev"] == rev1
+    assert [t.level for t in api.sim.towns] == levels
+    assert api.query("map_objects", {"since": rev1})["changes"] == []
+    # Forced level-up repaints through spread_town.
+    town.level += 1
+    api.sim.world.spread_town(town, api.sim.rng)
+    rev2 = api.status()["map_rev"]
+    assert rev2 > rev1
+    changes = api.query("map_objects", {"since": rev1})["changes"]
+    assert changes and all(k == int(api.sim.world.tiles[i].kind) for i, k, _ in changes)
+    # Demolish moves it again.
+    assert run(api, "demolish_firm", firm=fid)["ok"]
+    assert api.status()["map_rev"] > rev2
+
+
+def test_map_objects_full_when_since_is_unknown():
+    api = make_api()
+    full = api.query("map_objects", {"since": -1})
+    m = api.query("map")
+    assert full["changes"] is None
+    assert full["kind"] == m["kind"] and full["ref"] == m["ref"]
+
+
+def test_map_objects_matches_map():
+    api = make_api()
+    x, y = find_site(api.sim, api.sim.towns[0])
+    run(api, "build_firm", firm_type=STORE, x=x, y=y)
+    m, o = api.query("map"), api.query("map_objects", {"since": api.status()["map_rev"]})
+    assert o["towns"] == m["towns"] and o["firms"] == m["firms"]
+    assert o["map_rev"] == m["map_rev"]
+    assert all({"radius", "block_level"} <= set(t) for t in m["towns"])
+
+
+def test_town_footprint_for_levels_1_to_8():
+    rows = [town_footprint(lv) for lv in range(1, 9)]
+    assert all(set(r) == {"radius", "block_level"} for r in rows)
+    assert rows[6] == rows[7] == town_footprint(6)  # past the table: its top row

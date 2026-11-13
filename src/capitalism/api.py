@@ -21,11 +21,19 @@ from .links import Link
 from .news import NewsCategory
 from .plans import PlanLibrary, apply_plan, capture
 from .sim import Sim
-from .tables import FIRM_TYPES, JOB_TYPES
+from .tables import FIRM_TYPES, JOB_TYPES, TOWN_FOOTPRINTS
 from .town import Town
 
 PLAYER = 0
 Json = dict[str, Any]
+MAP_HISTORY = 64  # map_rev steps whose tile changes `map_objects` can still return
+
+
+def town_footprint(level: int) -> Json:
+    """`radius` and `block_level` for a town level; levels past the table use its top row."""
+    lv = min(max(level, min(TOWN_FOOTPRINTS)), max(TOWN_FOOTPRINTS))
+    row = TOWN_FOOTPRINTS[lv]
+    return {"radius": row.radius, "block_level": row.block_level}
 
 
 class CommandError(Exception):
@@ -54,6 +62,13 @@ class Api:
         self._queue: list[tuple[int, str, Json]] = []
         if not sim.economy.corps:
             raise ValueError("the player corporation (corp 0) must exist")
+        # Facade-side map revision (not sim state): a cheap signature of firms and town
+        # levels is compared on each status/map read; when it moves, one pass over the
+        # tiles records which ones changed.
+        self.map_rev = 0
+        self._map_sig = self._map_signature()
+        self._map_tiles = self._tile_snapshot()
+        self._map_changes: list[tuple[int, dict[int, tuple[int, int]]]] = []
 
     @classmethod
     def new_game(cls, player: str = "Player", **sim_kwargs: Any) -> Api:
@@ -135,7 +150,33 @@ class Api:
                 out.append({"id": cid, "ok": True, "result": COMMANDS[kind](self, **args)})
             except (CommandError, ValueError, NotImplementedError) as e:
                 out.append({"id": cid, "ok": False, "error": str(e)})
+            self.sync_map()  # a build and demolish in one batch still counts
         return out
+
+    # --- map revision ------------------------------------------------------
+
+    def _map_signature(self) -> tuple:
+        firms = tuple((f.id, f.x, f.y) for f in self.eco.firms if f is not None)
+        towns = tuple((t.id, t.level) for t in self.sim.towns)
+        return firms, towns
+
+    def _tile_snapshot(self) -> list[tuple[int, int]]:
+        return [(int(t.kind), t.ref) for t in self.sim.world.tiles]
+
+    def sync_map(self) -> int:
+        """Bump `map_rev` if a firm was built or removed or a town changed level
+        (which is when `spread_town` repaints tiles). Cheap when nothing moved."""
+        sig = self._map_signature()
+        if sig == self._map_sig:
+            return self.map_rev
+        self._map_sig = sig
+        tiles = self._tile_snapshot()
+        changed = {i: t for i, (t, old) in enumerate(zip(tiles, self._map_tiles)) if t != old}
+        self._map_tiles = tiles
+        self.map_rev += 1
+        self._map_changes.append((self.map_rev, changed))
+        del self._map_changes[:-MAP_HISTORY]
+        return self.map_rev
 
     def tick(self, days: int = 1, read_since: int = -1) -> Json:
         """Apply queued commands, advance `days`, and return the per-tick status."""
@@ -152,6 +193,7 @@ class Api:
             "day": self.sim.calendar.day,
             "cash": self.player.ledger.cash,
             "unread_important": unread,
+            "map_rev": self.sync_map(),
         }
 
     # --- queries -----------------------------------------------------------
@@ -163,8 +205,41 @@ class Api:
             "height": w.height,
             "kind": [int(t.kind) for t in w.tiles],
             "ref": [t.ref for t in w.tiles],
+            **self._map_objects(),
+        }
+
+    def q_map_objects(self, since: int = -1) -> Json:
+        """Towns and firms plus the tiles changed since map_rev `since`, as
+        `changes: [[index, kind, ref], ...]`. When `since` is older than the kept
+        history (or -1), `changes` is null and `kind` / `ref` hold the whole map."""
+        objs = self._map_objects()
+        rev = objs["map_rev"]
+        oldest = self._map_changes[0][0] if self._map_changes else rev + 1
+        if since == rev or (0 <= since < rev and since >= oldest - 1):
+            merged: dict[int, tuple[int, int]] = {}
+            for r, changed in self._map_changes:
+                if r > since:
+                    merged.update(changed)
+            objs["changes"] = [[i, k, ref] for i, (k, ref) in sorted(merged.items())]
+        else:
+            objs["changes"] = None
+            tiles = self.sim.world.tiles
+            objs["kind"] = [int(t.kind) for t in tiles]
+            objs["ref"] = [t.ref for t in tiles]
+        return objs
+
+    def _map_objects(self) -> Json:
+        return {
+            "map_rev": self.sync_map(),
             "towns": [
-                {"id": t.id, "name": t.name, "x": t.x, "y": t.y, "level": t.level}
+                {
+                    "id": t.id,
+                    "name": t.name,
+                    "x": t.x,
+                    "y": t.y,
+                    "level": t.level,
+                    **town_footprint(t.level),
+                }
                 for t in self.sim.towns
             ],
             "firms": [
