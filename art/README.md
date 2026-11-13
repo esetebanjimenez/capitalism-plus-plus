@@ -88,3 +88,12 @@ are drawn at half size in map units on the 64 px sheet, like flags. Preview:
 
 ## UI controls (M2 item 3)
 `art/tools/ui_controls.py` draws the extra controls and `ui_build.py` adds them to the UI atlas (53 frames, earlier frames keep their places): `bar_track`, `bar_fill`, `bar_fill_good` (slider and progress bar, nine-slice [4,4,4,4], 12 pt tall), `knob` (20 pt thumb with its lip), `chip_off`/`chip_on` and `field_normal`/`field_focus`/`field_error` (nine-slice [6,6,6,6]), `switch_off`/`switch_on` (44x24, give it a 44x44 tap area), `caret` and `toast_error` (nine-slice [10,6,6,7], red band on the left, icon_warn just right of it). Running `python3 ui_controls.py` writes `docs/art/m2-ui-controls-preview.png`; its labels are example text only. The town-name plate waits for its view brief.
+
+## Firm-type icons and goal tick (#176)
+
+Firm-type icons reuse the map sprites (`firm_*` in `terrain_atlas` / `terrain_atlas_64`) in a 32 pt cell,
+so a type looks the same in the build menu and panels as on the map and stays pixel-native on every
+screen. There is no separate 48 px set. A type the player can't afford draws its sprite at 50% opacity
+with the shortfall in red. The goal-met tick is `icon_goal` (16×16) in `ui_atlas`. Preview:
+`docs/art/m2-build-menu-preview.png`, made by `art/tools/build_menu.py` (cash and land value are example values;
+costs come from `capitalism.db`).
