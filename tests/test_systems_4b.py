@@ -370,9 +370,7 @@ def test_media_twelve_month_audience_and_revenue_series(monkeypatch):
         sim.advance_day()
     assert months_seen == 12
     # Reputation model: audience stays within global bounds.
-    assert all(
-        r.media_audience_min <= a <= r.media_audience_cap for a in tv.audience_month
-    )
+    assert all(r.media_audience_min <= a <= r.media_audience_cap for a in tv.audience_month)
     assert tv.audience_total == pytest.approx(sum(tv.audience_month))
     # Reputation field tracks drift state.
     assert r.media_reputation_min <= tv.reputation <= r.media_reputation_max

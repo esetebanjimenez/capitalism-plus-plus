@@ -241,6 +241,7 @@ class TestModeTransitions:
             except (ValueError, RuntimeError):
                 break
         from capitalism.ai import _check_mode_transition
+
         _check_mode_transition(eco, corp, ai, p, 365 * 20)
         # With 10 factories, threshold ~ 80//20+2=6, duration_threshold ~ 16 - 80//10=8
         # 20 years > 8, should transition
@@ -259,6 +260,7 @@ class TestModeTransitions:
         ai.mode_start_day = 0
         eco.ai_states[corp.id] = ai
         from capitalism.ai import _check_mode_transition
+
         # Conservative: dormant_years = (4-0)*2 = 8
         _check_mode_transition(eco, corp, ai, p, 365 * 9)
         assert ai.mode == MODE_DORMANT
@@ -275,6 +277,7 @@ class TestBankruptcy:
         ai = AIState(corp.id, 0, rng)
         eco.ai_states[corp.id] = ai
         from capitalism.ai import _check_bankruptcy
+
         _check_bankruptcy(eco, corp, ai, 365 * 15)
         assert corp.ledger.cash != 0.0  # has firms, no bankruptcy
 
@@ -287,6 +290,7 @@ class TestBankruptcy:
         ai = AIState(corp.id, 0, rng)
         eco.ai_states[corp.id] = ai
         from capitalism.ai import _check_bankruptcy
+
         _check_bankruptcy(eco, corp, ai, 365 * 15)
         assert corp.ledger.cash == 0.0
 
@@ -331,6 +335,7 @@ class TestIntegration:
 
     def test_deterministic_with_ai(self):
         """Same seed produces same state with AI active."""
+
         def run(seed):
             sim, _town = bread_town(seed)
             eco = sim.economy
@@ -344,4 +349,5 @@ class TestIntegration:
             eco.ai_states[corp.id] = ai
             sim.advance_days(60)
             return sim.state_hash()
+
         assert run(1) == run(1)

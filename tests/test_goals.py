@@ -149,47 +149,101 @@ class TestFinalScore:
     def test_goal_bonus_free_game(self):
         setup = SetupOptions(is_scenario=False)
         without = compute_final_score(
-            setup, 1e9, 1e9, 2, 5, 10, goals_achieved=False,
+            setup,
+            1e9,
+            1e9,
+            2,
+            5,
+            10,
+            goals_achieved=False,
         )
         with_ = compute_final_score(
-            setup, 1e9, 1e9, 2, 5, 10, goals_achieved=True,
+            setup,
+            1e9,
+            1e9,
+            2,
+            5,
+            10,
+            goals_achieved=True,
         )
         assert with_ > without
 
     def test_goal_bonus_scenario(self):
         setup = SetupOptions(is_scenario=True, goal_score_bonus=200)
         without = compute_final_score(
-            setup, 1e9, 1e9, 2, 5, 10, goals_achieved=False,
+            setup,
+            1e9,
+            1e9,
+            2,
+            5,
+            10,
+            goals_achieved=False,
         )
         with_ = compute_final_score(
-            setup, 1e9, 1e9, 2, 5, 10, goals_achieved=True,
+            setup,
+            1e9,
+            1e9,
+            2,
+            5,
+            10,
+            goals_achieved=True,
         )
         assert with_ > without
 
     def test_year_penalty(self):
         setup = SetupOptions()
         short = compute_final_score(
-            setup, 1e9, 1e9, 2, 5, 30, goals_achieved=False,
+            setup,
+            1e9,
+            1e9,
+            2,
+            5,
+            30,
+            goals_achieved=False,
         )
         long_ = compute_final_score(
-            setup, 1e9, 1e9, 2, 5, 100, goals_achieved=False,
+            setup,
+            1e9,
+            1e9,
+            2,
+            5,
+            100,
+            goals_achieved=False,
         )
         assert short > long_
 
     def test_no_year_penalty_before_threshold(self):
         setup = SetupOptions()
         s40 = compute_final_score(
-            setup, 1e9, 1e9, 2, 5, 40, goals_achieved=False,
+            setup,
+            1e9,
+            1e9,
+            2,
+            5,
+            40,
+            goals_achieved=False,
         )
         s50 = compute_final_score(
-            setup, 1e9, 1e9, 2, 5, 50, goals_achieved=False,
+            setup,
+            1e9,
+            1e9,
+            2,
+            5,
+            50,
+            goals_achieved=False,
         )
         assert s40 == s50
 
     def test_minimum_score(self):
         setup = SetupOptions()
         score = compute_final_score(
-            setup, 0, 0, 0, 0, 10, goals_achieved=False,
+            setup,
+            0,
+            0,
+            0,
+            0,
+            10,
+            goals_achieved=False,
         )
         assert score >= 1
 
@@ -212,6 +266,7 @@ class TestGoalChecker:
         checker = GoalChecker(gc)
         setup = SetupOptions()
         from capitalism.scenario import bread_town
+
         sim, _ = bread_town()
         result = checker.daily(sim.economy, 0, 1990, setup)
         assert result == GameResult.IN_PROGRESS
@@ -247,6 +302,7 @@ class TestCheckGoals:
     def test_all_zero_targets_met(self):
         gc = GoalConfig()
         from capitalism.scenario import bread_town
+
         sim, _ = bread_town()
         all_met, results = check_goals(gc, sim.economy, 0)
         assert all_met
@@ -256,6 +312,7 @@ class TestCheckGoals:
         gc = GoalConfig()
         gc.personal_wealth = 999_999_999.0
         from capitalism.scenario import bread_town
+
         sim, _ = bread_town()
         all_met, results = check_goals(gc, sim.economy, 0)
         assert not all_met
@@ -322,11 +379,13 @@ class TestSetupOptions:
 class TestSimIntegration:
     def test_goal_checker_on_sim(self):
         from capitalism.scenario import bread_town
+
         sim, _ = bread_town()
         assert sim.goal_checker.result == GameResult.IN_PROGRESS
 
     def test_advance_with_goals(self):
         from capitalism.scenario import bread_town
+
         sim, _ = bread_town()
         sim.goal_config.personal_wealth = 999_999_999.0
         sim.reset()
@@ -335,6 +394,7 @@ class TestSimIntegration:
 
     def test_victory_on_easy_goal(self):
         from capitalism.scenario import bread_town
+
         sim, _ = bread_town()
         sim.economy.add_corp("TestCorp", corp_type=1)
         # The player now starts with Initial Capital ($10M, gap audit C3), so a
@@ -346,6 +406,7 @@ class TestSimIntegration:
 
     def test_out_of_reach_goal_stays_in_progress(self):
         from capitalism.scenario import bread_town
+
         sim, _ = bread_town()
         sim.goal_config.personal_wealth = 1e15
         sim.goal_checker = GoalChecker(sim.goal_config, player_corp_id=0)

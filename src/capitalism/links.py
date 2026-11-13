@@ -199,7 +199,9 @@ class Link:
 def _reduce_gap(link: Link, tm: TownMarket) -> float:
     """N4: how far below reference (positive → gets reduced). Per-factor clamping."""
     score_term = max(0.0, (tm.ref_score - link.score) / 100.0)
-    price_term = max(0.0, tm.price_weight * (link.price - tm.ref_price) / (tm.ref_price + 0.1) / 300.0)
+    price_term = max(
+        0.0, tm.price_weight * (link.price - tm.ref_price) / (tm.ref_price + 0.1) / 300.0
+    )
     quality_term = max(0.0, tm.score_in_weight * (tm.ref_score_in - link.seller.quality) / 30000.0)
     brand_term = max(0.0, tm.brand_weight * (tm.ref_brand - link.brand) / 30000.0)
     return score_term + price_term + quality_term + brand_term
@@ -208,7 +210,9 @@ def _reduce_gap(link: Link, tm: TownMarket) -> float:
 def _increase_gap(link: Link, tm: TownMarket) -> float:
     """N5: how far above reference (positive → gets to grow). Per-factor clamping."""
     score_term = max(0.0, (link.score - tm.ref_score) / 100.0)
-    price_term = max(0.0, tm.price_weight * (tm.ref_price - link.price) / (link.price + 0.1) / 300.0)
+    price_term = max(
+        0.0, tm.price_weight * (tm.ref_price - link.price) / (link.price + 0.1) / 300.0
+    )
     quality_term = max(0.0, tm.score_in_weight * (link.seller.quality - tm.ref_score_in) / 30000.0)
     brand_term = max(0.0, tm.brand_weight * (link.brand - tm.ref_brand) / 30000.0)
     return score_term + price_term + quality_term + brand_term
@@ -218,7 +222,9 @@ def _take_gap(me: Link, them: Link, tm: TownMarket) -> float:
     """N6: advantage of `me` over `them` (positive → me takes). Per-factor clamping."""
     score_term = max(0.0, (me.score - them.score + 1) / 100.0)
     price_term = max(0.0, tm.price_weight * (them.price - me.price) / (me.price + 0.1) / 300.0)
-    quality_term = max(0.0, tm.score_in_weight * (me.seller.quality - them.seller.quality) / 30000.0)
+    quality_term = max(
+        0.0, tm.score_in_weight * (me.seller.quality - them.seller.quality) / 30000.0
+    )
     brand_term = max(0.0, tm.brand_weight * (me.brand - them.brand) / 30000.0)
     return score_term + price_term + quality_term + brand_term
 
@@ -279,7 +285,9 @@ class Market:
             x.update_weight()
             gap = _reduce_gap(x, tm)
             if gap > 0 and demand > 0:
-                cut = (100.0 - x.weight) * x.quantity * gap * gap * (x.quantity / demand) ** 2 / 100.0
+                cut = (
+                    (100.0 - x.weight) * x.quantity * gap * gap * (x.quantity / demand) ** 2 / 100.0
+                )
                 cut = min(cut, x.quantity)
                 x.quantity -= cut
         proj_day = min(day, 30)

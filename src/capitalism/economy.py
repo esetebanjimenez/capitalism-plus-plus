@@ -320,9 +320,7 @@ class Economy:
     def town_market(self, town: Town, product_name: str) -> TownMarket:
         return self.market.towns[(town.id, self.catalog[product_name].id)]
 
-    def add_person(
-        self, name: str, *, is_player: bool = False, randomize: bool = False
-    ) -> Person:
+    def add_person(self, name: str, *, is_player: bool = False, randomize: bool = False) -> Person:
         slot = next((i for i, p in enumerate(self.persons) if p is None), None)
         if slot is None:
             raise RuntimeError("person array full")
@@ -339,6 +337,7 @@ class Economy:
 
     def linked_persons(self) -> list[Person]:
         from .person import STATE_LINKED
+
         return [p for p in self.persons if p is not None and p.state == STATE_LINKED]
 
     def all_persons(self) -> list[Person]:
@@ -527,6 +526,7 @@ class Economy:
     def persons_daily(self, day_serial: int) -> None:
         """Staggered person processing: one person per day on a 30-day cycle."""
         from .person import STATE_LINKED
+
         slot = day_serial % int(_PR.max_persons)
         person = self.persons[slot] if slot < len(self.persons) else None
         if person is None:
@@ -539,6 +539,7 @@ class Economy:
     def ai_daily(self, day_serial: int) -> None:
         """AI corporation decisions for all competitor corps."""
         from .ai import ai_daily, try_spawn_competitor
+
         try_spawn_competitor(self, day_serial)
         for corp in self.corps:
             if corp.corp_type == CORP_AI:
@@ -598,6 +599,7 @@ class Economy:
     def persons_yearly(self) -> None:
         """Yearly service increment for linked persons."""
         from .person import STATE_LINKED
+
         for person in self.all_persons():
             if person.state == STATE_LINKED:
                 person.years_of_service += 1
@@ -648,9 +650,7 @@ class Economy:
             product_totals[pid] = product_totals.get(pid, 0.0) + projected
         for tm in self.market.towns.values():
             pid = tm.product.id
-            projected_unmet = (
-                tm.unmet_demand_sum + prorate * tm.last_month_unmet_demand_sum
-            )
+            projected_unmet = tm.unmet_demand_sum + prorate * tm.last_month_unmet_demand_sum
             product_totals[pid] = product_totals.get(pid, 0.0) + projected_unmet
         for corp in self.corps:
             corp.market_share.clear()
@@ -693,8 +693,13 @@ class Economy:
             if corp.dividend_auto:
                 leadership = person.trait7 if person else 50
                 payout = compute_ai_dividend(
-                    stock, corp.total_assets(self.firms), corp.ledger.cash,
-                    corp.stock_assets, earnings, leadership, self.rng,
+                    stock,
+                    corp.total_assets(self.firms),
+                    corp.ledger.cash,
+                    corp.stock_assets,
+                    earnings,
+                    leadership,
+                    self.rng,
                 )
             else:
                 payout = earnings * corp.dividend_ratio / 100.0
@@ -706,8 +711,7 @@ class Economy:
                     # Dividend income: record in CAT_STOCK_RETURN and add cash
                     # (Ledger.post would subtract cash for non-SALES cats).
                     rcorp = self.corps[cid]
-                    for arr in (rcorp.ledger.month, rcorp.ledger.year,
-                                rcorp.ledger.total):
+                    for arr in (rcorp.ledger.month, rcorp.ledger.year, rcorp.ledger.total):
                         arr[CAT_STOCK_RETURN] += amount
                     rcorp.ledger.cash += amount
             for pid, amount in dist["persons"]:
@@ -741,7 +745,9 @@ class Economy:
         if avg_gnp <= _CR.weak_gnp_threshold or self.rng.chance(1.0 / _CR.interest_rise_chance):
             self.interest_rate += _CR.interest_rate_step
         if self.rng.chance(1.0 / _CR.interest_fall_chance):
-            self.interest_rate = max(_CR.interest_rate_floor, self.interest_rate - _CR.interest_rate_step)
+            self.interest_rate = max(
+                _CR.interest_rate_floor, self.interest_rate - _CR.interest_rate_step
+            )
 
     def diffuse_tech(self) -> None:
         """design.md slice 3 call 5: generally available and obsolete at the same test."""
@@ -818,6 +824,12 @@ class Economy:
                 continue
             h.update(
                 struct.pack(
-                    "<iddddd", link.id, link.quantity, link.score, link.brand, link.awareness, sum(link.money_month)
+                    "<iddddd",
+                    link.id,
+                    link.quantity,
+                    link.score,
+                    link.brand,
+                    link.awareness,
+                    sum(link.money_month),
                 )
             )
