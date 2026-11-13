@@ -120,6 +120,16 @@ class TestLocationSelection:
         sim.advance_day()
         assert firm.ledger.month[1] > 0  # salaries
 
+    def test_deposit_firms_keep_the_offtown_search(self):
+        """#316 review: types 5-7 stay off town tiles until #317."""
+        from capitalism.world import TileCategory
+
+        sim, town = bread_town(1)
+        site = find_ai_site(sim.economy, town, Rng(42), deposit=True)
+        assert site is not None
+        kind = sim.world.tile_at(*site).kind
+        assert kind in (TileCategory.GRASSLAND, TileCategory.FOREST_HILL)
+
 
 class TestAIBuildFirm:
     def test_build_department_store(self):

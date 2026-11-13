@@ -135,7 +135,7 @@ def passes_profitability_gate(
 
 
 def find_ai_site(
-    eco: Economy, town: Town, rng: Rng, *, core: bool = False
+    eco: Economy, town: Town, rng: Rng, *, core: bool = False, deposit: bool = False
 ) -> tuple[int, int] | None:
     """AI location finder FUN_0002dc7c (gamelogic.md Location selection, #315).
 
@@ -147,6 +147,8 @@ def find_ai_site(
     """
     from .world import TileCategory
 
+    if deposit:
+        return _find_offtown_site(eco, town, rng)
     if core:
         lo, hi, base = _AR.site_core_kind_min, _AR.site_core_kind_max, town.level
     else:
@@ -165,11 +167,36 @@ def find_ai_site(
     return None
 
 
+def _find_offtown_site(eco: Economy, town: Town, rng: Rng) -> tuple[int, int] | None:
+    """Pre-#315 grassland/forest search kept for deposit firms (types 5-7).
+
+    Natively they are placed by deposits (FUN_0002e3e0, #297); that is #317.
+    Until then they stay off town tiles, so they pay no wages (W2).
+    """
+    from .world import TileCategory
+
+    radius = min(town.level, _AR.site_radius_cap)
+    for attempt in range(_AR.site_retries):
+        r = radius + attempt
+        x = max(0, min(eco.world.width - 1, town.x + rng.randint(-r, r)))
+        y = max(0, min(eco.world.height - 1, town.y + rng.randint(-r, r)))
+        if eco.world.tile_at(x, y).kind in (TileCategory.GRASSLAND, TileCategory.FOREST_HILL):
+            return x, y
+    return None
+
+
 def ai_build_firm(
-    eco: Economy, corp: Corporation, firm_type: int, town: Town, rng: Rng, *, core: bool = False
+    eco: Economy,
+    corp: Corporation,
+    firm_type: int,
+    town: Town,
+    rng: Rng,
+    *,
+    core: bool = False,
+    deposit: bool = False,
 ) -> object | None:
     """Shared AI build path (gamelogic.md Firm creation)."""
-    site = find_ai_site(eco, town, rng, core=core)
+    site = find_ai_site(eco, town, rng, core=core, deposit=deposit)
     if site is None:
         return None
     x, y = site
@@ -466,9 +493,12 @@ def _strategy_dispatch(
         return
 
     # Build
-    # Types 4-7 take the base-radius (core tile) branch, as before #315; which
-    # native caller (FUN_0002dc2c / FUN_0002dc5a) each type uses is #314 item 6.
-    firm = ai_build_firm(eco, corp, firm_type, town, rng, core=firm_type in (4, 5, 6, 7))
+    # Type 4 (farm) takes the base-radius core branch until #314 item 6 answers.
+    # Types 5-7 (logging camp, mine, oil well) are deposit-placed natively (#297,
+    # #317) and keep the off-town search for now.
+    firm = ai_build_firm(
+        eco, corp, firm_type, town, rng, core=firm_type == 4, deposit=firm_type in (5, 6, 7)
+    )
     if firm is not None:
         ai.build_cooldowns[firm_type] = day_serial + int(_AR.build_cooldown)
         _configure_new_firm(eco, corp, firm, rng)
