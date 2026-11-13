@@ -711,9 +711,9 @@ def _configure_new_firm(
             firm.link_slots(0, 1)
         else:
             firm.add_job(0, 2, product)
-            yield_row = LIVESTOCK_YIELDS.get(product.id)
-            if yield_row is not None:
-                out = cat.by_id[yield_row.product_id]
+            yield_rows = LIVESTOCK_YIELDS.get(product.id)
+            if yield_rows:
+                out = cat.by_id[yield_rows[0].product_id]
                 _grant_tech(corp, out)
                 firm.add_job(1, 3, out)
                 firm.add_job(2, 12, out)

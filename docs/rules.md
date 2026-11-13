@@ -21,9 +21,12 @@ the wide catalog tables) are ours, not the original game's.
 
 | Livestock | Output | Output / input | Input ratio | Reference |
 |---|---|---|---|---|
-| 19 | 23 | 20 **provisional** | 1 | M1 provisional livestock yield and conversion; source yield missing |
-| 20 | 24 | 1 **provisional** | 1 | M1 provisional livestock yield and conversion; source yield missing |
-| 22 | 25 | 40 **provisional** | 1 | M1 provisional livestock yield and conversion; source yield missing |
+| 19 | 23 | 20 **provisional** | 1 | 1STD.SET FARMLIVE byproduct mapping (Observed); yield_factor provisional (kept from M1) |
+| 19 | 24 | 1 **provisional** | 1 | 1STD.SET FARMLIVE byproduct mapping (Observed); yield_factor provisional |
+| 20 | 46 | 1 **provisional** | 1 | 1STD.SET FARMLIVE byproduct mapping (Observed); yield_factor provisional (D2 fix: was Milk) |
+| 21 | 23 | 1 **provisional** | 1 | 1STD.SET FARMLIVE byproduct mapping (Observed); yield_factor provisional |
+| 22 | 23 | 1 **provisional** | 1 | 1STD.SET FARMLIVE byproduct mapping (Observed); yield_factor provisional |
+| 22 | 25 | 40 **provisional** | 1 | 1STD.SET FARMLIVE byproduct mapping (Observed); yield_factor provisional (kept from M1) |
 
 ## Rating efficiency and storage
 

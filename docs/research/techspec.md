@@ -824,9 +824,13 @@ Returns 0. Short `+0x44` = `(rating − 1) × 5 + 30`. `0x528ec` and
 from `+0x56` onto `+0x5a`. Record from `0x74dcc` on `0xb1c1c` indexed
 by short `+0x54`. Float at `0xa768e` = 36500.0 (daily scalar),
 `0xa7692` = 100.0 (percentage divisor). Per-livestock GROW and REPRODUCE
-rates decoded from 1STD.SET FARMLIVE section (18-byte records: short
-product code, float weight, short grow_rate, short reproduce_rate,
-short byproduct_count, 3×short byproduct_ids).
+rates decoded from 1STD.SET FARMLIVE section. The FARMLIVE section is
+a dBASE III table with fields: LSTOCK(C8), LSTOCK_ID(N3), WEIGHT(N7.2),
+GROW(N5), REPRODUCE(N5), PRODUCT1(C8), P1_ID(N3), PRODUCT2(C8),
+P2_ID(N3), PRODUCT3(C8), P3_ID(N3). Byproduct mappings (PRODUCT1–3)
+now implemented in `livestock_yields` (#225):
+Cattle→{Leather,Milk}, Chicken→{Eggs}, Pig→{Leather}, Sheep→{Wool,Leather}.
+D2 resolved: Chicken produces Eggs, not Milk.
 
 **Type 3 (Livestock Processing)** — `job_livestock_process` (`0x52fce`):
 Calls `job_process_calc` (`0x52f0c`), stores at int `+0x58`. Returns 0.
