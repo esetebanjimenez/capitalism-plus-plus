@@ -283,7 +283,8 @@ def frames():
     f["plate_level"] = (level_badge(), [4, 4, 4, 4])
     f["plate_pulse"] = (pulse_ring(), [6, 6, 6, 6])
     for k in VIEW_ICON:
-        if k != "end_bankrupt":  # added later (#289); appended below so earlier frames keep their place
+        # end_bankrupt came later (#289): appended below so earlier frames keep their place
+        if k != "end_bankrupt":
             f["icon_" + k] = (vicon(k), None)
     f["chart_dot"] = (dot(), None)
     f["chart_dot_sel"] = (dot(True), None)
