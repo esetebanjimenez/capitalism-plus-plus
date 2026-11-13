@@ -12,9 +12,9 @@ are **Observed** (decoded from the native EXE or 1STD.SET); some are still
 **provisional** (placeholders awaiting native confirmation). The audit doc
 tracks which is which.
 
-- Query with: `.venv312\Scripts\python.exe -c "import sqlite3; ..."`
+- Query with: `python -c "import sqlite3; ..."`
 - Regenerate `docs/rules.md` after schema changes:
-  `.venv312\Scripts\python.exe scripts/generate_rules_md.py`
+  `python scripts/generate_rules_md.py`
 
 ### `src/capitalism/data/1std_set.db` — Parsed 1STD.SET
 SQLite copy of the standard game-set file, 16 dBASE III tables, 738 rows.
@@ -22,7 +22,7 @@ Tables: RICH, ITEMCLAS, FIRMJOB, JOB, RAW, GROUP, PERSON, METHOD,
 FARMPROD, HEADER, TOWN, FIRM, ITEMPAE, ITEM, FARMLIVE, FARMCROP.
 
 Use this instead of re-parsing the binary SET file each time. Regenerate
-with: `.venv312\Scripts\python.exe scripts/parse_set.py --sqlite`
+with: `python scripts/parse_set.py --sqlite`
 
 ## Research Documents
 
@@ -135,10 +135,9 @@ issue → branch → implement → tests → docs → PR → CI. Invoke with
 
 ## Development Environment
 
-- **Python**: 3.12 via `.venv312\Scripts\python.exe`
 - **PYTHONPATH**: `src`
 - **Source**: `src/capitalism/`
-- **Tests**: `tests/` — run with `.venv312\Scripts\python.exe -m pytest -q --tb=short`
+- **Tests**: `tests/` — run with `python -m pytest -q --tb=short`
 - **Lint**: `ruff check` (enforced by CI)
 - **CI checks**: `build` (lint + tests), `client`, `pyodide-smoke` — all three must pass
 - **Branch protection**: `main` requires PRs; never push directly
@@ -148,7 +147,8 @@ issue → branch → implement → tests → docs → PR → CI. Invoke with
 - Every value in the sim DB should be **Observed** (decoded from the EXE
   or SET file). Provisional/placeholder values must be replaced with
   native-confirmed data before marking a row Fixed.
-- Open a GitHub issue BEFORE creating a branch. Link it in the PR with
-  `Closes #N`, not `Refs`.
+- Open a GitHub issue BEFORE creating a branch. Use `Closes #N` when
+  the PR fully resolves the issue. Otherwise use `Refs #N` and update
+  the issue with what the PR handled.
 - `MAX_CORPS = 12` throughout the sim.
 - Watcom `__CHP` (float-to-int) maps to Python `round()`.
