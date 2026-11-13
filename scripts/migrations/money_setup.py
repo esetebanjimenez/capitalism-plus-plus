@@ -28,7 +28,10 @@ COMPETITOR_CAPITAL = {
 }
 RULES = [
     (
-        "corporations", "player_initial_capital", 10_000_000.0, "dollars",
+        "corporations",
+        "player_initial_capital",
+        10_000_000.0,
+        "dollars",
         (
             "g_app+0x196 default 0x4b189680 (decomp:4518), setup dialog decomp:7758; ref:19. "
             "Credited as corp cash on creation (native hand-off not traced)"
@@ -36,7 +39,10 @@ RULES = [
         1,
     ),
     (
-        "ai", "capital_unit", 600_000.0, "dollars per v",
+        "ai",
+        "capital_unit",
+        600_000.0,
+        "dollars per v",
         (
             "FUN_0007916c decomp:87774-87776: (v/2 + random(v/2)) * 6,000,000 / 10. "
             "Native credits the CEO's wealth; sim credits corp cash (hand-off not traced)"
@@ -44,7 +50,10 @@ RULES = [
         1,
     ),
     (
-        "ai", "ai_cash_reset", 1_000_000_000.0, "dollars",
+        "ai",
+        "ai_cash_reset",
+        1_000_000_000.0,
+        "dollars",
         (
             "Government corp only: FUN_00030ffc decomp:27691-27693, vtable 0x3553c (audit A1). "
             "Competitors keep real cash; the sim has no Government corp, so this is unused"
