@@ -313,11 +313,9 @@ def compute_ai_dividend(
     if ratio > threshold:
         amount = total_assets * (ratio - threshold) / shares
         cap = price / _SR.dividend_price_cap_divisor
-        if amount > cap:
-            amount = cap
+        amount = min(amount, cap)
         main = (rng.randint(0, 89) + 10) * amount / _SR.dividend_random_divisor
-        if main > div_ps:
-            div_ps = main
+        div_ps = max(div_ps, main)
 
     # Step 4: fallback — rare dividend even when cash-poor
     if div_ps == 0.0 and personality < 100:
@@ -326,15 +324,12 @@ def compute_ai_dividend(
 
     # Step 5: equity cap and minimum-payout gate
     net_equity = total_assets - investment_value
-    if net_equity < _SR.dividend_equity_floor:
-        net_equity = _SR.dividend_equity_floor
+    net_equity = max(net_equity, _SR.dividend_equity_floor)
     if net_equity > cash:
         return 0.0
     per_share_cap = (cash - net_equity) / shares
-    if per_share_cap > price:
-        per_share_cap = price
-    if div_ps > per_share_cap:
-        div_ps = per_share_cap
+    per_share_cap = min(per_share_cap, price)
+    div_ps = min(div_ps, per_share_cap)
     if div_ps < _SR.dividend_min_per_share:
         return 0.0
 
