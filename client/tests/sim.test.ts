@@ -210,7 +210,7 @@ describe("SimClient with a fake worker", () => {
     const { timer, client, sent } = pair();
     const ready = await client.ready;
     expect(ready.day_serial).toBe(0);
-    expect(sent[0]).toEqual({ type: "init", setup: { seed: 1 }, zipUrl: "capitalism.zip" });
+    expect(sent[0]).toEqual({ type: "init", setup: { seed: 1 }, zipUrl: "capitalism.zip", pyodideUrl: "pyodide/" });
 
     const results: CmdResult[] = [];
     client.onCmdResult = (r) => results.push(r);

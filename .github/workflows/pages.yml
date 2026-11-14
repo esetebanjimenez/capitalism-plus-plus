@@ -1,7 +1,9 @@
 name: pages
 
-# Deploys the map client to GitHub Pages on every push to main, so it can be opened
-# on a real phone. URL options work as locally, e.g. ?mode=direct&art=64&chunk=16.
+# Deploys the client to GitHub Pages on every push to main, so it can be opened on a real
+# phone. The build carries the sim (capitalism.zip) and a self-hosted Pyodide with its
+# wheels (#247), and is boot-checked before it ships. URL options work as locally,
+# e.g. ?map=sample&mode=direct&art=64&chunk=16.
 on:
   push:
     branches: [main]
@@ -31,6 +33,8 @@ jobs:
           cache-dependency-path: client/package-lock.json
       - run: npm ci --prefix client
       - run: npm run --prefix client build
+      - name: Boot check (sim boots, 10 days pass)
+        run: npm run --prefix client boot-check
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

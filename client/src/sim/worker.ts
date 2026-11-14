@@ -5,25 +5,24 @@ import { bootSim, type PyodideLike } from "./boot.ts";
 import { Engine, errorMsg } from "./engine.ts";
 import type { UiMsg, WorkerMsg } from "./protocol.ts";
 
-/** Same pinned version as web/package.json. */
-export const PYODIDE_VERSION = "314.0.7";
-const INDEX_URL = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`;
+// Pyodide is self-hosted next to the site (client/public/pyodide/, written by
+// scripts/fetch-pyodide.mjs at the version pinned in package.json), not loaded from a CDN.
 
 const scope = self as unknown as DedicatedWorkerGlobalScope;
 const post = (msg: WorkerMsg) => scope.postMessage(JSON.stringify(msg));
 let engine: Engine | null = null;
 const early: UiMsg[] = [];
 
-async function init(setup: Record<string, unknown>, zipUrl: string) {
+async function init(setup: Record<string, unknown>, zipUrl: string, indexURL: string) {
   post({ type: "progress", stage: "Loading Python", done: 0, total: 4 });
   const [mod, zip] = await Promise.all([
-    import(/* @vite-ignore */ `${INDEX_URL}pyodide.mjs`) as Promise<{ loadPyodide(o: { indexURL: string }): Promise<PyodideLike> }>,
+    import(/* @vite-ignore */ `${indexURL}pyodide.mjs`) as Promise<{ loadPyodide(o: { indexURL: string }): Promise<PyodideLike> }>,
     fetch(zipUrl).then((r) => {
       if (!r.ok) throw new Error(`Couldn't load ${zipUrl}: HTTP ${r.status}`);
       return r.arrayBuffer();
     }),
   ]);
-  const py = await mod.loadPyodide({ indexURL: INDEX_URL });
+  const py = await mod.loadPyodide({ indexURL });
   post({ type: "progress", stage: "Python ready", done: 1, total: 4 });
   const api = await bootSim(py, new Uint8Array(zip), setup, (stage, done, total) => post({ type: "progress", stage, done, total }));
   engine = new Engine(api, post);
@@ -34,7 +33,7 @@ async function init(setup: Record<string, unknown>, zipUrl: string) {
 scope.onmessage = (e: MessageEvent<string>) => {
   const msg = JSON.parse(e.data) as UiMsg;
   if (msg.type === "init") {
-    init(msg.setup, msg.zipUrl).catch((err) => post(errorMsg(err)));
+    init(msg.setup, msg.zipUrl, msg.pyodideUrl).catch((err) => post(errorMsg(err)));
   } else if (engine) {
     engine.handleMsg(msg);
   } else {
