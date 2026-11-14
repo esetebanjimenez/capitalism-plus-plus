@@ -15,6 +15,7 @@ import { loadUiAtlas } from "./ui/atlas";
 import { showChartDemo } from "./ui/chartdemo";
 import { TileJson, firmCard, menuPanel, sampleTile, tileCard, townCard } from "./ui/cards";
 import { CorpJson, ReportState, companyReport } from "./ui/company";
+import { showCompanyDemo } from "./ui/companydemo";
 import { Pick, isDesktop, panToShow, pickAt, visibleMapRect } from "./ui/layout";
 import { LoadingOverlay, showSimError } from "./ui/overlay";
 import { Shell } from "./ui/shell";
@@ -32,6 +33,11 @@ async function boot() {
   if (params.get("chart") === "demo") {
     await showChartDemo(Math.max(1, Math.round(devicePixelRatio)));
     document.title = "Capitalism++ chart ready";
+    return;
+  }
+  if (params.get("company") === "demo") {
+    await showCompanyDemo(Math.max(1, Math.round(devicePixelRatio)), params.get("firm") === "1");
+    document.title = "Capitalism++ company ready";
     return;
   }
   const app = new Application();
