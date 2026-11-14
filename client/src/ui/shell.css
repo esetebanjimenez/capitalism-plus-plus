@@ -171,6 +171,20 @@ button.goal-row { cursor: pointer; min-height: 44px; }
 .goal-fill[hidden] { display: none; }
 .goal-none { margin: 4px 0 16px; }
 
+/* Win/loss card (#263): full screen, above the HUD and panels. */
+.end-shade { font: 600 15px/1.3 system-ui, -apple-system, "Segoe UI", sans-serif; color: #22262e; position: fixed; inset: 0; z-index: 50; background: rgba(34, 38, 46, 0.72); display: flex; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; }
+.end-card { width: min(100%, 360px); max-height: 100%; overflow-y: auto; box-sizing: border-box; padding: 10px 12px 14px; display: flex; flex-direction: column; gap: 12px; }
+.end-band { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 16px 12px 18px; color: #fff; }
+.end-icon { width: 32px !important; height: 32px !important; background-size: 32px 32px !important; image-rendering: pixelated; }
+.end-headline { margin: 0; font-size: 20px; font-weight: 800; text-align: center; }
+.end-rows { padding: 4px 8px 12px; border-bottom: 2px solid rgba(34, 38, 46, 0.12); }
+.end-rows dd { font-weight: 800; font-size: 16px; }
+.end-goals { display: grid; gap: 8px; padding: 0 8px; }
+.end-goals-head { margin: 0; font-size: 16px; font-weight: 800; }
+.end-new { margin-top: 12px; flex: none; }
+.end-shade button { font: inherit; cursor: pointer; padding: 0; background-color: transparent; }
+.end-shade .end-new { color: #fff; font-weight: 800; font-size: 16px; min-height: 44px; }
+.end-rows.last { border-bottom: none; padding-bottom: 0; }
 /* Stocks (#260): a compact table; rows are tappable on the list. */
 .stock-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 14px; }
 .stock-table th { text-align: right; color: #6b6a64; font-weight: 600; padding: 4px 4px; }
