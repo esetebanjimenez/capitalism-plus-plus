@@ -2,7 +2,7 @@
  "_doc": "Chart style for #178 (docs/m2-view-briefs.md section 4). Points are UI points; colours are palette names from ui_concept.C. Drawn live by the client.",
  "background": {"frame": "card", "slice": [6, 6, 6, 7]},
  "line": {"colour": "ORANGE", "width": 2, "join": "round"},
- "grid": {"colour": "SAND", "width": 1, "lines": 4, "direction": "horizontal"},
+ "grid": {"colour": "SAND", "width": 1, "lines": 4, "max_lines": 5, "steps": "1, 2 or 5 x 10^n so labels step evenly; add a fifth line rather than doubling the step (#352)", "label_precision": "same number of decimals on every tick", "direction": "horizontal"},
  "zero_line": {"colour": "INK", "width": 1, "when": "the value range crosses 0; label it 0 in bold"},
  "axis_label": {"colour": "MGREY", "size": 10, "bold": false, "money": "short form: 950, 12.5k, 3.2M, 1.1B, minus sign for negatives"},
  "points": {"last": "chart_dot", "tapped": "chart_dot_sel", "others": "none"},
