@@ -223,6 +223,7 @@ class FirmTypeRow(StaticModel):
     max_slots: int = Field(ge=0, le=9)
     live_inventory: bool
     government: bool
+    player_buildable: bool
     ref: str
     provisional: frozenset[str] = frozenset()
 
@@ -600,7 +601,8 @@ def load_rnd_prereqs() -> tuple[RndPrereqRow, ...]:
 def load_firm_types() -> dict[int, FirmTypeRow]:
     out: dict[int, FirmTypeRow] = {}
     for r in _rows(
-        "SELECT id, name, setup_cost, overhead_month, max_slots, live_inventory, government, ref, provisional "
+        "SELECT id, name, setup_cost, overhead_month, max_slots, live_inventory, government, "
+        "player_buildable, ref, provisional "
         "FROM firm_types ORDER BY id"
     ):
         d = dict(r)

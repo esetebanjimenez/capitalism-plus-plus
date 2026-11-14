@@ -350,3 +350,15 @@ def test_every_news_type_has_a_headline(news_type):
     assert text and text[0].isupper() and "{" not in text and not any(ch.isdigit() for ch in text)
     if "{corp}" in row.template:
         assert api.player.name in text
+
+
+def test_build_options_leave_out_the_seaport():
+    """ux-spec "Build menu": the 14 firm types minus Seaport (#251)."""
+    api = make_api()
+    x, y = find_site(api.sim, api.sim.towns[0])
+    ids = {o["type_id"] for o in api.query("build_options", {"x": x, "y": y})["options"]}
+    assert 14 not in ids
+    assert ids == set(range(1, 14))
+    res = run(api, "build_firm", firm_type=14, x=x, y=y)
+    assert res["ok"] is False and "Seaport" in res["error"]
+    assert not any(f for f in api.eco.firms if f is not None and f.x == x and f.y == y)
