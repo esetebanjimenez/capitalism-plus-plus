@@ -46,14 +46,14 @@ export const crossesZero = (min: number, max: number) => min < 0 && max > 0;
 export const tipColour = (v: number) => (v >= 0 ? PALETTE.GREEN : PALETTE.RED);
 
 /** Axis range with exactly `lines` evenly spaced round ticks (1, 2, 2.5 or 5 times a power of ten)
- * covering every value. A flat series is widened to include 0. */
+ * covering every value. A flat series is widened to include 0; an all-zero one runs 0 to 1k. */
 export function axisRange(values: number[], lines = style.grid.lines): { min: number; max: number; ticks: number[] } {
   let lo = values.length ? Math.min(...values) : 0;
   let hi = values.length ? Math.max(...values) : 1;
   if (lo === hi) {
     lo = Math.min(0, lo);
     hi = Math.max(0, hi);
-    if (lo === hi) hi = 1;
+    if (lo === hi) hi = 1000; // all zero: a money axis of 0 to 1k, not 0.5 steps
   }
   const intervals = Math.max(1, lines - 1);
   const raw = (hi - lo) / intervals;

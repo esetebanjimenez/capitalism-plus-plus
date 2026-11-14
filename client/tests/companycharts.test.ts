@@ -79,3 +79,13 @@ describe("Company charts tab (#258)", () => {
     expect(spec.body.querySelector(".coming")).toBeNull();
   });
 });
+
+describe("all-zero series (#258)", () => {
+  it("gets a 0 to 1k money axis, not fractions", async () => {
+    const { axisRange } = await import("../src/ui/chart");
+    const r = axisRange([0, 0, 0]);
+    expect(r.min).toBe(0);
+    expect(r.ticks.every((t) => Number.isInteger(t))).toBe(true);
+    expect(r.max).toBeGreaterThanOrEqual(1000);
+  });
+});
