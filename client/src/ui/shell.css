@@ -91,7 +91,8 @@
 .plate { position: absolute; left: 0; top: 0; width: 136px; height: 24px; box-sizing: border-box; display: flex; align-items: center;
   gap: 4px; padding: 0 0 1px 2px; pointer-events: none; color: #22262e; background: transparent; font: inherit; }
 .plate[hidden] { display: none; }
-.plate.dim { opacity: 0.35; }
+.plate { transition: opacity 0.12s ease; }
+.plate.dim { opacity: 0.4; }
 .plate-name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left; }
 .plate-level { flex: none; height: 16px; box-sizing: border-box; display: grid; place-items: center; padding: 0 3px; color: #f6ecd4;
   font-size: 11px; }
