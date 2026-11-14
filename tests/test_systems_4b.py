@@ -588,9 +588,9 @@ def test_freight_inputs_are_recovered_spending_or_flagged_fill():
     sim, _ = bread_town(1)
     for p in sim.economy.catalog.products:
         assert p.row.spending_usd > 0 and p.row.freight >= 0
-        if p.name not in ("Wheat", "Flour", "Bread"):
-            prov = set(p.row.provisional)
-            assert "freight" in prov, f"{p.name}: freight should be provisional"
+        # #283: every SET item's FREIGHT is Observed; only Software (not in the SET) is a fill.
+        prov = set(p.row.provisional)
+        assert ("freight" in prov) == (p.name == "Software"), p.name
     from capitalism.jobs import product_freight_rate
 
     # Long haul crosses a cent without any floor; the floor never applies to positive rates.
@@ -690,3 +690,21 @@ def test_bread_chain_skips_an_occupied_tile_instead_of_overwriting():
     spots = [(f.x, f.y) for f in firms]
     assert len(set(spots)) == 4 and (212, 155) not in spots
     assert sim.world.tile_at(212, 155).ref == blocker.id and eco.firms[blocker.id] is blocker
+
+
+def test_product_freight_factors_from_set():
+    """#283 / audit F2: every SET item's FREIGHT is in the DB; unshipped items stay 0."""
+    from capitalism.jobs import product_freight_rate
+
+    sim, _ = bread_town(1)
+    cat = sim.economy.catalog
+    for name, freight in (("Coal", 100), ("CPU", 1), ("Wheat", 70), ("Glass", 90), ("Jewelry", 1)):
+        assert cat[name].row.freight == freight
+        assert "freight" not in cat[name].row.provisional
+    for name in ("Cattle", "Chicken", "Pig", "Sheep", "Rubber Plant", "Sugar Cane"):
+        assert cat[name].row.freight == 0
+    assert sum(p.row.freight > 0 for p in cat.products) == 78
+    # Coal: FREIGHT 100 x SPENDING x 5 tiles / 100^2 x 0.5.
+    coal = cat["Coal"]
+    rate = product_freight_rate(coal, _at(0, 0), _at(3, 4))
+    assert rate == pytest.approx(100 * 5 * coal.row.spending_usd / 20_000)
