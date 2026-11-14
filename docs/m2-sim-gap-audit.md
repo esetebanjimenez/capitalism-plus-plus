@@ -231,3 +231,21 @@ table format._
 | R22 | AI periodic behaviours | `ai.py:229-259`: financial analysis, market survey, market dominance and annual expansion only advance their timers. Pricing/investment, portfolio and hired-corp behaviour are missing | `ref:1588-1733` | Observed | sim-ai (one PR each, after R18) ([#112](https://github.com/esetebanjimenez/capitalism-plus-plus/issues/112)) |
 | R23 | AI random build cap | `ai.py:RANDOM_BUILD_CAP` caps businesses per type by town level (2–4), matching `FUN_000316b4` | `ref:1735-1743`: capped per type by town level (2 to 4) | **Fixed** | sim-ai-build ([#113](https://github.com/esetebanjimenez/capitalism-plus-plus/issues/113)) |
 | R24 | AI town choice | `ai.py:_pick_town` branches by firm type ([#300](https://github.com/esetebanjimenez/capitalism-plus-plus/issues/300)): demand scoring for dept stores (FUN_0006d986 gate provisional: units/day, supply below demand, no eligibility/cost checks), education×2−labor_cost for R&D/software, seeded random for factories, untapped-market fallback. Extraction waits on #317/#319; farms and others keep largest population | `ref:Town choice`: 4 strategies by firm type — demand scoring (dept stores), education×2−labor_cost (R&D/software), random (factories), resource-site (extraction); plus untapped-market fallback. Sim uses largest-population for all | Observed | Researcher ([#114](https://github.com/esetebanjimenez/capitalism-plus-plus/issues/114)) |
+
+## 15. Random events (system 11, [#327](https://github.com/esetebanjimenez/capitalism-plus-plus/issues/327))
+
+Before #327 every event except building destruction filtered on firm and job attributes that don't
+exist, so none of them fired; the economic downturn read a ledger `net_worth` that doesn't exist either.
+#327 points them at the real fields (owner corporation, `firm_types` and `job_types` ids) and keeps
+the odds and effects. The odds (`db:rules events.*`) come from the reference. None of the effects has
+been traced in the decompile, so each row below is **Reference only**: the sim's reading of the
+reference sentence, not a native rule.
+
+| # | Event | Sim | Reference | Status |
+|---|---|---|---|---|
+| E1 | Livestock disease | `news.py:_event_livestock_disease`: one corp's farms; each Livestock Raising herd (young and grown pools) is divided by a roll of 2–5 | `ref:3921-3926`: "reduces the livestock capacity by dividing it by 2 to 5", for jobs matching a random product class. The sim has no separate livestock capacity and doesn't pick a class | Reference only |
+| E2 | Building destruction | `news.py:_event_building_destroyed` → `Economy.demolish_firm` (tile, assets as in B4) after the 50% gate | `ref:3928-3932`: the firm is deleted with its jobs and inventory. Whether native refunds land as demolish does is not known | Reference only |
+| E3 | Crop failure | `news.py:_event_crop_failure`: one corp's farms; each Crop Growing job's growing stock goes to 0 | `ref:3934-3938`: "zeroes both the growth and yield capacities". The sim's growing crop is the job's stock | Reference only |
+| E4 | R&D breakthrough | `news.py:_event_rnd_breakthrough`: a started R&D project gets 20–60 extra elapsed days | `ref:3940-3947`: "adds 20 to 60 progress points". Read as days; the "unveiled" headline when it completes the project isn't separate yet | Reference only |
+| E5 | Inventory loss (blackout) | `news.py:_event_inventory_loss`: after the 50% gate, each job in one corp's department stores loses 0–29 units; the value is reported but not posted | `ref:3949-3955`: "the loss is posted as an expense" | Reference only; the expense posting is missing |
+| E6 | Economic downturn | `news.py:_event_economic_downturn`: after the 1-in-5 gate, every corp loses 4–25% of net worth from cash | `ref:3957-3962`: "reduces corporate asset values", paper losses. The sim takes cash instead | Reference only |

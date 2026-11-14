@@ -578,6 +578,7 @@ class Economy:
             self.news_log,
             self.corps,
             self.firms,
+            self.demolish_firm,
         )
 
     def products_daily(self, slot: int) -> None:

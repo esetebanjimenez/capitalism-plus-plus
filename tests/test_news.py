@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from capitalism import news
 from capitalism.news import (
     FREQ_HIGH,
     FREQ_LOW,
@@ -138,11 +139,8 @@ class TestNewsTypes:
 
 def _test_corps_and_firms():
     """Provide corps and firms so events can find targets."""
-    corps = [_MockCorp(0, 1_000_000.0)]
-    store = _MockFirm(0, 0, "DepartmentStore")
-    store._jobs.append(_MockJob(stock=100, unit_cost=10.0))
-    firms: list[_MockFirm | None] = [store]
-    return corps, firms
+    _, eco, corp, *_ = _event_world()
+    return [corp], eco.firms
 
 
 class TestFrequency:
@@ -225,161 +223,117 @@ class TestRandomEventsNoTarget:
 
 
 # ---------------------------------------------------------------------------
-# Random events — with mock firms/corps
+# Random events — on real firms, jobs and corporations (#327)
 # ---------------------------------------------------------------------------
 
 
-class _MockJob:
-    def __init__(self, type_name="", stock=0, unit_cost=10.0, capacity=100):
-        self.type_name = type_name
-        self.stock = stock
-        self.unit_cost = unit_cost
-        self.capacity = capacity
-        self.growth = 100
-        self.yield_capacity = 100
-        self.stage = 0
-        self.product = None
-        self.progress = 0
+def _event_world():
+    """A corp with a farm (crops and cattle), an R&D centre with a running project and a
+    stocked department store, all on a real Economy."""
+    from capitalism.scenario import bread_town, find_site
+
+    sim, town = bread_town(1)
+    eco = sim.economy
+    corp = eco.add_corp("Events")
+    corp.ledger.cash = 1e9
+    cat = eco.catalog
+
+    def place(ftype):
+        x, y = find_site(sim, town)
+        return eco.build_firm(ftype, corp, x, y, town)
+
+    farm = place(news.FARM)
+    crop = farm.add_job(0, news.CROP_GROWING, cat["Wheat"])
+    herd = farm.add_job(1, news.LIVESTOCK_RAISING, cat["Cattle"])
+    crop.stock = 500.0
+    herd.young, herd.grown = 400.0, 600.0
+    lab = place(news.RND_CENTER)
+    research = lab.add_job(0, news.RESEARCH, cat["DVD Player"])
+    research.configure()
+    research.project.started = True
+    research.project.elapsed_days = 10
+    store = place(news.DEPT_STORE)
+    stock = store.add_job(0, 10, cat["Bread"])
+    stock.stock, stock.unit_cost = 100.0, 2.0
+    return sim, eco, corp, farm, crop, herd, research, store, stock
 
 
-class _MockProduct:
-    def __init__(self, name="TestProduct"):
-        self.name = name
+def _fire(fn, *args):
+    """Call one event with fixed seeds until it fires (some events have an odds gate)."""
+    for seed in range(200):
+        item = fn(Rng(seed), 1, NewsLog(), *args)
+        if item is not None:
+            return item
+    raise AssertionError(f"{fn.__name__} never fired")
 
 
-class _MockFirm:
-    def __init__(self, firm_id=0, corp_id=0, type_name="Factory"):
-        self.id = firm_id
-        self.corp_id = corp_id
-        self.type_name = type_name
-        self._jobs: list[_MockJob] = []
-
-    def jobs(self):
-        return self._jobs
+def test_livestock_disease_divides_the_herd():
+    _, eco, corp, _, _, herd, *_ = _event_world()
+    item = _fire(news._event_livestock_disease, [corp], eco.firms)
+    d = item.details["divisor"]
+    assert item.corp_id == corp.id and item.details["farms_affected"] == 1
+    assert (herd.young, herd.grown) == (400.0 / d, 600.0 / d)
 
 
-class _MockLedger:
-    def __init__(self, cash=1_000_000.0):
-        self.cash = cash
-
-    @property
-    def net_worth(self):
-        return self.cash
+def test_crop_failure_wipes_the_growing_crop():
+    _, eco, corp, _, crop, herd, *_ = _event_world()
+    item = _fire(news._event_crop_failure, [corp], eco.firms)
+    assert item.corp_id == corp.id and crop.stock == 0.0
+    assert herd.grown == 600.0  # livestock untouched
 
 
-class _MockCorp:
-    def __init__(self, corp_id=0, cash=1_000_000.0):
-        self.id = corp_id
-        self.ledger = _MockLedger(cash)
+def test_rnd_breakthrough_adds_project_days():
+    _, eco, corp, _, _, _, research, *_ = _event_world()
+    item = _fire(news._event_rnd_breakthrough, [corp], eco.firms)
+    assert item.corp_id == corp.id and item.details["product"] == "DVD Player"
+    assert research.project.elapsed_days == 10 + item.details["progress_added"]
 
 
-class TestBuildingDestruction:
-    def test_destroys_firm(self):
-        rng = Rng(0)
-        log = NewsLog()
-        firms: list[_MockFirm | None] = [_MockFirm(0, 1), _MockFirm(1, 1), _MockFirm(2, 2)]
-        destroyed = False
-        for day in range(5000):
-            result = random_events_daily(rng, FREQ_HIGH, day, log, [], firms)
-            if result is not None and result.news_type == NewsType.BUILDING_DESTROYED:
-                destroyed = True
-                break
-        assert destroyed
-        assert any(f is None for f in firms)
+def test_inventory_loss_takes_store_stock():
+    _, eco, corp, *_, stock = _event_world()
+    item = None
+    for seed in range(200):  # the loss roll can be 0 units
+        stock.stock = 100.0
+        item = news._event_inventory_loss(Rng(seed), 1, NewsLog(), [corp], eco.firms)
+        if item is not None and stock.stock < 100.0:
+            break
+    assert item is not None and item.corp_id == corp.id
+    assert item.details["total_loss"] == (100.0 - stock.stock) * 2.0 > 0
 
 
-class TestEconomicDownturn:
-    def test_reduces_cash(self):
-        rng = Rng(0)
-        log = NewsLog()
-        corps = [_MockCorp(0, 1_000_000.0), _MockCorp(1, 500_000.0)]
-        initial_cash = [c.ledger.cash for c in corps]
-        downturn_fired = False
-        for day in range(10000):
-            result = random_events_daily(rng, FREQ_HIGH, day, log, corps, [])
-            if result is not None and result.news_type == NewsType.ECONOMIC_DOWNTURN:
-                downturn_fired = True
-                break
-        assert downturn_fired
-        assert any(c.ledger.cash < init for c, init in zip(corps, initial_cash))
+def test_economic_downturn_takes_a_share_of_net_worth():
+    _, eco, corp, *_ = _event_world()
+    nw, cash = corp.net_worth(eco.firms), corp.ledger.cash
+    item = _fire(news._event_economic_downturn, [corp], eco.firms)
+    lost = cash - corp.ledger.cash
+    assert lost > 0
+    assert abs(lost - nw * item.details["loss_fraction"]) < 1e-6 * nw
 
 
-class TestLivestockDisease:
-    def test_reduces_capacity(self):
-        farm = _MockFirm(0, 0, "Farm")
-        job = _MockJob("LivestockRaising", capacity=1000)
-        farm._jobs.append(job)
-        corps = [_MockCorp(0)]
-        rng = Rng(0)
-        log = NewsLog()
-        fired = False
-        for day in range(10000):
-            result = random_events_daily(rng, FREQ_HIGH, day, log, corps, [farm])
-            if result is not None and result.news_type == NewsType.LIVESTOCK_DISEASE:
-                fired = True
-                break
-        assert fired
-        assert job.capacity < 1000
+def test_building_destroyed_goes_through_demolish():
+    from capitalism.world import TileCategory
+
+    _, eco, _, _, _, _, _, store, _ = _event_world()
+    others = [f for f in eco.firms if f is not None and f is not store]
+    item = _fire(news._event_building_destroyed, others + [store], eco.demolish_firm)
+    gone = next(f for f in others + [store] if eco.firms[f.id] is None)
+    assert item.details["firm_id"] == gone.id and item.details["firm_type"] == gone.row.id
+    assert item.corp_id == _owner_id(gone)
+    assert eco.world.tile_at(gone.x, gone.y).kind != TileCategory.FIRM
 
 
-class TestCropFailure:
-    def test_zeroes_growth(self):
-        farm = _MockFirm(0, 0, "Farm")
-        job = _MockJob("CropGrowing")
-        job.growth = 50
-        job.yield_capacity = 80
-        farm._jobs.append(job)
-        corps = [_MockCorp(0)]
-        rng = Rng(0)
-        log = NewsLog()
-        fired = False
-        for day in range(10000):
-            result = random_events_daily(rng, FREQ_HIGH, day, log, corps, [farm])
-            if result is not None and result.news_type == NewsType.CROP_FAILURE:
-                fired = True
-                break
-        assert fired
-        assert job.growth == 0
-        assert job.yield_capacity == 0
+def _owner_id(firm):
+    return firm.owner.id if firm.owner is not None else -1
 
 
-class TestRndBreakthrough:
-    def test_adds_progress(self):
-        rnd_firm = _MockFirm(0, 0, "ResearchCentre")
-        job = _MockJob()
-        job.stage = 1
-        job.product = _MockProduct("NewGadget")
-        job.progress = 10
-        rnd_firm._jobs.append(job)
-        corps = [_MockCorp(0)]
-        rng = Rng(0)
-        log = NewsLog()
-        fired = False
-        for day in range(10000):
-            result = random_events_daily(rng, FREQ_HIGH, day, log, corps, [rnd_firm])
-            if result is not None and result.news_type == NewsType.RND_BREAKTHROUGH:
-                fired = True
-                break
-        assert fired
-        assert job.progress > 10
+def test_bare_lists_without_remove_hook_still_clear_the_slot():
+    class F:
+        def __init__(self, i):
+            self.id, self.owner = i, None
 
-
-class TestInventoryLoss:
-    def test_loses_stock(self):
-        store = _MockFirm(0, 0, "DepartmentStore")
-        job = _MockJob(stock=100, unit_cost=10.0)
-        store._jobs.append(job)
-        corps = [_MockCorp(0)]
-        rng = Rng(0)
-        log = NewsLog()
-        fired = False
-        for day in range(10000):
-            result = random_events_daily(rng, FREQ_HIGH, day, log, corps, [store])
-            if result is not None and result.news_type == NewsType.INVENTORY_LOSS:
-                fired = True
-                break
-        assert fired
-        assert job.stock < 100
+    firms = [F(0), F(1)]
+    item = _fire(news._event_building_destroyed, firms, None)
+    assert item.corp_id == -1 and firms.count(None) == 1
 
 
 # ---------------------------------------------------------------------------
