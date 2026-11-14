@@ -1,5 +1,5 @@
 import { Container, Renderer, RenderTexture, Sprite, Texture } from "pixi.js";
-import { CHUNK_TILES, MARGIN_PX, TILE_PX, View, chunkBytes, chunkKey, neededChunks } from "./chunkmath";
+import { CHUNK_TILES, MARGIN_PX, TILE_PX, View, chunkBytes, chunkKey, chunksForTiles, neededChunks } from "./chunkmath";
 import { MapData } from "./mapdata";
 import { frameFor } from "./tiles";
 
@@ -56,6 +56,23 @@ export class ChunkCache {
       c.tex?.destroy(true);
     }
     this.live.clear();
+  }
+
+  /**
+   * Drop the live chunks that draw tiles `indices` (or a neighbour of one); the next
+   * update rebuilds them from the map. Returns how many were dropped.
+   */
+  invalidate(indices: Iterable<number>): number {
+    let n = 0;
+    for (const key of chunksForTiles(indices, this.map.width, this.map.height, this.opts.chunkTiles)) {
+      const c = this.live.get(key);
+      if (!c) continue;
+      c.node.destroy({ children: true });
+      c.tex?.destroy(true);
+      this.live.delete(key);
+      n++;
+    }
+    return n;
   }
 
   get count(): number {

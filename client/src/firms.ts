@@ -63,10 +63,25 @@ export class FirmLayer {
   constructor(
     firms: FirmInfo[],
     frames: Record<string, Texture>,
-    texelsPerArtPx: (t: Texture) => number = () => 1,
+    private texelsPerArtPx: (t: Texture) => number = () => 1,
   ) {
     this.layer.addChild(this.firmSprites, this.flagSprites);
-    for (const firm of [...firms].sort((a, b) => a.y - b.y || a.x - b.x)) {
+    this.frames = frames;
+    this.setFirms(firms);
+  }
+
+  /** Replace the firm list: sprites for firms that left are destroyed, new ones added. */
+  setFirms(firms: FirmInfo[]): void {
+    const key = (f: FirmInfo) => `${f.id}:${f.x}:${f.y}:${f.type}:${f.owner}`;
+    const want = new Set(firms.map(key));
+    for (let i = this.items.length - 1; i >= 0; i--) {
+      if (want.has(key(this.items[i].firm))) continue;
+      for (const s of this.items[i].sprites) s.destroy();
+      this.items.splice(i, 1);
+    }
+    const have = new Set(this.items.map((it) => key(it.firm)));
+    for (const firm of firms) {
+      if (have.has(key(firm))) continue;
       const body = new Sprite();
       body.position.set(firm.x * TILE_PX, firm.y * TILE_PX);
       this.firmSprites.addChild(body);
@@ -78,22 +93,33 @@ export class FirmLayer {
         sprites.push(flag);
       }
       this.items.push({ firm, sprites });
+      this.texture(firm, sprites);
     }
-    this.setFrames(frames, texelsPerArtPx);
+    // Draw order: rows top to bottom so a firm overlaps the one above it.
+    const order = (a: Sprite, b: Sprite) => a.y - b.y || a.x - b.x;
+    this.firmSprites.children.sort((a, b) => order(a as Sprite, b as Sprite));
+  }
+
+  private texture(firm: FirmInfo, sprites: Sprite[]): void {
+    const frames = this.frames ?? {};
+    const names = [FIRM_SPRITES[firm.type], firm.owner !== null ? flagFrame(firm.owner) : ""];
+    sprites.forEach((s, i) => {
+      const tex = frames[names[i]] ?? Texture.EMPTY;
+      s.texture = tex;
+      s.scale.set(1 / this.texelsPerArtPx(tex));
+    });
   }
 
   /** Point every sprite at `frames`; missing frames draw nothing. */
-  setFrames(frames: Record<string, Texture>, texelsPerArtPx: (t: Texture) => number = () => 1): void {
+  setFrames(frames: Record<string, Texture>, texelsPerArtPx: (t: Texture) => number = this.texelsPerArtPx): void {
     if (frames === this.frames) return;
     this.frames = frames;
-    for (const { firm, sprites } of this.items) {
-      const names = [FIRM_SPRITES[firm.type], firm.owner !== null ? flagFrame(firm.owner) : ""];
-      sprites.forEach((s, i) => {
-        const tex = frames[names[i]] ?? Texture.EMPTY;
-        s.texture = tex;
-        s.scale.set(1 / texelsPerArtPx(tex));
-      });
-    }
+    this.texelsPerArtPx = texelsPerArtPx;
+    for (const { firm, sprites } of this.items) this.texture(firm, sprites);
+  }
+
+  get count(): number {
+    return this.items.length;
   }
 
   /** Hide firms more than a tile outside the view so the batch stays small. */

@@ -18,11 +18,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
-FOOTPRINT_REF = (
-    "Game Designer, PR #50 (m2-ux-spec.md): visual only, sim town stays one tile; "
-    "reference draws a town as one tile (gamelogic.md ~{line})"
-)
-
 # (table, old ref, new ref)
 REFS = [
     (
@@ -49,11 +44,6 @@ REFS = [
         "fixed_training_credits",
         "docs/gamelogic.md 963–970 — shared Software Development visit credits",
         "docs/gamelogic.md 1003–1010 — shared Software Development visit credits",
-    ),
-    (
-        "town_footprints",
-        FOOTPRINT_REF.format(line=4008),
-        FOOTPRINT_REF.format(line=4181),
     ),
 ]
 

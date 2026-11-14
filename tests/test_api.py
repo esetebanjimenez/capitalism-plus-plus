@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from capitalism.api import COMMANDS, QUERIES, Api, town_footprint
+from capitalism.api import COMMANDS, QUERIES, Api
 from capitalism.scenario import bread_town, find_site
 
 STORE, FACTORY = 1, 2
@@ -249,13 +249,17 @@ def test_map_objects_matches_map():
     m, o = api.query("map"), api.query("map_objects", {"since": api.status()["map_rev"]})
     assert o["towns"] == m["towns"] and o["firms"] == m["firms"]
     assert o["map_rev"] == m["map_rev"]
-    assert all({"radius", "block_level"} <= set(t) for t in m["towns"])
+    assert all(set(t) == {"id", "name", "x", "y", "level"} for t in m["towns"])
 
 
-def test_town_footprint_for_levels_1_to_8():
-    rows = [town_footprint(lv) for lv in range(1, 9)]
-    assert all(set(r) == {"radius", "block_level"} for r in rows)
-    assert rows[6] == rows[7] == town_footprint(6)  # past the table: its top row
+def test_map_has_climate_and_town_kinds():
+    api = make_api()
+    m = api.query("map")
+    n = m["width"] * m["height"]
+    assert len(m["climate"]) == len(m["town_kind"]) == n
+    assert set(m["climate"]) <= set(range(5))
+    kinds = {k for k in m["town_kind"] if k}
+    assert kinds and all(0x3000 <= k <= 0x300C for k in kinds)
 
 
 def test_new_game_setup_and_goals():

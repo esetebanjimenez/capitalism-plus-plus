@@ -22,6 +22,8 @@ export interface TickInfo {
   cash: number;
   speed: Speed;
   unread_important: number;
+  /** Bumps when firms or town tiles change; the map then asks `map_objects` (#248). */
+  map_rev: number;
   results: CmdResult[];
 }
 

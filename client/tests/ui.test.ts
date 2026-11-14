@@ -64,7 +64,7 @@ describe("tap picking", () => {
   });
 
   it("opens the town card from the town's own tile and the tile card from ring tiles", () => {
-    const t = m.towns.find((t) => t.radius >= 1)!;
+    const t = m.towns.find((t) => t.level >= 5)!;
     expect(pickAt(m, ...centre(t.x, t.y), pt)).toEqual({ kind: "town", town: t });
     expect(pickAt(m, ...centre(t.x + 1, t.y), pt)).toEqual({ kind: "tile", x: t.x + 1, y: t.y });
   });

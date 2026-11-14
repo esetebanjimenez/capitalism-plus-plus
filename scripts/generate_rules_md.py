@@ -473,21 +473,6 @@ def render(con: sqlite3.Connection) -> str:
     )
     _table(
         lines,
-        "Town footprint (client map only; the sim town stays one tile)",
-        ["Town level", "Radius (tiles)", "Block level", "Reference"],
-        [
-            [
-                str(r["level"]),
-                _num(r["radius"]) + (P_SHORT if "radius" in _prov_set(r["provisional"]) else ""),
-                _num(r["block_level"])
-                + (P_SHORT if "block_level" in _prov_set(r["provisional"]) else ""),
-                r["ref"],
-            ]
-            for r in con.execute("SELECT * FROM town_footprints ORDER BY level")
-        ],
-    )
-    _table(
-        lines,
         "Competitor capital (AI starting money = (v/2 + random(v/2)) * ai.capital_unit)",
         ["Setting", "Name", "v", "Reference"],
         [

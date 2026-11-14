@@ -6,6 +6,12 @@ export const FOREST_HILL = 3;
 export const TOWN = 4;
 export const FIRM = 5;
 
+/** Native town tile kinds (art/README.md, #311): rural rings urban. */
+export const RURAL_MIN = 0x3000;
+export const RURAL_MAX = 0x3007;
+export const URBAN_MIN = 0x3008;
+export const URBAN_MAX = 0x300c;
+
 export interface MapData {
   width: number;
   height: number;
@@ -13,11 +19,16 @@ export interface MapData {
   kind: Uint8Array;
   /** Climate band per tile, 0 = poles .. 4 = equator. */
   climate: Uint8Array;
+  /** Tile.ref per tile: the owning town id on a town tile, the firm id on a firm tile, else -1. */
+  ref: Int16Array;
+  /** Native town tile kind per tile (rural 0x3000-0x3007, urban 0x3008-0x300c), else 0.
+   * A firm tile carries the town kind it stands on. */
+  townKind: Uint16Array;
   firms: FirmInfo[];
   towns: TownInfo[];
-  /** Per tile: index into `towns` whose drawn footprint covers it, or -1 (see townFootprint). */
-  townAt: Int16Array;
-  /** Sim values for the panels, from the TINF section (until the client runs the sim). */
+  /** `map_rev` these arrays match (-1 for the sample map). */
+  rev: number;
+  /** Sim values for the panels, from the sample map's TINF section only. */
   info?: TileInfo;
 }
 
@@ -36,42 +47,17 @@ export interface TileInfo {
 }
 
 export interface TownInfo {
+  /** Sim town id. */
+  id: number;
+  name: string;
   x: number;
   y: number;
-  id: number;
   level: number;
-  /** Footprint radius in tiles and block sprite level, from the town_footprints table. */
-  radius: number;
-  blockLevel: number;
-}
-
-/**
- * Which town's drawn footprint covers each tile (Designer rule, PR #50). Visual only:
- * the sim town is still one tile. Firm and water tiles are never covered, and where
- * footprints overlap, a town's own centre wins, then the earlier town.
- */
-export function townFootprint(
-  width: number,
-  height: number,
-  kind: Uint8Array,
-  towns: TownInfo[],
-): Int16Array {
-  const at = new Int16Array(width * height).fill(-1);
-  towns.forEach((t, i) => (at[t.y * width + t.x] = i));
-  towns.forEach((t, i) => {
-    for (let dy = -t.radius; dy <= t.radius; dy++)
-      for (let dx = -t.radius; dx <= t.radius; dx++) {
-        const x = t.x + dx;
-        const y = t.y + dy;
-        if (x < 0 || y < 0 || x >= width || y >= height) continue;
-        const j = y * width + x;
-        if (at[j] === -1 && kind[j] > WATER && kind[j] !== FIRM) at[j] = i;
-      }
-  });
-  return at;
 }
 
 export interface FirmInfo {
+  /** Sim firm id (-1 in the sample map, which has none). */
+  id: number;
   x: number;
   y: number;
   /** firm_types.id */
@@ -79,6 +65,121 @@ export interface FirmInfo {
   /** Owning corporation id, or null for none (the seaport). */
   owner: number | null;
 }
+
+/** "rural", "urban" or null for a native town tile kind. */
+export function townBand(k: number): "rural" | "urban" | null {
+  if (k >= RURAL_MIN && k <= RURAL_MAX) return "rural";
+  if (k >= URBAN_MIN && k <= URBAN_MAX) return "urban";
+  return null;
+}
+
+/** The town drawn on tile index `i` (town tiles only), or null. */
+export function townOfTile(m: MapData, i: number): TownInfo | null {
+  if (m.kind[i] !== TOWN) return null;
+  return m.towns.find((t) => t.id === m.ref[i]) ?? null;
+}
+
+// --- live map from the sim facade (docs/m2-facade-contract.md, `map` / `map_objects`) ---
+
+export interface MapTownJson {
+  id: number;
+  name: string;
+  x: number;
+  y: number;
+  level: number;
+}
+
+export interface MapFirmJson {
+  id: number;
+  x: number;
+  y: number;
+  type_id: number;
+  owner: number | null;
+}
+
+export interface MapObjectsJson {
+  map_rev: number;
+  towns: MapTownJson[];
+  firms: MapFirmJson[];
+  /** [[index, kind, ref, town_kind], ...] since the asked rev, or null with full arrays. */
+  changes?: [number, number, number, number][] | null;
+  kind?: number[];
+  ref?: number[];
+  town_kind?: number[];
+}
+
+export interface MapJson extends MapObjectsJson {
+  width: number;
+  height: number;
+  kind: number[];
+  ref: number[];
+  town_kind: number[];
+  climate: number[];
+}
+
+const townsFrom = (towns: MapTownJson[]): TownInfo[] =>
+  towns.map((t) => ({ id: t.id, name: t.name, x: t.x, y: t.y, level: t.level }));
+
+const firmsFrom = (firms: MapFirmJson[]): FirmInfo[] =>
+  firms.map((f) => ({ id: f.id, x: f.x, y: f.y, type: f.type_id, owner: f.owner }));
+
+/** Build MapData from the `map` query. */
+export function mapFromJson(j: MapJson): MapData {
+  const n = j.width * j.height;
+  for (const a of [j.kind, j.ref, j.town_kind, j.climate])
+    if (a.length !== n) throw new Error("map query size mismatch");
+  return {
+    width: j.width,
+    height: j.height,
+    kind: Uint8Array.from(j.kind),
+    climate: Uint8Array.from(j.climate),
+    ref: Int16Array.from(j.ref),
+    townKind: Uint16Array.from(j.town_kind),
+    towns: townsFrom(j.towns),
+    firms: firmsFrom(j.firms),
+    rev: j.map_rev,
+  };
+}
+
+export interface MapDelta {
+  /** Tile indices whose kind, ref or town kind changed. */
+  tiles: number[];
+  /** True when firms were added, removed or moved. */
+  firms: boolean;
+}
+
+/**
+ * Apply a `map_objects` result to `m` in place: changed tiles (or the full arrays when
+ * `changes` is null), towns and firms. Returns what changed so the caller rebuilds only that.
+ */
+export function applyMapObjects(m: MapData, o: MapObjectsJson): MapDelta {
+  const tiles: number[] = [];
+  if (o.changes) {
+    for (const [i, k, r, tk] of o.changes) {
+      m.kind[i] = k;
+      m.ref[i] = r;
+      m.townKind[i] = tk;
+      tiles.push(i);
+    }
+  } else if (o.kind && o.ref && o.town_kind) {
+    for (let i = 0; i < m.kind.length; i++) {
+      if (m.kind[i] === o.kind[i] && m.ref[i] === o.ref[i] && m.townKind[i] === o.town_kind[i]) continue;
+      m.kind[i] = o.kind[i];
+      m.ref[i] = o.ref[i];
+      m.townKind[i] = o.town_kind[i];
+      tiles.push(i);
+    }
+  }
+  const firms = firmsFrom(o.firms);
+  const key = (f: FirmInfo) => `${f.id}:${f.x}:${f.y}:${f.type}:${f.owner}`;
+  const changed = firms.length !== m.firms.length || firms.some((f, i) => key(f) !== key(m.firms[i]));
+  m.firms = firms;
+  m.towns = townsFrom(o.towns);
+  m.rev = o.map_rev;
+  return { tiles, firms: changed };
+}
+
+// --- sample map (tests and `npm run bench`) ---
 
 /** Parse the b"CPPM" sample-map payload written by scripts/export_sample_map.py. */
 export function parseMap(buf: ArrayBuffer): MapData {
@@ -92,13 +193,15 @@ export function parseMap(buf: ArrayBuffer): MapData {
   const count = view.getUint16(fo, true);
   const to = fo + 2 + 6 * count;
   const nTowns = view.getUint16(to, true);
-  const io = to + 2 + 8 * nTowns;
+  const ro = to + 2 + 6 * nTowns;
+  const io = ro + 4 * n;
   const hasInfo = buf.byteLength === io + 16 + 7 * n;
   if (buf.byteLength !== io && !hasInfo) throw new Error("CPPM map size mismatch");
   const firms: FirmInfo[] = [];
   for (let i = 0, o = fo + 2; i < count; i++, o += 6) {
     const owner = view.getUint8(o + 5);
     firms.push({
+      id: -1,
       x: view.getUint16(o, true),
       y: view.getUint16(o + 2, true),
       type: view.getUint8(o + 4),
@@ -106,22 +209,23 @@ export function parseMap(buf: ArrayBuffer): MapData {
     });
   }
   const towns: TownInfo[] = [];
-  for (let i = 0, o = to + 2; i < nTowns; i++, o += 8) {
+  for (let i = 0, o = to + 2; i < nTowns; i++, o += 6) {
+    const id = view.getUint8(o + 4);
     towns.push({
+      id,
+      name: `Town ${id}`,
       x: view.getUint16(o, true),
       y: view.getUint16(o + 2, true),
-      id: view.getUint8(o + 4),
       level: view.getUint8(o + 5),
-      radius: view.getUint8(o + 6),
-      blockLevel: view.getUint8(o + 7),
     });
   }
-  const kind = new Uint8Array(buf, 8, n);
+  // copies: typed arrays wider than a byte need aligned offsets
+  const ref = new Int16Array(buf.slice(ro, ro + 2 * n));
+  const townKind = new Uint16Array(buf.slice(ro + 2 * n, ro + 4 * n));
   let info: TileInfo | undefined;
   if (hasInfo) {
     if (String.fromCharCode(...new Uint8Array(buf, io, 4)) !== "TINF") throw new Error("bad TINF section");
     const t = io + 16;
-    const lv = buf.slice(t + 3 * n, t + 7 * n); // copy: Uint32Array needs 4-byte alignment
     info = {
       year: view.getUint16(io + 4, true),
       month: view.getUint8(io + 6),
@@ -130,17 +234,19 @@ export function parseMap(buf: ArrayBuffer): MapData {
       soil: new Uint8Array(buf, t, n),
       rainfall: new Uint8Array(buf, t + n, n),
       buildable: new Uint8Array(buf, t + 2 * n, n),
-      landValue: new Uint32Array(lv),
+      landValue: new Uint32Array(buf.slice(t + 3 * n, t + 7 * n)),
     };
   }
   return {
     info,
     width,
     height,
-    kind,
+    kind: new Uint8Array(buf, 8, n),
     climate: new Uint8Array(buf, 8 + n, n),
+    ref,
+    townKind,
     firms,
     towns,
-    townAt: townFootprint(width, height, kind, towns),
+    rev: -1,
   };
 }

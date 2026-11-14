@@ -41,8 +41,8 @@ export type Pick =
 
 /**
  * What a tap at world point (wx, wy) selects. A firm within SNAP_PT points of its tile centre
- * wins, then a town's own tile; otherwise the land tile (ring tiles of a town footprint
- * included), or nothing on water. `ptPerWorld` is points per world unit at the current zoom.
+ * wins, then a town's own tile; otherwise the land tile (other town tiles included), or
+ * nothing on water. `ptPerWorld` is points per world unit at the current zoom.
  */
 export function pickAt(m: MapData, wx: number, wy: number, ptPerWorld: number): Pick {
   const snap = SNAP_PT / ptPerWorld;

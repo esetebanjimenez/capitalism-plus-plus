@@ -10,26 +10,32 @@ import {
   TownInfo,
   WATER,
   parseMap,
-  townFootprint,
 } from "../src/mapdata";
 import { FIRM_SPRITES, flagFrame } from "../src/firms";
 import { frameFor } from "../src/tiles";
 
-function tiny(rows: string[], level = 1): MapData {
-  const codes: Record<string, number> = { "~": DEEP_OCEAN, w: WATER, g: GRASSLAND, t: TOWN, f: FIRM };
+/** Tiny map from rows: ~ deep, w water, g grass, f firm, r rural town tile, u urban town tile. */
+function tiny(rows: string[]): MapData {
+  const codes: Record<string, number> = { "~": DEEP_OCEAN, w: WATER, g: GRASSLAND, r: TOWN, u: TOWN, f: FIRM };
   const height = rows.length;
   const width = rows[0].length;
-  const kind = new Uint8Array(width * height);
-  rows.forEach((r, y) => [...r].forEach((ch, x) => (kind[y * width + x] = codes[ch])));
-  const towns: TownInfo[] = [];
-  kind.forEach((k, i) => {
-    if (k !== TOWN) return;
-    const radius = level >= 5 ? 2 : level >= 3 ? 1 : 0;
-    towns.push({ x: i % width, y: Math.floor(i / width), id: 7, level, radius, blockLevel: radius });
-  });
-  const climate = new Uint8Array(width * height).fill(2);
-  const townAt = townFootprint(width, height, kind, towns);
-  return { width, height, kind, climate, firms: [], towns, townAt };
+  const n = width * height;
+  const kind = new Uint8Array(n);
+  const ref = new Int16Array(n).fill(-1);
+  const townKind = new Uint16Array(n);
+  rows.forEach((r, y) =>
+    [...r].forEach((ch, x) => {
+      const i = y * width + x;
+      kind[i] = codes[ch];
+      if (ch === "r" || ch === "u") {
+        ref[i] = 7;
+        townKind[i] = ch === "r" ? 0x3000 + ((x + y) % 8) : 0x3008 + ((x + y) % 5);
+      }
+    }),
+  );
+  const towns: TownInfo[] = [{ id: 7, name: "Town 7", x: 0, y: 0, level: 1 }];
+  const climate = new Uint8Array(n).fill(2);
+  return { width, height, kind, climate, ref, townKind, firms: [], towns, rev: 0 };
 }
 
 describe("frameFor", () => {
@@ -55,44 +61,30 @@ describe("frameFor", () => {
     expect(frameFor(m, 0, 1)).toMatch(/^grass_c3_[0-3]$/);
   });
 
-  it("draws a level 1-2 town as one block tile", () => {
-    expect(frameFor(tiny(["ggg", "gtg", "ggg"], 2), 1, 1)).toMatch(/^block_s[0-3]_l0$/);
-    expect(frameFor(tiny(["ggg", "gtg", "ggg"], 2), 0, 0)).toMatch(/^grass_/);
+  it("draws town tiles from the native kind: rural 0x3000-7, urban 0x3008-c", () => {
+    const m = tiny(["rrr", "rur", "rrr"]);
+    expect(frameFor(m, 1, 1)).toBe(`town_urban_${(1 + 1) % 5}`);
+    expect(frameFor(m, 0, 0)).toBe("town_rural_0");
+    expect(frameFor(m, 2, 1)).toBe(`town_rural_${3 % 8}`);
+    m.townKind[4] = 0x300c;
+    expect(frameFor(m, 1, 1)).toBe("town_urban_4");
+    m.townKind[0] = 0x3007;
+    expect(frameFor(m, 0, 0)).toBe("town_rural_7");
   });
 
-  it("draws a level 3-4 town as 3x3 with a road plus", () => {
-    const m = tiny(["ggggg", "ggggg", "ggtgg", "ggggg", "ggggg"], 3);
-    expect(frameFor(m, 2, 2)).toBe("road_15");
-    expect(frameFor(m, 2, 1)).toBe("road_04"); // north arm joins only to the centre
-    expect(frameFor(m, 1, 1)).toMatch(/^block_s[0-3]_l1$/);
+  it("a firm draws the town tile it stands on, or grass off town", () => {
+    const m = tiny(["fgg", "gfg", "ggg"]);
     expect(frameFor(m, 0, 0)).toMatch(/^grass_/);
+    m.townKind[4] = 0x3009;
+    expect(frameFor(m, 1, 1)).toBe("town_urban_1");
   });
 
-  it("draws level 5-6 as 5x5 with a # of roads and a plaza, and keeps a town's roofs stable", () => {
-    const m = tiny(["ggggg", "ggggg", "ggtgg", "ggggg", "ggggg"], 5);
-    expect(frameFor(m, 2, 2)).toBe("plaza");
-    expect(frameFor(m, 1, 1)).toBe("road_15"); // the # crossings
-    expect(frameFor(m, 3, 3)).toBe("road_15");
-    expect(frameFor(m, 2, 1)).toBe("road_10"); // between crossings, beside the plaza
-    expect(frameFor(m, 1, 0)).toBe("road_04"); // a road end at the footprint edge
-    expect(frameFor(m, 0, 1)).toBe("road_02");
-    for (const [x, y] of [[0, 0], [2, 0], [0, 2], [4, 2], [2, 4], [4, 4]])
-      expect(frameFor(m, x, y)).toMatch(/^block_s[0-3]_l2$/);
-    expect(frameFor(m, 4, 4)).toBe(frameFor(tiny(["ggggg", "ggggg", "ggtgg", "ggggg", "ggggg"], 5), 4, 4));
-  });
-
-  it("firms and water win over the footprint", () => {
-    const m = tiny(["fgg", "gtg", "ggw"], 3);
-    expect(m.townAt[0]).toBe(-1);
-    expect(m.townAt[8]).toBe(-1);
-    expect(frameFor(m, 0, 0)).toMatch(/^grass_/);
-    expect(frameFor(m, 2, 0)).toMatch(/^block_/);
-  });
-
-  it("the sample map has a 5x5 and a 3x3 town", () => {
+  it("the sample map has rural and urban tiles of every variant", () => {
     const buf = readFileSync(new URL("../public/sample-map.bin", import.meta.url));
     const m = parseMap(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
-    expect(new Set(m.towns.map((t) => t.radius))).toEqual(new Set([1, 2]));
+    const kinds = new Set(Array.from(m.townKind).filter((k) => k));
+    for (let k = 0x3000; k <= 0x300c; k++) expect(kinds.has(k)).toBe(true);
+    for (let i = 0; i < m.kind.length; i++) if (m.kind[i] === TOWN) expect(m.townKind[i]).not.toBe(0);
   });
 
   it("every tile of the sample map has an atlas frame", () => {
