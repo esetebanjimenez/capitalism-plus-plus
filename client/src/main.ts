@@ -21,6 +21,8 @@ import { CorpJson, ReportState, companyReport } from "./ui/company";
 import { showCompanyDemo } from "./ui/companydemo";
 import { GoalsJson, goalsScreen, yearsWarning } from "./ui/goals";
 import { showGoalsDemo } from "./ui/goalsdemo";
+import { PriceRange, StockJson, StockRowJson, stockPage, stocksList } from "./ui/stocks";
+import { showStocksDemo } from "./ui/stocksdemo";
 import { Pick, isDesktop, panToShow, pickAt, visibleMapRect } from "./ui/layout";
 import { LoadingOverlay, showSimError } from "./ui/overlay";
 import { ALL_NEWS, NewsFilter, NewsItem, newsReport } from "./ui/news";
@@ -54,6 +56,11 @@ async function boot() {
   if (params.get("goals") === "demo") {
     await showGoalsDemo(Math.max(1, Math.round(devicePixelRatio)));
     document.title = "Capitalism++ goals ready";
+    return;
+  }
+  if (params.get("stocks") === "demo") {
+    await showStocksDemo(Math.max(1, Math.round(devicePixelRatio)), params);
+    document.title = "Capitalism++ stocks ready";
     return;
   }
   const app = new Application();
@@ -309,7 +316,7 @@ async function boot() {
   const later = (name: string) => (shell.close(), shell.toast(`${name} comes in a later PR.`));
   const showGoals = async () => {
     const g = await sim.query<GoalsJson>("goals", {});
-    shell.open(goalsScreen(g, (screen) => (screen === "stocks" ? later("Stocks") : void showCompany())));
+    shell.open(goalsScreen(g, (screen) => (screen === "stocks" ? void showStocks() : void showCompany())));
   };
   let goalsYear = -1;
   let goalsMonth = -1;
@@ -326,6 +333,62 @@ async function boot() {
       });
     goalsYear = t.year;
   };
+  // Stocks (#260): Menu > Stocks or S on desktop lists every corporation; a row opens its
+  // stock page. A rival's Income and Charts open read-only (no Balance, Loans or technology).
+  let stockRange: PriceRange = "day";
+  let stockCorp = -1;
+  let rivalReport: ReportState = { tab: "Income", byFirm: false };
+  const chartWidth = () => (isDesktop(window.innerWidth) ? 352 : Math.min(480, window.innerWidth - 48));
+  const showStocks = async () => {
+    const { stocks } = await sim.query<{ stocks: StockRowJson[] }>("stocks", {});
+    shell.open(stocksList(stocks, (corp) => void showStock(corp)));
+  };
+  const showRival = async (id: number) => {
+    const corp = await sim.query<CorpJson>("corp", { id });
+    shell.open(
+      companyReport(corp, rivalReport, {
+        today,
+        chartWidth: chartWidth(),
+        tabs: ["Income", "Charts"],
+        key: `company:${id}`,
+        firmLabel: (f) => `${FIRM_NAMES[firmById(f)?.type ?? -1] ?? "Firm"} #${f}`,
+        onFirm: (f) => {
+          const firm = firmById(f);
+          if (firm) select({ kind: "firm", firm });
+        },
+        onState: (s) => ((rivalReport = s), void showRival(id)),
+      }),
+    );
+  };
+  const showStock = async (corp: number) => {
+    stockCorp = corp;
+    const [s, c] = await Promise.all([sim.query<StockJson>("stock", { corp }), sim.query<CorpJson>("corp", { id: corp })]);
+    shell.open(
+      stockPage(c.name, s, {
+        range: stockRange,
+        today: { ...today, day_serial: lastTick?.day_serial ?? 0 },
+        chartWidth: chartWidth(),
+        onRange: (r) => ((stockRange = r), void showStock(corp)),
+        onList: () => void showStocks(),
+        onReport: (tab) => {
+          if (corp === 0) return (report = { ...report, tab }), void showCompany();
+          rivalReport = { ...rivalReport, tab };
+          void showRival(corp);
+        },
+      }),
+    );
+  };
+  let stocksMonth = -1;
+  const onTickStocks = sim.onTick;
+  sim.onTick = (t) => {
+    onTickStocks(t);
+    const month = t.year * 12 + t.month;
+    if (month !== stocksMonth && stocksMonth >= 0) {
+      if (shell.current?.key === "stocks") void showStocks();
+      else if (shell.current?.key === `stock:${stockCorp}`) void showStock(stockCorp);
+    }
+    stocksMonth = month;
+  };
   window.addEventListener("keydown", (e) => {
     const t = e.target as HTMLElement | null;
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
@@ -333,11 +396,16 @@ async function boot() {
     if (e.key === "c" || e.key === "C") void showCompany();
     else if (e.key === "n" || e.key === "N") void showNews();
     else if (e.key === "g" || e.key === "G") void showGoals();
+    else if (e.key === "s" || e.key === "S") void showStocks();
   });
   shell.onMenu = () =>
     shell.open(
       menuPanel((name) =>
-        name === "Company" ? void showCompany() : name === "News" ? void showNews() : name === "Goals" ? void showGoals() : later(name),
+        name === "Company" ? void showCompany() : name === "News" ? void showNews() : name === "Goals"
+              ? void showGoals()
+              : name === "Stocks"
+                ? void showStocks()
+                : later(name),
       ),
     );
   let selected: { x: number; y: number } | null = null;

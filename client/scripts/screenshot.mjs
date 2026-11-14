@@ -55,6 +55,14 @@ const shots = [
   // phone; on desktop a live game run a year, then G.
   { name: "m2-goals-phone.png", w: 390, h: 844, dpr: 3, url: "?goals=demo" },
   { name: "m2-goals-desktop.png", w: 1280, h: 800, dpr: 1, url: "?seed=3", live: "goals" },
+  // #260 Stocks: the list and a stock page from demo data on phone, and a live game on desktop
+  // (S opens the list after 45 days; the follow-up opens the first row). A live game has no AI
+  // corps yet (#358), so the rival page on desktop comes from demo data.
+  { name: "m2-stocks-phone.png", w: 390, h: 844, dpr: 3, url: "?stocks=demo" },
+  { name: "m2-stock-page-phone.png", w: 390, h: 844, dpr: 3, url: "?stocks=demo&corp=1", chartTap: [0, 0.7] },
+  { name: "m2-stocks-desktop.png", w: 1280, h: 800, dpr: 1, url: "?seed=3", live: "stocks",
+    then: [{ click: ".stock-row", name: "m2-stock-page-live-desktop.png" }] },
+  { name: "m2-stock-page-desktop.png", w: 1280, h: 800, dpr: 1, url: "?stocks=demo&corp=1&range=month" },
 ];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function runForCharts(page) {
@@ -201,6 +209,15 @@ try {
       await sleep(800);
       await page.keyboard.press("g");
       await page.waitForSelector(".goals", { timeout: 30000 });
+      await sleep(500);
+    }
+    if (s.live === "stocks") {
+      await page.evaluate(() => window.__sim.step(45));
+      await page.waitForFunction(() => /Feb/.test(document.body.innerText), { timeout: 120000 });
+      await page.evaluate(() => window.__sim.setSpeed(0));
+      await sleep(800);
+      await page.keyboard.press("s");
+      await page.waitForSelector(".stock-row", { timeout: 30000 });
       await sleep(500);
     }
     if (s.live) await page.evaluate(() => document.querySelectorAll(".toast").forEach((t) => t.remove()));
