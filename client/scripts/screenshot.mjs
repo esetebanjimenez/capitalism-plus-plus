@@ -42,6 +42,10 @@ const shots = [
   // then Menu > News (phone) or N (desktop).
   { name: "m2-news-phone.png", w: 390, h: 844, dpr: 3, url: "?events=3&seed=3", news: "menu", toast: "m2-news-toast-phone.png" },
   { name: "m2-news-desktop.png", w: 1280, h: 800, dpr: 1, url: "?events=3&seed=3", news: "key" },
+  // #259 town card over a live game run 13 months, from a long press on the nearest plate;
+  // the phone also drags the sheet up to half for the growth charts.
+  { name: "m2-town-card-phone.png", w: 390, h: 844, dpr: 3, url: "?seed=3", town: true, half: "m2-town-card-half-phone.png" },
+  { name: "m2-town-card-desktop.png", w: 1280, h: 800, dpr: 1, url: "?seed=3", town: true },
 ];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 /** Builds a few firms in a live game with events on, steps it three years and shoots the toasts. */
@@ -66,6 +70,56 @@ async function runForNews(page, s) {
   }
   await sleep(800);
 }
+/** Steps a live game 13 months, pauses, clears toasts and long-presses the nearest town plate. */
+async function runForTown(page, s) {
+  await page.waitForFunction(() => !/Loading Python|Creating the world/.test(document.body.innerText), { timeout: 120000 });
+  await page.evaluate(() => window.__sim.step(400));
+  await page.waitForFunction(() => /1991/.test(document.querySelector(".pill")?.textContent ?? ""), { timeout: 120000 }).catch(() => {});
+  await page.evaluate(() => window.__sim.setSpeed(0));
+  await sleep(800);
+  await page.evaluate(() => document.querySelectorAll(".toast").forEach((t) => t.remove()));
+  // The live world is random but fixed by ?seed, so reload with its first town in view
+  // (x, y is the view's top-left tile).
+  const t = await page.evaluate(async () => (await window.__sim.query("map")).towns[0]);
+  await page.goto(`http://localhost:4173/${s.url}&x=${t.x - (s.w > 800 ? 13 : 6)}&y=${t.y - 7}`);
+  await page.waitForFunction(() => /ready|failed/.test(document.title), { timeout: 30000 });
+  await sleep(3000);
+  await page.waitForFunction(() => !/Loading Python|Creating the world/.test(document.body.innerText), { timeout: 120000 });
+  await page.evaluate(() => window.__sim.step(400));
+  await page.waitForFunction(() => /1991/.test(document.querySelector(".pill")?.textContent ?? ""), { timeout: 120000 }).catch(() => {});
+  await page.evaluate(() => window.__sim.setSpeed(0));
+  await sleep(800);
+  await page.evaluate(() => document.querySelectorAll(".toast").forEach((t) => t.remove()));
+  // A short drag so the view lays out its plates.
+  await page.mouse.move(s.w / 2, s.h / 2);
+  await page.mouse.down();
+  for (let j = 1; j <= 6; j++) await page.mouse.move(s.w / 2 + j * 5, s.h / 2 + j * 5);
+  await page.mouse.up();
+  await sleep(500);
+  const nearest = () =>
+    page.evaluate(() => {
+      const rs = [...document.querySelectorAll(".plate")].map((p) => p.getBoundingClientRect()).filter((r) => r.width);
+      const d = (r) => Math.hypot(r.x + r.width / 2 - innerWidth / 2, r.y + r.height / 2 - innerHeight / 3);
+      const r = rs.sort((a, b) => d(a) - d(b))[0];
+      return [r.x + r.width / 2, r.y + r.height / 2];
+    });
+  const at = await nearest();
+  await page.evaluate(([x, y]) => window.__tap(x, y, true), at);
+  await page.waitForSelector(".town-card", { timeout: 30000 });
+  await sleep(800);
+}
+/** Drags the phone sheet's handle up so it snaps to half. */
+async function dragSheetUp(page, by) {
+  const r = await page.evaluate(() => {
+    const b = document.querySelector(".handle-zone").getBoundingClientRect();
+    return [b.x + b.width / 2, b.y + b.height / 2];
+  });
+  await page.mouse.move(r[0], r[1]);
+  await page.mouse.down();
+  for (let i = 1; i <= 10; i++) await page.mouse.move(r[0], r[1] - (by * i) / 10);
+  await page.mouse.up();
+  await sleep(700);
+}
 const stats = {};
 try {
   for (const s of shots) {
@@ -81,6 +135,7 @@ try {
       .catch(() => {});
     await new Promise((r) => setTimeout(r, 500));
     if (s.news) await runForNews(page, s);
+    if (s.town) await runForTown(page, s);
     if (s.plate) {
       // The middle of the plate nearest the screen centre.
       const at = await page.evaluate(() => {
@@ -106,6 +161,10 @@ try {
     }
     stats[s.name] = await page.evaluate(() => window.__cppStats);
     writeFileSync(new URL(s.name, out), await page.screenshot());
+    if (s.half) {
+      await dragSheetUp(page, 220);
+      writeFileSync(new URL(s.half, out), await page.screenshot());
+    }
     // Follow-up shots in the same page: click a selector, optionally run the sim, shoot.
     for (const step of s.then ?? []) {
       await page.click(step.click);

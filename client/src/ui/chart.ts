@@ -80,7 +80,7 @@ export interface ChartLayout {
 const PAD = { left: 40, right: 14, top: 30, bottom: 28 };
 
 /** Pure layout: where each tick, grid line and point goes in a w x h chart. */
-export function chartLayout(series: ChartPoint[], w: number, h: number): ChartLayout {
+export function chartLayout(series: ChartPoint[], w: number, h: number, format: (v: number) => string = shortMoney): ChartLayout {
   const plot = { x: PAD.left, y: PAD.top, w: w - PAD.left - PAD.right, h: h - PAD.top - PAD.bottom };
   const { min, max, ticks } = axisRange(series.map((p) => p.value));
   const yOf = (v: number) => plot.y + plot.h - ((v - min) / (max - min)) * plot.h;
@@ -89,7 +89,7 @@ export function chartLayout(series: ChartPoint[], w: number, h: number): ChartLa
   const zero = crossesZero(min, max);
   return {
     plot,
-    ticks: ticks.map((v) => ({ value: v, y: yOf(v), label: shortMoney(v), zero: zero && v === 0 })),
+    ticks: ticks.map((v) => ({ value: v, y: yOf(v), label: format(v), zero: zero && v === 0 })),
     points: series.map((p, i) => ({ x: xOf(i), y: yOf(p.value), value: p.value, label: p.label })),
     zeroY: zero ? yOf(0) : null,
   };
@@ -117,9 +117,10 @@ function svgEl(tag: string, attrs: Record<string, string | number>): SVGElement 
 }
 
 /** A chart card: title, grid, optional zero line, orange line, last-point dot, tap or hover tip. */
-export function lineChart(series: ChartPoint[], opts: { title: string; width: number; height: number }): HTMLElement {
+export function lineChart(series: ChartPoint[], opts: { title: string; width: number; height: number; format?: (v: number) => string }): HTMLElement {
   const { width: w, height: h } = opts;
-  const L = chartLayout(series, w, h);
+  const format = opts.format ?? shortMoney;
+  const L = chartLayout(series, w, h, format);
   const card = document.createElement("div");
   card.className = "chart ui-card";
   card.style.width = `${w}px`;
@@ -183,7 +184,7 @@ export function lineChart(series: ChartPoint[], opts: { title: string; width: nu
     sel.style.top = `${p.y}px`;
     tip.style.top = `${p.y - style.tip.offset_above}px`;
     tip.style.color = tipColour(p.value);
-    tip.textContent = shortMoney(p.value);
+    tip.textContent = format(p.value);
   };
   const at = (e: PointerEvent) => select(nearestPoint(L, e.clientX - card.getBoundingClientRect().left));
   card.addEventListener("pointermove", at);

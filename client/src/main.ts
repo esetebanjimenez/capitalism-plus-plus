@@ -16,6 +16,7 @@ import { loadFirmIcons, loadUiAtlas } from "./ui/atlas";
 import { BuildOption, BuildOptionsJson, buildConfirm, buildPanel, needsConfirm } from "./ui/build";
 import { showChartDemo } from "./ui/chartdemo";
 import { TileJson, firmCard, menuPanel, sampleTile, tileCard, townCard } from "./ui/cards";
+import { TownJson, townCard as liveTownCard } from "./ui/towncard";
 import { CorpJson, ReportState, companyReport } from "./ui/company";
 import { showCompanyDemo } from "./ui/companydemo";
 import { Pick, isDesktop, panToShow, pickAt, visibleMapRect } from "./ui/layout";
@@ -329,14 +330,42 @@ async function boot() {
     showSelection();
     apply();
   };
+  // Town card (#259): the `town` query on open, then again on every tick while it stays open,
+  // one request at a time, so the figures and growth charts are live.
+  let townToday = { year: map.info?.year ?? 1990, month: map.info?.month ?? 1 };
+  let townWanted: number | null = null;
+  let townBusy = false;
+  const openTownId = () => (shell.current?.key.startsWith("town:") ? Number(shell.current.key.slice(5)) : null);
+  const showTown = async (id: number, refresh = false) => {
+    townBusy = true;
+    try {
+      const t = await sim.query<TownJson>("town", { id });
+      // A refresh only redraws the card still open; an open is dropped if something else was
+      // picked meanwhile.
+      if (refresh ? openTownId() !== id : townWanted !== id) return;
+      const chartWidth = isDesktop(window.innerWidth) ? 352 : Math.min(480, window.innerWidth - 48);
+      shell.open(liveTownCard(t, townToday, chartWidth));
+    } finally {
+      townBusy = false;
+    }
+  };
+  const onTickTown = sim.onTick;
+  sim.onTick = (t) => {
+    onTickTown(t);
+    townToday = { year: t.year, month: t.month };
+    const id = openTownId();
+    if (id !== null && !townBusy && !sample) void showTown(id, true);
+  };
   const select = (p: Pick) => {
+    townWanted = p.kind === "town" ? p.town.id : null;
     if (p.kind === "none") return shell.close();
     if (p.kind === "firm") {
       selected = { x: p.firm.x, y: p.firm.y };
       shell.open(firmCard(p.firm));
     } else if (p.kind === "town") {
       selected = { x: p.town.x, y: p.town.y };
-      shell.open(townCard(p.town));
+      if (sample) shell.open(townCard(p.town));
+      else void showTown(p.town.id);
     } else {
       selected = { x: p.x, y: p.y };
       const onBuild = () => void buildAt(p.x, p.y);

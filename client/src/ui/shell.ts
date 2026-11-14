@@ -13,6 +13,8 @@ export interface PanelSpec {
   /** What the panel is about, e.g. "tile:12,40" or "firm:3"; reopening the same key keeps height. */
   key: string;
   title: string;
+  /** A level badge after the title (town card). */
+  badge?: string;
   body: HTMLElement;
   /** Buttons along the bottom; the first is the main action. */
   actions?: HTMLElement[];
@@ -64,6 +66,7 @@ export class Shell {
   private readonly handle = el("div", "handle-zone");
   private readonly head = el("header", "panel-head");
   private readonly titleEl = el("h2", "panel-title");
+  private readonly titleBadge = el("span", "plate-level ui-plate_level title-badge");
   private readonly bodyEl = el("div", "panel-body");
   private readonly actionsEl = el("footer", "panel-actions");
   private spec: PanelSpec | null = null;
@@ -93,7 +96,7 @@ export class Shell {
     close.append(el("span", "ui-icon_close"));
     close.onclick = () => this.close();
     this.handle.append(el("div", "ui-handle"));
-    this.head.append(this.titleEl, close);
+    this.head.append(this.titleEl, this.titleBadge, close);
     this.panel.append(this.handle, this.head, this.bodyEl, this.actionsEl);
     this.panel.hidden = true;
     this.root.append(this.pill, this.menuBtn, this.toasts, this.panel);
@@ -198,6 +201,8 @@ export class Shell {
     if (this.spec?.key !== spec.key) this.height = spec.height;
     this.spec = spec;
     this.titleEl.textContent = spec.title;
+    this.titleBadge.textContent = spec.badge ?? "";
+    this.titleBadge.hidden = !spec.badge;
     this.bodyEl.replaceChildren(spec.body);
     this.actionsEl.replaceChildren(...(spec.actions ?? []));
     this.actionsEl.hidden = !spec.actions?.length;
