@@ -185,3 +185,17 @@ button.goal-row { cursor: pointer; min-height: 44px; }
 .end-shade button { font: inherit; cursor: pointer; padding: 0; background-color: transparent; }
 .end-shade .end-new { color: #fff; font-weight: 800; font-size: 16px; min-height: 44px; }
 .end-rows.last { border-bottom: none; padding-bottom: 0; }
+/* Stocks (#260): a compact table; rows are tappable on the list. */
+.stock-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 14px; }
+.stock-table th { text-align: right; color: #6b6a64; font-weight: 600; padding: 4px 4px; }
+.stock-table th:first-child, .stock-table td.corp-name { text-align: left; }
+.stock-table td { padding: 8px 4px; border-top: 1px solid rgba(34, 38, 46, 0.12); }
+.stock-table td.num { text-align: right; white-space: nowrap; }
+.stock-table td.corp-name { font-weight: 700; overflow-wrap: anywhere; }
+.stock-row { cursor: pointer; }
+.stock-row:hover, .stock-row:focus { background: rgba(232, 116, 42, 0.12); outline: none; }
+.stock-page .range { display: flex; gap: 8px; margin-bottom: 12px; }
+.stock-page .range .tab { flex: 1 1 0; border: 2px solid #22262e; border-radius: 4px; min-height: 36px; font-weight: 700; color: #6b6a64; background: none; }
+.stock-page .range .tab.on { background: #e8742a; color: #fff; }
+.stock-page .chart { margin: 0 auto 16px; }
+.stock-head { font-weight: 700; margin: 16px 0 4px; }
