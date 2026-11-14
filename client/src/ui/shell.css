@@ -65,3 +65,22 @@
 .rows dt { color: #6b6a64; font-weight: 600; }
 .rows dd { margin: 0; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
 .menu-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 4px; }
+
+/* Company report (#257). */
+.company .tabs { display: flex; gap: 0; overflow-x: auto; margin: 4px 0 10px; border-bottom: 2px solid rgba(34, 38, 46, 0.15); }
+.company .tab { flex: none; padding: 8px 6px; font-size: 14px; min-height: 40px; font-weight: 700; color: #6b6a64; border: 0; }
+.company .tab.on { color: #22262e; box-shadow: inset 0 -3px 0 #e8742a; }
+.company .coming { padding: 16px 0; }
+.income-sum dd { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+.tone-pos { color: #3aa05a; }
+.tone-neg { color: #c8402e; }
+.arrow { display: inline-block; flex: none; }
+.toggle { display: flex; align-items: center; gap: 6px; margin: 12px 0 6px; font-weight: 700; }
+.toggle input { width: 18px; height: 18px; accent-color: #e8742a; }
+.ledger { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; margin-bottom: 8px; }
+.ledger th { text-align: right; color: #6b6a64; font-weight: 600; padding: 2px 0 4px 6px; }
+.ledger td { padding: 3px 0; border-top: 1px solid rgba(34, 38, 46, 0.08); }
+.ledger td.num { text-align: right; padding-left: 6px; font-weight: 700; }
+.firm-row { display: block; width: 100%; text-align: left; margin-top: 10px; padding: 6px 0; font-weight: 800; border: 0;
+  color: #3b6db3 !important; }
+.company .tabs .tab { flex: 1 1 auto; padding: 8px 2px; min-width: 0; }
