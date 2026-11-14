@@ -108,3 +108,19 @@
 .build-row.unaffordable .firm-icon { opacity: 0.5; }
 .build-row.unaffordable .build-name, .build-row.unaffordable .build-cost { color: #868a84; }
 .build-confirm-text { display: block; font-weight: 700; margin-bottom: 4px; }
+/* Town-name plates (#250): above the map, below the shell (panels, toasts). */
+.plates { position: fixed; inset: 0; pointer-events: none; overflow: hidden;
+  font: 700 12px/1 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.plate { position: absolute; left: 0; top: 0; width: 136px; height: 24px; box-sizing: border-box; display: flex; align-items: center;
+  gap: 4px; padding: 0 0 1px 2px; pointer-events: none; color: #22262e; background: transparent; font: inherit; }
+.plate[hidden] { display: none; }
+.plate { transition: opacity 0.12s ease; }
+.plate.dim { opacity: 0.4; }
+/* Town card open: the plate_pulse ring drawn steady, 3 pt outside the plate, no fade (Artist). */
+.plate-ring { position: absolute; inset: -3px; pointer-events: none; display: none; }
+.plate.hl .plate-ring { display: block; }
+.plate-name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left; }
+.plate-level { flex: none; height: 16px; box-sizing: border-box; display: grid; place-items: center; padding: 0 3px; color: #f6ecd4;
+  font-size: 11px; }
+.plate-pulse { position: absolute; inset: -3px; pointer-events: none; animation: plate-pulse 1.5s ease-out forwards; }
+@keyframes plate-pulse { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.08); } }

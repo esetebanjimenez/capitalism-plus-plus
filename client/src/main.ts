@@ -20,6 +20,8 @@ import { CorpJson, ReportState, companyReport } from "./ui/company";
 import { showCompanyDemo } from "./ui/companydemo";
 import { Pick, isDesktop, panToShow, pickAt, visibleMapRect } from "./ui/layout";
 import { LoadingOverlay, showSimError } from "./ui/overlay";
+import { TownPlates } from "./ui/plates";
+import { longPressAction } from "./ui/press";
 import { Shell } from "./ui/shell";
 import { SimClient, type WorkerPort } from "./sim/client";
 import type { Speed } from "./sim/protocol";
@@ -114,6 +116,10 @@ async function boot() {
   const pendingBuilds = new Map<number, { x: number; y: number; type: number; sprite: Sprite }>();
   world.addChild(chunks.layer, firms.layer, selection, pendingLayer);
   app.stage.addChild(world);
+  // Town-name plates (#250): DOM over the canvas, below the shell's panels and toasts.
+  const plates = new TownPlates();
+  document.getElementById("map")!.after(plates.layer);
+  plates.setTowns(map.towns);
 
   const screen = () => ({ w: app.screen.width * resolution, h: app.screen.height * resolution });
   let view: View = makeView(
@@ -165,6 +171,7 @@ async function boot() {
     const s = view.zoom / resolution;
     world.scale.set(s);
     world.position.set(-view.x * s, -view.y * s);
+    plates.update(view, resolution, visibleMapRect(window.innerWidth, window.innerHeight, shell.openHeight));
     const stats = {
       zoom: view.step,
       pxPerArtPx: view.zoom,
@@ -195,6 +202,7 @@ async function boot() {
       const delta = applyMapObjects(map, o);
       chunks.invalidate(delta.tiles);
       if (delta.firms) firms.setFirms(map.firms);
+      plates.setTowns(map.towns);
       apply();
       openBuiltFirm();
     } finally {
@@ -247,7 +255,12 @@ async function boot() {
     const key = shell.current?.key;
     if (key !== "build" && key !== "build-confirm") selFrame = "sel_tile";
     const open = shell.current && selected && !shell.current.key.startsWith("menu");
-    selection.visible = Boolean(open);
+    // With the town card open the town's plate is highlighted instead: no tile outline and no
+    // fade (Esteban, PR #336).
+    const town = open && shell.current!.key.startsWith("town:") ? Number(shell.current!.key.slice(5)) : null;
+    selection.visible = Boolean(open) && town === null;
+    plates.selected = open && town === null ? selected : null;
+    plates.highlight = town;
     if (open) selection.position.set(selected!.x * TILE_PX, selected!.y * TILE_PX);
   };
   shell.onLayout = (h) => {
@@ -341,7 +354,10 @@ async function boot() {
     }
     const pick = pickAt(map, wx, wy, ptPerWorld());
     if (long) {
-      if (pick.kind === "tile") void buildAt(pick.x, pick.y);
+      // Plate pixels win: the town card. Elsewhere on empty land: the build panel (#338).
+      const act = longPressAction(plates.townAt(cx, cy), pick);
+      if (act?.kind === "town") select({ kind: "town", town: act.town });
+      else if (act?.kind === "build") void buildAt(act.x, act.y);
       return;
     }
     select(pick);
@@ -351,12 +367,22 @@ async function boot() {
     tapAt(e.clientX, e.clientY, true);
   });
 
-  // Pan with one pointer or the mouse; a short press that barely moves is a tap.
-  let drag: { button: number; id: number; x: number; y: number; x0: number; y0: number; t0: number } | null = null;
+  // Pan with one pointer or the mouse; a short press that barely moves is a tap. Holding still
+  // for LONG_PRESS_MS is a long press (fires while held); its release is not also a tap.
+  type Drag = { id: number; x: number; y: number; x0: number; y0: number; t0: number; button: number; long?: number; done?: boolean };
+  let drag = null as Drag | null;
   app.canvas.addEventListener("pointerdown", (e) => {
     if (drag || e.button === 2) return; // right click opens the build panel (contextmenu)
     app.canvas.setPointerCapture(e.pointerId);
-    drag = { button: e.button, id: e.pointerId, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, t0: performance.now() };
+    const d: Drag = { id: e.pointerId, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, t0: performance.now(), button: e.button };
+    if (e.button === 0)
+      d.long = window.setTimeout(() => {
+        if (drag?.id === d.id && Math.hypot(drag.x - d.x0, drag.y - d.y0) < 8) {
+          drag.done = true;
+          tapAt(d.x0, d.y0, true);
+        }
+      }, LONG_PRESS_MS);
+    drag = d;
   });
   app.canvas.addEventListener("pointermove", (e) => {
     if (!drag || drag.id !== e.pointerId) return;
@@ -366,10 +392,11 @@ async function boot() {
   });
   const up = (e: PointerEvent) => {
     if (drag?.id !== e.pointerId) return;
-    const still = Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 8 && drag.button === 0;
-    const long = performance.now() - drag.t0 >= LONG_PRESS_MS;
+    const d = drag;
     drag = null;
-    if (still && e.type === "pointerup") tapAt(e.clientX, e.clientY, long);
+    clearTimeout(d.long);
+    const tap = Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 8 && d.button === 0 && !d.done;
+    if (tap && e.type === "pointerup") tapAt(e.clientX, e.clientY, performance.now() - d.t0 >= LONG_PRESS_MS);
   };
   app.canvas.addEventListener("pointerup", up);
   app.canvas.addEventListener("pointercancel", up);

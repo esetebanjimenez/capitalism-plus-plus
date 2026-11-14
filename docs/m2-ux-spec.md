@@ -66,8 +66,8 @@ below).
 | Panel | Opens when | Closes when | Phone height |
 |---|---|---|---|
 | Tile card | Tap empty land | Any of the above; Build swaps it for the build panel | Peek |
-| Build panel | Build on the tile card, or long-press / right click on empty land | Build confirmed (then firm detail opens on the new firm), Cancel, Esc | Half |
-| Town card | Tap a town | Any of the above | Peek, drag to half |
+| Build panel | Build on the tile card, or long-press / right click on empty land (not on a plate, see Interactions) | Build confirmed (then firm detail opens on the new firm), Cancel, Esc | Half |
+| Town card | Long-press / right click on a town-name plate | Any of the above | Peek, drag to half |
 | Firm detail | Tap a firm, or a firm name in any list | Any of the above; tapping another firm swaps it in place | Peek, drag to half or full |
 | Menu | Menu button | Picking an entry, or any of the above | Small, just the four entries |
 | Company, Stocks, News, Goals | Picked from the menu (desktop also C, S, N, G) | Any of the above | Full |
@@ -172,9 +172,10 @@ Overlays show a legend with the value range.
 | Input | Result |
 |---|---|
 | Tap a firm | Opens firm detail at peek height |
-| Tap a town | Opens the town card (below) |
+| Tap a town-name plate | Goes through to the tile underneath (tile card or firm detail), as if the plate weren't there; the plate turns partly transparent while that tile is selected |
+| Long-press / right click on a town-name plate (any part of it) | Opens the town card (below). On plate pixels this wins over the build panel's long-press / right click |
 | Tap empty land | Shows the tile card: kind, land value, soil, rainfall, and a Build button when `World.can_build(x, y)` |
-| Long-press empty land / right click | Opens the build menu directly |
+| Long-press empty land / right click (off any plate) | Opens the build menu directly |
 | Two-finger drag / middle drag | Pans without selecting |
 
 **Build menu.** Lists the firm types the player can build on that tile
