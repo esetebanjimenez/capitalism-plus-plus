@@ -1,9 +1,10 @@
 /**
  * Company report (docs/m2-ux-spec.md section 3): tabs Income, Balance, Loans, Charts and
- * Corporation. Only Income is filled in so far (#257); the rest show a placeholder.
+ * Corporation. Income (#257) and Charts (#258) are filled in; the rest show a placeholder.
  * Profit arrows follow view brief section 3: operating and other profit only.
  */
 import { money } from "./layout";
+import { ChartRange, Today, chartsTab } from "./companycharts";
 import { PanelSpec } from "./shell";
 
 /** A ledger from the `corp` query: cash plus the 12 categories for three periods. */
@@ -26,6 +27,7 @@ export interface CorpJson {
   ledger: LedgerJson;
   by_firm: { firm: number; ledger: LedgerJson }[];
   month_history: Record<string, number[]>;
+  year_history?: Record<string, number[]>;
 }
 
 /** Ledger category names, fixed by the ledger (ux-spec section 3). 0 is revenue, the rest are costs. */
@@ -87,6 +89,8 @@ export const dollars = (v: number) => money(v).replace(/^\+/, "");
 export interface ReportState {
   tab: Tab;
   byFirm: boolean;
+  /** Charts tab: Past 12 months or Past years (default months). */
+  chartRange?: ChartRange;
 }
 
 export interface ReportHooks {
@@ -95,6 +99,10 @@ export interface ReportHooks {
   onFirm: (id: number) => void;
   /** Re-render with a new tab or toggle. */
   onState: (s: ReportState) => void;
+  /** Current game date, for chart labels. */
+  today?: Today;
+  /** Chart card width in CSS px: panel width less padding and room for a scrollbar. */
+  chartWidth?: number;
 }
 
 const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = "", text = ""): HTMLElementTagNameMap[K] => {
@@ -162,6 +170,14 @@ export function companyReport(c: CorpJson, s: ReportState, hooks: ReportHooks): 
     tabs.append(b);
   }
   const body = h("div", "company");
-  body.append(tabs, s.tab === "Income" ? incomeTab(c, s, hooks) : h("div", "note coming", `${s.tab} is coming in a later update.`));
+  const tab =
+    s.tab === "Income"
+      ? incomeTab(c, s, hooks)
+      : s.tab === "Charts"
+        ? chartsTab(c, s.chartRange ?? "months", hooks.today ?? { year: 1990, month: 1 }, hooks.chartWidth ?? 358, (r) =>
+            hooks.onState({ ...s, chartRange: r }),
+          )
+        : h("div", "note coming", `${s.tab} is coming in a later update.`);
+  body.append(tabs, tab);
   return { key: "company", title: c.name, body, height: "full", heights: ["half", "full"] };
 }

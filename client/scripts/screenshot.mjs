@@ -23,6 +23,10 @@ const shots = [
   { name: "m2-ui-desktop-firm.png", w: 1280, h: 800, dpr: 1, q: "x=190&y=138", tap: [496, 336] },
   // #178 chart style: profit crossing zero (April tip shown), a single point, a share price.
   { name: "m2-chart-demo.png", w: 1024, h: 230, dpr: 1, url: "?chart=demo" },
+  // #258 Company Charts tab with fixed demo data (operating profit crosses zero; a tapped point).
+  { name: "m2-company-charts-phone.png", w: 390, h: 844, dpr: 3, url: "?company=demo&tab=Charts", chartTap: [1, 0.55] },
+  { name: "m2-company-charts-years-phone.png", w: 390, h: 844, dpr: 3, url: "?company=demo&tab=Charts&range=years" },
+  { name: "m2-company-charts-desktop.png", w: 1280, h: 800, dpr: 1, url: "?company=demo&tab=Charts" },
 ];
 const stats = {};
 try {
@@ -36,6 +40,13 @@ try {
     if (s.tap) {
       await page.evaluate(([x, y]) => window.__tap(x, y), s.tap);
       await new Promise((r) => setTimeout(r, 600));
+    }
+    if (s.chartTap) {
+      // Tap chart number chartTap[0] at a fraction of its width, to show the value tip.
+      const [i, fx] = s.chartTap;
+      const box = await (await page.$$(".chart"))[i].boundingBox();
+      await page.mouse.click(box.x + box.width * fx, box.y + box.height / 2);
+      await new Promise((r) => setTimeout(r, 200));
     }
     stats[s.name] = await page.evaluate(() => window.__cppStats);
     writeFileSync(new URL(s.name, out), await page.screenshot());

@@ -36,7 +36,7 @@ async function boot() {
     return;
   }
   if (params.get("company") === "demo") {
-    await showCompanyDemo(Math.max(1, Math.round(devicePixelRatio)), params.get("firm") === "1");
+    await showCompanyDemo(Math.max(1, Math.round(devicePixelRatio)), params.get("firm") === "1", params);
     document.title = "Capitalism++ company ready";
     return;
   }
@@ -195,10 +195,13 @@ async function boot() {
   // Company report (#257): Menu > Company or C on desktop; refreshes each month while open.
   let report: ReportState = { tab: "Income", byFirm: false };
   const firmById = (id: number) => map.firms.find((f) => f.id === id);
+  let today = { year: 1990, month: 1 };
   const showCompany = async () => {
     const corp = await sim.query<CorpJson>("corp", { id: 0 });
     shell.open(
       companyReport(corp, report, {
+        today,
+        chartWidth: isDesktop(window.innerWidth) ? 352 : Math.min(480, window.innerWidth - 48),
         firmLabel: (id) => `${FIRM_NAMES[firmById(id)?.type ?? -1] ?? "Firm"} #${id}`,
         onFirm: (id) => {
           const f = firmById(id);
@@ -212,6 +215,7 @@ async function boot() {
   const onTickReport = sim.onTick;
   sim.onTick = (t) => {
     onTickReport(t);
+    today = { year: t.year, month: t.month };
     const month = t.year * 12 + t.month;
     if (month !== reportMonth && reportMonth >= 0 && shell.current?.key === "company") void showCompany();
     reportMonth = month;
