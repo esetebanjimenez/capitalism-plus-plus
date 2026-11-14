@@ -85,6 +85,29 @@
   color: #3b6db3 !important; }
 .company .tabs .tab { flex: 1 1 auto; padding: 8px 2px; min-width: 0; }
 
+/* Build panel (#252): firm sprite in a 32 pt cell, cost right, unaffordable greyed. */
+.build-sub { display: block; margin-bottom: 4px; }
+.build-note { display: block; color: #c8402e; font-weight: 700; margin: 4px 0; }
+.build-list { display: flex; flex-direction: column; }
+.build-row {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 2px;
+  background: none; border: 0; border-bottom: 1px solid #e8d6a0; font: inherit; color: inherit;
+  text-align: left; cursor: pointer;
+}
+.build-row:last-child { border-bottom: 0; }
+.build-row:hover:not(:disabled) { background: rgba(0, 0, 0, 0.04); }
+.build-row:disabled { cursor: default; }
+.firm-icon { flex: 0 0 32px; width: 32px; height: 32px; image-rendering: pixelated; }
+.build-text { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
+.build-name { font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.build-overhead, .build-short { font-size: 12px; }
+.build-overhead { color: #6b6a64; }
+.build-cost-col { display: flex; flex-direction: column; align-items: flex-end; }
+.build-cost { font-weight: 700; font-size: 15px; }
+.build-short { color: #c8402e; font-weight: 700; }
+.build-row.unaffordable .firm-icon { opacity: 0.5; }
+.build-row.unaffordable .build-name, .build-row.unaffordable .build-cost { color: #868a84; }
+.build-confirm-text { display: block; font-weight: 700; margin-bottom: 4px; }
 /* Town-name plates (#250): above the map, below the shell (panels, toasts). */
 .plates { position: fixed; inset: 0; pointer-events: none; overflow: hidden;
   font: 700 12px/1 system-ui, -apple-system, "Segoe UI", sans-serif; }
