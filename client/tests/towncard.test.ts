@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from "vitest";
-import { CLIMATE_NAMES, TownJson, growthPct, growthSeries, pct, townCard, townIndicators } from "../src/ui/towncard";
+import { CLIMATE_NAMES, TownJson, growthPct, growthTick, growthSeries, pct, townCard, townIndicators } from "../src/ui/towncard";
 
 /** A `town` result as the sim returns it about 13 months in (Api.new_game(seed=3), town 0). */
 export const TOWN: TownJson = {
@@ -43,6 +43,12 @@ describe("town card", () => {
     expect(growthPct(-0.0003)).toBe("0.00%");
     expect(growthPct(0)).toBe("0.0%");
     expect(pct(-0.25)).toBe("\u22120.3%");
+  });
+
+  it("gives every axis tick one shared precision", () => {
+    const ticks = [-0.025, 0, 0.025, 0.05];
+    expect(ticks.map((t) => growthTick(t, ticks))).toEqual(["\u22120.025%", "0.000%", "+0.025%", "+0.050%"]);
+    expect([-2, -1, 0, 1].map((t, _, a) => growthTick(t, a))).toEqual(["\u22122.0%", "\u22121.0%", "0.0%", "+1.0%"]);
   });
 
   it("labels growth months back from the last complete month and skips nulls", () => {

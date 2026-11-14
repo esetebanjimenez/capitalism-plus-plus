@@ -59,6 +59,18 @@ export function growthPct(v: number): string {
   return `${v < 0 ? MINUS : "+"}${s}%`;
 }
 
+/**
+ * An axis tick for growth: every tick gets the fewest decimals (1 to 4) that show all of them
+ * exactly, so a 0.025 step reads +0.025%, +0.050%, not +0.03%, +0.05%.
+ */
+export function growthTick(v: number, ticks: readonly number[]): string {
+  let d = 1;
+  while (d < 4 && ticks.some((t) => Math.abs(Math.round(t * 10 ** d) / 10 ** d - t) > 1e-9)) d++;
+  const s = Math.abs(v).toFixed(d);
+  if (Number(s) === 0) return `${(0).toFixed(d)}%`;
+  return `${v < 0 ? MINUS : "+"}${s}%`;
+}
+
 /** The eight indicators in the reference's order, formatted per the Shared rules. */
 export function townIndicators(t: TownJson): [string, string][] {
   return [
@@ -106,7 +118,7 @@ export function townCard(t: TownJson, today: Today, chartWidth: number): PanelSp
       ["Population growth", pop],
       ["Per capita GNP growth", gnp],
     ] as const)
-      if (s.length) charts.push(lineChart(s, { title, width: chartWidth, height: 170, format: growthPct }));
+      if (s.length) charts.push(lineChart(s, { title, width: chartWidth, height: 170, format: growthPct, tickFormat: growthTick }));
   return {
     key: `town:${t.id}`,
     title: t.name,

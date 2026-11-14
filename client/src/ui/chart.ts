@@ -80,7 +80,13 @@ export interface ChartLayout {
 const PAD = { left: 40, right: 14, top: 30, bottom: 28 };
 
 /** Pure layout: where each tick, grid line and point goes in a w x h chart. */
-export function chartLayout(series: ChartPoint[], w: number, h: number, format: (v: number) => string = shortMoney): ChartLayout {
+export function chartLayout(
+  series: ChartPoint[],
+  w: number,
+  h: number,
+  format: (v: number) => string = shortMoney,
+  tickFormat?: (v: number, ticks: number[]) => string,
+): ChartLayout {
   const plot = { x: PAD.left, y: PAD.top, w: w - PAD.left - PAD.right, h: h - PAD.top - PAD.bottom };
   const { min, max, ticks } = axisRange(series.map((p) => p.value));
   const yOf = (v: number) => plot.y + plot.h - ((v - min) / (max - min)) * plot.h;
@@ -89,7 +95,7 @@ export function chartLayout(series: ChartPoint[], w: number, h: number, format: 
   const zero = crossesZero(min, max);
   return {
     plot,
-    ticks: ticks.map((v) => ({ value: v, y: yOf(v), label: format(v), zero: zero && v === 0 })),
+    ticks: ticks.map((v) => ({ value: v, y: yOf(v), label: tickFormat ? tickFormat(v, ticks) : format(v), zero: zero && v === 0 })),
     points: series.map((p, i) => ({ x: xOf(i), y: yOf(p.value), value: p.value, label: p.label })),
     zeroY: zero ? yOf(0) : null,
   };
@@ -117,10 +123,19 @@ function svgEl(tag: string, attrs: Record<string, string | number>): SVGElement 
 }
 
 /** A chart card: title, grid, optional zero line, orange line, last-point dot, tap or hover tip. */
-export function lineChart(series: ChartPoint[], opts: { title: string; width: number; height: number; format?: (v: number) => string }): HTMLElement {
+export function lineChart(series: ChartPoint[], opts: {
+    title: string;
+    width: number;
+    height: number;
+    /** Tap tip (and axis, unless tickFormat) label. */
+    format?: (v: number) => string;
+    /** Axis label given all the ticks, so every tick can share one precision. */
+    tickFormat?: (v: number, ticks: number[]) => string;
+  },
+): HTMLElement {
   const { width: w, height: h } = opts;
   const format = opts.format ?? shortMoney;
-  const L = chartLayout(series, w, h, format);
+  const L = chartLayout(series, w, h, format, opts.tickFormat);
   const card = document.createElement("div");
   card.className = "chart ui-card";
   card.style.width = `${w}px`;
