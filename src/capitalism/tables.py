@@ -247,16 +247,6 @@ class StrategyCapitalRow(StaticModel):
     ref: str
 
 
-class TownFootprintRow(StaticModel):
-    """Visual town footprint per town level (client map only; the sim town stays one tile)."""
-
-    level: int = Field(ge=1)
-    radius: int = Field(ge=0)
-    block_level: int = Field(ge=0, le=2)
-    ref: str
-    provisional: frozenset[str] = frozenset()
-
-
 class FirmSectorRow(StaticModel):
     """Sector of a firm type for sector dominance goals (native mapping; names provisional)."""
 
@@ -610,18 +600,6 @@ def load_firm_types() -> dict[int, FirmTypeRow]:
 
 
 @lru_cache(maxsize=1)
-def load_town_footprints() -> dict[int, TownFootprintRow]:
-    out: dict[int, TownFootprintRow] = {}
-    for r in _rows(
-        "SELECT level, radius, block_level, ref, provisional FROM town_footprints ORDER BY level"
-    ):
-        d = dict(r)
-        d["provisional"] = _prov_cols(d["provisional"])
-        out[d["level"]] = TownFootprintRow(**d)
-    return out
-
-
-@lru_cache(maxsize=1)
 def load_competitor_capital() -> dict[int, CompetitorCapitalRow]:
     out: dict[int, CompetitorCapitalRow] = {}
     for r in _rows(
@@ -722,7 +700,6 @@ LINK_RULES: LinkRules = _rules_model(LinkRules, "links")
 PRODUCT_CLASSES: dict[int, ProductClassRow] = load_product_classes()
 FIRM_TYPES: dict[int, FirmTypeRow] = load_firm_types()
 FIRM_SECTORS: dict[int, FirmSectorRow] = load_firm_sectors()
-TOWN_FOOTPRINTS: dict[int, TownFootprintRow] = load_town_footprints()
 COMPETITOR_CAPITAL: dict[int, CompetitorCapitalRow] = load_competitor_capital()
 STRATEGY_CAPITAL: dict[int, StrategyCapitalRow] = load_strategy_capital()
 JOB_TYPES: dict[int, JobTypeRow] = load_job_types()

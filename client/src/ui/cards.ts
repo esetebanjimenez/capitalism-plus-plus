@@ -1,5 +1,5 @@
 import { FIRM_NAMES } from "../firms";
-import { DEEP_OCEAN, FOREST_HILL, FirmInfo, GRASSLAND, MapData, TOWN, TownInfo, WATER } from "../mapdata";
+import { DEEP_OCEAN, FOREST_HILL, FirmInfo, GRASSLAND, MapData, TOWN, TownInfo, WATER, townBand } from "../mapdata";
 import { money } from "./layout";
 import { PanelSpec, button, rows } from "./shell";
 
@@ -18,28 +18,54 @@ const div = (cls: string, ...kids: (Node | string)[]) => {
   return d;
 };
 
+/** The `tile` query result (docs/m2-facade-contract.md). */
+export interface TileJson {
+  x: number;
+  y: number;
+  kind: number;
+  town_kind: number;
+  soil: number;
+  rainfall: number;
+  land_value: number;
+  can_build: boolean;
+  /** Nearest town id. */
+  town: number;
+}
+
+/** A `tile` result from the sample map's TINF section, for tests and the bench page. */
+export function sampleTile(m: MapData, x: number, y: number): TileJson {
+  const i = y * m.width + x;
+  const info = m.info;
+  return {
+    x,
+    y,
+    kind: m.kind[i],
+    town_kind: m.townKind[i],
+    soil: info ? info.soil[i] : 0,
+    rainfall: info ? info.rainfall[i] : 0,
+    land_value: info ? info.landValue[i] : 0,
+    can_build: info ? info.buildable[i] === 1 : false,
+    town: -1,
+  };
+}
+
 /**
  * Tile card (spec: tap empty land): kind, land value, soil, rainfall, and Build when
- * World.can_build. Values come from the sample map's TINF section until the facade lands.
+ * World.can_build. Values come from the `tile` query.
  */
-export function tileCard(m: MapData, x: number, y: number, onBuild: () => void): PanelSpec {
-  const i = y * m.width + x;
-  const ring = m.townAt[i] >= 0;
-  const info = m.info;
-  const kind = ring ? "Town outskirts" : (KIND_NAMES[m.kind[i]] ?? "Land");
-  const pairs: [string, string][] = info
-    ? [
-        ["Land value", money(info.landValue[i]).replace(/^\+/, "")],
-        ["Soil", `${info.soil[i]} of 3`],
-        ["Rainfall", `${info.rainfall[i]} of 4`],
-      ]
-    : [["Land value", "not loaded"]];
-  const buildable = info ? info.buildable[i] === 1 : false;
+export function tileCard(t: TileJson, onBuild: () => void): PanelSpec {
+  const band = townBand(t.town_kind);
+  const kind = band === "urban" ? "Town (urban)" : band === "rural" ? "Town (rural)" : (KIND_NAMES[t.kind] ?? "Land");
+  const pairs: [string, string][] = [
+    ["Land value", money(t.land_value).replace(/^\+/, "")],
+    ["Soil", `${t.soil} of 3`],
+    ["Rainfall", `${t.rainfall} of 4`],
+  ];
   return {
-    key: `tile:${x},${y}`,
+    key: `tile:${t.x},${t.y}`,
     title: kind,
-    body: div("card-body", div("sub", `Tile ${x}, ${y}`), rows(pairs)),
-    actions: buildable ? [button("Build", "primary", onBuild)] : [],
+    body: div("card-body", div("sub", `Tile ${t.x}, ${t.y}`), rows(pairs)),
+    actions: t.can_build ? [button("Build", "primary", onBuild)] : [],
     height: "peek",
     heights: ["peek"],
   };
@@ -51,7 +77,7 @@ const ownerText = (owner: number | null, player = 0) =>
 /** Firm detail header only; slots, links and numbers come with the capitalism.api facade. */
 export function firmCard(f: FirmInfo): PanelSpec {
   return {
-    key: `firm:${f.x},${f.y}`,
+    key: f.id >= 0 ? `firm:${f.id}` : `firm:${f.x},${f.y}`,
     title: FIRM_NAMES[f.type] ?? "Firm",
     body: div("card-body", div("sub", `${ownerText(f.owner)} \u00b7 tile ${f.x}, ${f.y}`), div("note", "Slots and links arrive with the sim facade.")),
     height: "peek",
@@ -63,7 +89,7 @@ export function firmCard(f: FirmInfo): PanelSpec {
 export function townCard(t: TownInfo): PanelSpec {
   return {
     key: `town:${t.id}`,
-    title: `Town ${t.id}`,
+    title: t.name,
     body: div("card-body", div("sub", `Level ${t.level} \u00b7 tile ${t.x}, ${t.y}`), div("note", "City indicators arrive with the sim facade.")),
     height: "peek",
     heights: ["peek", "half"],

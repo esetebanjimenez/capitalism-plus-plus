@@ -6,7 +6,7 @@ worker, firms, overlays and panels come later.
 
 ```bash
 npm install --prefix client
-npm run --prefix client dev          # http://localhost:5173/?x=147&y=39
+npm run --prefix client dev          # http://localhost:5173/ (live game), ?map=sample&x=147&y=39 for the sample map
 npm run --prefix client check        # typecheck, unit tests, production build
 npm run --prefix client screenshot   # after build: docs/art/m2-map-desktop.png, m2-map-phone.png
 ```
@@ -23,12 +23,18 @@ npm run --prefix client screenshot   # after build: docs/art/m2-map-desktop.png,
   the 32 px sheet (`sheetFor`); frames missing from the 64 px sheet fall back to 32 px ones.
   Changing sheet rebuilds the visible chunks.
 - **Tiles.** `src/tiles.ts` follows `art/README.md`: coast mask, corners, shelves, climate band
-  edges, and road masks. Towns are one tile in the sim today, so a lone town tile draws as a tower
-  block; the town footprint and road layout are placeholders until town data reaches the client.
-  Firms draw as grass until the firm sprites land.
-- **Sample map.** `public/sample-map.bin` comes from `python scripts/export_sample_map.py` (seed 1,
-  240 x 198): `CPPM`, u16 width, u16 height, then kind and climate bytes per tile.
-- URL parameters: `x`, `y` (top-left tile), `margin` (tiles kept around the screen).
+  edges. Town tiles draw from the sim's native kind alone: `town_rural_N` for 0x3000-0x3007 and
+  `town_urban_N` for 0x3008-0x300c (art/README.md). A firm tile draws the town tile (or grass)
+  under its sprite.
+- **Live map (#249).** By default the map is the running sim's (`map` query). When a tick's
+  `map_rev` moves, the client asks `map_objects` with `since`, applies the changed tiles and firm
+  list, and rebuilds only the chunks those tiles touch (`chunksForTiles`) and the firm sprites
+  that changed (`FirmLayer.setFirms`). The tile card reads the `tile` query.
+- **Sample map.** `?map=sample` draws `public/sample-map.bin` instead (tests, bench, screenshots).
+  It comes from `python scripts/export_sample_map.py` (seed 1, 240 x 198): `CPPM`, u16 width,
+  u16 height, kind and climate bytes per tile, firms, towns (u16 x, u16 y, u8 id, u8 level), i16
+  ref and u16 town kind per tile, then the TINF section.
+- URL parameters: `map=sample`, `x`, `y` (top-left tile; default the first town), `margin` (tiles kept around the screen).
 
 ## Terrain renderer options
 

@@ -10,9 +10,9 @@ import marks64Json from "../../art/atlas/marks_atlas_64.json";
 import { ChunkCache, TerrainOptions } from "./chunks";
 import { FirmLayer } from "./firms";
 import { CHUNK_TILES, STANDARD_STEP, TILE_PX, View, clampView, makeView, sheetFor } from "./chunkmath";
-import { parseMap } from "./mapdata";
+import { MapData, MapJson, MapObjectsJson, applyMapObjects, mapFromJson, parseMap } from "./mapdata";
 import { loadUiAtlas } from "./ui/atlas";
-import { firmCard, menuPanel, tileCard, townCard } from "./ui/cards";
+import { TileJson, firmCard, menuPanel, sampleTile, tileCard, townCard } from "./ui/cards";
 import { Pick, panToShow, pickAt, visibleMapRect } from "./ui/layout";
 import { LoadingOverlay, showSimError } from "./ui/overlay";
 import { Shell } from "./ui/shell";
@@ -71,7 +71,17 @@ async function boot() {
   const texels = (t: Texture) => (t.source === source64 || t.source === marks64 ? 2 : 1);
   const sheets = { 32: frames32, 64: frames64 } as const;
 
-  const map = parseMap(await (await fetch("./sample-map.bin")).arrayBuffer());
+  // Panels (docs/m2-ux-spec.md): status pill, menu button, one panel at a time.
+  await loadUiAtlas(resolution);
+  const shell = new Shell(document.body);
+  const sim = startSim(shell);
+  // The live sim's map by default; ?map=sample draws the static sample map instead
+  // (tests, `npm run bench` and the screenshot script, which need a fixed map).
+  const sample = params.get("map") === "sample";
+  const map: MapData = sample
+    ? parseMap(await (await fetch("./sample-map.bin")).arrayBuffer())
+    : (await sim.ready, mapFromJson(await sim.query<MapJson>("map")));
+  const home = map.towns[0] ?? { x: 100, y: 99 };
   const chunks = new ChunkCache(app.renderer, map, frames32, terrain);
   const firms = new FirmLayer(map.firms, frames32, texels);
   const world = new Container();
@@ -83,8 +93,8 @@ async function boot() {
 
   const screen = () => ({ w: app.screen.width * resolution, h: app.screen.height * resolution });
   let view: View = makeView(
-    Number(params.get("x") ?? 100) * TILE_PX,
-    Number(params.get("y") ?? 99) * TILE_PX,
+    Number(params.get("x") ?? home.x) * TILE_PX,
+    Number(params.get("y") ?? home.y) * TILE_PX,
     0,
     0,
     STANDARD_STEP,
@@ -144,11 +154,31 @@ async function boot() {
     (window as unknown as { __cppStats: typeof stats }).__cppStats = stats;
   };
 
-  // Panels (docs/m2-ux-spec.md): status pill, menu button, one panel at a time.
-  await loadUiAtlas(resolution);
-  const shell = new Shell(document.body);
-  if (map.info) shell.setStatus(map.info.year, map.info.month, map.info.day, map.info.cash);
-  startSim(shell);
+  if (sample && map.info) shell.setStatus(map.info.year, map.info.month, map.info.day, map.info.cash);
+
+  // Live map (#249): when map_rev moves, fetch the changes and rebuild only the chunks
+  // and firm sprites they touch. One request at a time; a newer rev is caught next tick.
+  let fetching = false;
+  const refreshMap = async () => {
+    if (fetching) return;
+    fetching = true;
+    try {
+      const o = await sim.query<MapObjectsJson>("map_objects", { since: map.rev });
+      const delta = applyMapObjects(map, o);
+      chunks.invalidate(delta.tiles);
+      if (delta.firms) firms.setFirms(map.firms);
+      apply();
+    } finally {
+      fetching = false;
+    }
+  };
+  if (!sample) {
+    const onTick = sim.onTick;
+    sim.onTick = (t) => {
+      onTick(t);
+      if (t.map_rev !== map.rev) void refreshMap();
+    };
+  }
   shell.onMenu = () => shell.open(menuPanel((name) => (shell.close(), shell.toast(`${name} comes in a later PR.`))));
   let selected: { x: number; y: number } | null = null;
   const ptPerWorld = () => view.zoom / resolution;
@@ -177,7 +207,9 @@ async function boot() {
       shell.open(townCard(p.town));
     } else {
       selected = { x: p.x, y: p.y };
-      shell.open(tileCard(map, p.x, p.y, () => shell.toast("The build menu comes with the sim facade.")));
+      const onBuild = () => shell.toast("The build menu comes in a later PR.");
+      const tile: Promise<TileJson> = sample ? Promise.resolve(sampleTile(map, p.x, p.y)) : sim.query<TileJson>("tile", { x: p.x, y: p.y });
+      tile.then((t) => selected?.x === t.x && selected.y === t.y && shell.open(tileCard(t, onBuild)));
     }
   };
 
@@ -252,8 +284,7 @@ boot().catch((err) => {
 
 /**
  * Boots the sim worker and wires the status pill, speed controls and keyboard to it
- * (docs/m2-ux-spec.md "Shared rules" and "Default state"). The map is still the sample
- * map until the live map lands (#249).
+ * (docs/m2-ux-spec.md "Shared rules" and "Default state").
  */
 function startSim(shell: Shell): SimClient {
   const loading = new LoadingOverlay();

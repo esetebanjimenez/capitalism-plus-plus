@@ -104,3 +104,23 @@ export function stepZoom(v: View, dir: 1 | -1, sx = v.w / 2, sy = v.h / 2): View
   const py = v.y + sy / v.zoom;
   return { ...v, step, zoom: next, x: px - sx / next, y: py - sy / next };
 }
+
+/**
+ * Chunks to rebuild after tiles `indices` (row-major on a `width` x `height` map) changed.
+ * Each tile's 8 neighbours count too, because coast and shelf frames read their neighbours.
+ */
+export function chunksForTiles(indices: Iterable<number>, width: number, height: number, chunkTiles: number): Set<string> {
+  const out = new Set<string>();
+  for (const i of indices) {
+    const x = i % width;
+    const y = Math.floor(i / width);
+    for (let dy = -1; dy <= 1; dy++)
+      for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+        out.add(chunkKey(Math.floor(nx / chunkTiles), Math.floor(ny / chunkTiles)));
+      }
+  }
+  return out;
+}

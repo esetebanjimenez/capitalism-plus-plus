@@ -35,7 +35,7 @@ try {
       const page = await browser.newPage();
       page.on("pageerror", (e) => console.error(name, e.message));
       await page.setViewport({ width: v.w, height: v.h, deviceScaleFactor: v.dpr });
-      await page.goto(`http://localhost:4174/?${v.q}&${q}`);
+      await page.goto(`http://localhost:4174/?map=sample&${v.q}&${q}`); // fixed map, not a live game
       await page.waitForFunction(() => /ready|failed/.test(document.title), { timeout: 60000 });
       await page.evaluate(() => window.__bench(60, 16)); // warm-up: shaders, buffers, first chunks
       const still = await page.evaluate(() => window.__bench(60, 0));

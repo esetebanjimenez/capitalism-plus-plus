@@ -28,7 +28,7 @@ try {
     const page = await browser.newPage();
     page.on("pageerror", (e) => console.error(s.name, e.message));
     await page.setViewport({ width: s.w, height: s.h, deviceScaleFactor: s.dpr });
-    await page.goto(`http://localhost:4173/?${s.q}`);
+    await page.goto(`http://localhost:4173/?map=sample&${s.q}`); // fixed map, not a live game
     await page.waitForFunction(() => /ready|failed/.test(document.title), { timeout: 30000 });
     await new Promise((r) => setTimeout(r, 500));
     if (s.tap) {

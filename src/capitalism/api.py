@@ -21,20 +21,13 @@ from .links import Link
 from .news import NewsCategory
 from .plans import PlanLibrary, apply_plan, capture
 from .sim import Sim
-from .tables import FIRM_TYPES, JOB_TYPES, TOWN_FOOTPRINTS
+from .tables import FIRM_TYPES, JOB_TYPES
 from .town import Town
 from .world import TileCategory
 
 PLAYER = 0
 Json = dict[str, Any]
 MAP_HISTORY = 64  # map_rev steps whose tile changes `map_objects` can still return
-
-
-def town_footprint(level: int) -> Json:
-    """`radius` and `block_level` for a town level; levels past the table use its top row."""
-    lv = min(max(level, min(TOWN_FOOTPRINTS)), max(TOWN_FOOTPRINTS))
-    row = TOWN_FOOTPRINTS[lv]
-    return {"radius": row.radius, "block_level": row.block_level}
 
 
 class CommandError(Exception):
@@ -244,6 +237,7 @@ class Api:
             "kind": [int(t.kind) for t in w.tiles],
             "ref": [t.ref for t in w.tiles],
             "town_kind": self._town_kinds(),
+            "climate": [int(t.climate) for t in w.tiles],
             **self._map_objects(),
         }
 
@@ -278,7 +272,6 @@ class Api:
                     "x": t.x,
                     "y": t.y,
                     "level": t.level,
-                    **town_footprint(t.level),
                 }
                 for t in self.sim.towns
             ],

@@ -31,8 +31,8 @@ Direction and the full asset list: `docs/art/visual-direction.md`.
 | `block_s{0-3}_l{0-2}` | city block, roof style 0-3 (glass, grey, tan, brick); l0 = houses and gardens, l1 = mid-rise, l2 = towers |
 | `park_0`, `park_1`, `plaza` | open town tiles |
 
-Which TOWN tiles are roads is a renderer choice; the preview uses every third column and every
-second row of the town footprint, with taller blocks nearer the centre.
+These frames are legacy: since #249 the client draws town tiles only from the native kinds
+(`town_rural_*` and `town_urban_*`, below).
 
 Variant pick: any stable hash of (x, y). When a water tile has land on its sides and also only diagonally
 on a corner, use the side mask. A combined piece can follow later if it shows.
