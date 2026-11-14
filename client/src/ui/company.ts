@@ -103,6 +103,10 @@ export interface ReportHooks {
   today?: Today;
   /** Chart card width in CSS px: panel width less padding and room for a scrollbar. */
   chartWidth?: number;
+  /** Tabs to show; a rival's read-only report has Income and Charts only (#260). */
+  tabs?: readonly Tab[];
+  /** Panel key; defaults to "company" (the player's report). */
+  key?: string;
 }
 
 const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = "", text = ""): HTMLElementTagNameMap[K] => {
@@ -164,7 +168,7 @@ function incomeTab(c: CorpJson, s: ReportState, hooks: ReportHooks): HTMLElement
 /** The report panel for corp `c` (the player's, corp 0). */
 export function companyReport(c: CorpJson, s: ReportState, hooks: ReportHooks): PanelSpec {
   const tabs = h("div", "tabs");
-  for (const t of TABS) {
+  for (const t of hooks.tabs ?? TABS) {
     const b = h("button", t === s.tab ? "tab on" : "tab", t);
     b.onclick = () => hooks.onState({ ...s, tab: t });
     tabs.append(b);
@@ -179,5 +183,5 @@ export function companyReport(c: CorpJson, s: ReportState, hooks: ReportHooks): 
           )
         : h("div", "note coming", `${s.tab} is coming in a later update.`);
   body.append(tabs, tab);
-  return { key: "company", title: c.name, body, height: "full", heights: ["half", "full"] };
+  return { key: hooks.key ?? "company", title: c.name, body, height: "full", heights: ["half", "full"] };
 }
