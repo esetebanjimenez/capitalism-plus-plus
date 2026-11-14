@@ -183,7 +183,7 @@ class Api:
         return firms, towns
 
     def _town_kinds(self) -> list[int]:
-        """Native town tile kind per tile (urban 0x3000-0x3007, rural 0x3008-0x300c), else 0.
+        """Native town tile kind per tile (rural 0x3000-0x3007, urban 0x3008-0x300c), else 0.
         A firm tile reports the town kind it stands on."""
         firms = self.eco.firms
         out = []

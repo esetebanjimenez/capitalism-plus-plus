@@ -34,7 +34,7 @@ def _world(level: int = 1) -> tuple[World, Town]:
     )
     world.towns = [town]
     centre = world.tile_at(C, C)
-    centre.kind, centre.town_kind, centre.ref = TileCategory.TOWN, min(RURAL_KINDS), 0
+    centre.kind, centre.town_kind, centre.ref = TileCategory.TOWN, min(URBAN_KINDS), 0
     return world, town
 
 
@@ -48,15 +48,15 @@ def test_round_dist_rounds():
 
 def test_db_constants():
     assert (TOWN_SPREAD.spread_fringe, TOWN_SPREAD.spread_overlap_odds) == (4, 10)
-    assert list(URBAN_KINDS) == list(range(0x3000, 0x3008))
-    assert list(RURAL_KINDS) == list(range(0x3008, 0x300D))
+    assert list(RURAL_KINDS) == list(range(0x3000, 0x3008))
+    assert list(URBAN_KINDS) == list(range(0x3008, 0x300D))
 
 
 def test_three_zones_seed_42():
     world, town = _world(level=3)
     world.spread_town(town, Rng(42))
     lv, reach = 3, 3 + 4
-    overlap_rural = 0
+    overlap_urban = 0
     for y in range(N):
         for x in range(N):
             t = world.tile_at(x, y)
@@ -64,14 +64,14 @@ def test_three_zones_seed_42():
             if c > reach:
                 assert t.kind == TileCategory.GRASSLAND  # outside the scan square
             elif c > lv:
-                assert t.kind == TileCategory.TOWN and t.town_kind in URBAN_KINDS  # outer fringe
+                assert t.kind == TileCategory.TOWN and t.town_kind in RURAL_KINDS  # outer fringe
             elif d < lv:
-                assert t.kind == TileCategory.TOWN and t.town_kind in RURAL_KINDS  # core
+                assert t.kind == TileCategory.TOWN and t.town_kind in URBAN_KINDS  # core
             else:
                 assert t.kind in (TileCategory.TOWN, TileCategory.GRASSLAND)  # overlap
                 if t.kind == TileCategory.TOWN:
-                    assert t.town_kind in RURAL_KINDS
-                    overlap_rural += 1
+                    assert t.town_kind in URBAN_KINDS
+                    overlap_urban += 1
             if t.kind == TileCategory.TOWN:
                 assert t.ref == town.id
     overlap = sum(
@@ -80,20 +80,20 @@ def test_three_zones_seed_42():
         for x in range(N)
         if _cheb(x, y) <= lv and round_dist(x - C, y - C) >= lv
     )
-    assert overlap_rural < overlap  # 1-in-10, not all
+    assert overlap_urban < overlap  # 1-in-10, not all
 
 
-def test_core_absorbs_urban_and_fringe_keeps_urban():
+def test_core_absorbs_rural_and_fringe_keeps_rural():
     world, town = _world(level=2)
     rng = Rng(7)
     world.spread_town(town, rng)
-    ring = world.tile_at(C + 3, C)  # Chebyshev 3 > 2: urban
-    assert ring.town_kind in URBAN_KINDS
+    ring = world.tile_at(C + 3, C)  # Chebyshev 3 > 2: rural
+    assert ring.town_kind in RURAL_KINDS
     kept = world.tile_at(C + 5, C).town_kind  # stays fringe at level 3
     town.level = 3
     world.spread_town(town, rng)
-    assert world.tile_at(C + 2, C).town_kind in RURAL_KINDS  # core at level 3 (d=2<3)
-    assert world.tile_at(C + 5, C).town_kind == kept  # urban not re-converted
+    assert world.tile_at(C + 2, C).town_kind in URBAN_KINDS  # core at level 3 (d=2<3)
+    assert world.tile_at(C + 5, C).town_kind == kept  # rural not re-converted
 
 
 def test_forest_and_water_never_convert():
@@ -112,7 +112,7 @@ def test_forest_and_water_never_convert():
 def test_other_town_sets_abort_flag_and_blocks_level_up():
     world, town = _world(level=2)
     other = world.tile_at(C + 4, C + 4)  # inside the scan square, last rows
-    other.kind, other.town_kind, other.ref = TileCategory.TOWN, min(URBAN_KINDS), 5
+    other.kind, other.town_kind, other.ref = TileCategory.TOWN, min(RURAL_KINDS), 5
     world.spread_town(town, Rng(42))
     assert town.spread_blocked
     assert other.ref == 5
@@ -143,7 +143,7 @@ def test_firm_place_kind_follows_spread_only_without_workforce():
         t = world.tile_at(x, C)
         t.kind, t.ref = TileCategory.FIRM, i
     world.spread_town(town, Rng(42), [idle, busy])
-    assert idle.place_kind in RURAL_KINDS and idle.place_town == town.id
+    assert idle.place_kind in URBAN_KINDS and idle.place_town == town.id
     assert busy.place_kind == GRASS_PLACE and busy.place_town == -1
     assert world.tile_at(C + 1, C).kind == TileCategory.FIRM  # the firm stays on top
 

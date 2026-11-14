@@ -106,8 +106,8 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `pop_tier_noise` | 30000 | people | Towns and cities — initial population noise |
 | `pop_unemp_scale` | 100 | scalar | Binary FUN_0004b4de: additive pop growth (capplus_decompiled.c:46505) |
 | `pop_unemp_target` | 4 | pct | Binary FUN_0004b4de: additive pop growth (capplus_decompiled.c:46505) |
-| `rural_kind_base` | 12296 | tile kind | FUN_0004c334 (decomp:47149-47292), techspec 'Town spread': cfg_random(5) + 0x3008 |
-| `rural_variants` | 5 | count | FUN_0004c334 (decomp:47149-47292), techspec 'Town spread': rural 0x3008-0x300c |
+| `rural_kind_base` | 12288 | tile kind | FUN_0004c334 (decomp:47149-47292), techspec 'Town spread': cfg_random(8) + 0x3000 |
+| `rural_variants` | 8 | count | FUN_0004c334 (decomp:47149-47292), techspec 'Town spread': rural 0x3000-0x3007 |
 | `simple_labor_cost` | 100 | index | Towns and cities — simplified mode |
 | `simple_labor_quality` | 100 | index | Towns and cities — simplified mode |
 | `simple_level` | 3 | level | Towns and cities — simplified mode |
@@ -120,8 +120,8 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `spread_overlap_odds` | 10 | 1 in n | FUN_0004c334 (decomp:47149-47292), techspec 'Town spread': cfg_random(10) == 0 |
 | `unemp_hi` | 10 | percentage points | Towns and cities — unemployment clamp |
 | `unemp_lo` | 2 | percentage points | Towns and cities — unemployment clamp |
-| `urban_kind_base` | 12288 | tile kind | FUN_0004c334 (decomp:47149-47292), techspec 'Town spread': cfg_random(8) + 0x3000 |
-| `urban_variants` | 8 | count | FUN_0004c334 (decomp:47149-47292), techspec 'Town spread': urban 0x3000-0x3007 |
+| `urban_kind_base` | 12296 | tile kind | FUN_0004c334 (decomp:47149-47292), techspec 'Town spread': cfg_random(5) + 0x3008 |
+| `urban_variants` | 5 | count | FUN_0004c334 (decomp:47149-47292), techspec 'Town spread': urban 0x3008-0x300c |
 
 ## 3 — Product catalog and demand
 
@@ -310,7 +310,7 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `site_retries` | 20 | tries | FUN_0002dc7c (techspec 'Location (FUN_0002dc7c)'): retry 20 times, radius += 1 |
 | `site_ring_kind_max` | 12295 | tile kind | FUN_0002dc7c (techspec 'Location (FUN_0002dc7c)'): base + 4 branch |
 | `site_ring_kind_min` | 12288 | tile kind | FUN_0002dc7c (techspec 'Location (FUN_0002dc7c)'): base + 4 branch |
-| `site_ring_radius_extra` | 4 | tiles | FUN_0002dc7c (techspec 'Location (FUN_0002dc7c)'): urban = base + 4 |
+| `site_ring_radius_extra` | 4 | tiles | FUN_0002dc7c (techspec 'Location (FUN_0002dc7c)'): base + 4 (techspec label urban is pre-#311; this is the rural ring) |
 | `spawn_chance` | 0.333 | probability | gamelogic.md NPC corporation spawning |
 | `spawn_first_day_gate` | 0.01 | probability | gamelogic.md NPC corporation spawning |
 | `strategy_interval` | 15 | days | gamelogic.md Decision schedule |

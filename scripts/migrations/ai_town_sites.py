@@ -19,7 +19,7 @@ RULES = [
     ("ai", "site_core_kind_max", float(0x300C), "tile kind", f"{REF}: base-radius branch", 0),
     ("ai", "site_ring_kind_min", float(0x3000), "tile kind", f"{REF}: base + 4 branch", 0),
     ("ai", "site_ring_kind_max", float(0x3007), "tile kind", f"{REF}: base + 4 branch", 0),
-    ("ai", "site_ring_radius_extra", 4.0, "tiles", f"{REF}: urban = base + 4", 0),
+    ("ai", "site_ring_radius_extra", 4.0, "tiles", f"{REF}: base + 4 (techspec label urban is pre-#311; this is the rural ring)", 0),
     ("ai", "site_radius_cap", 4.0, "tiles", f"{REF}: cap at 4", 0),
     ("ai", "site_retries", 20.0, "tries", f"{REF}: retry 20 times, radius += 1", 0),
 ]
