@@ -21,6 +21,8 @@ const shots = [
   { name: "m2-ui-phone-tile.png", w: 390, h: 844, dpr: 3, q: "x=201&y=140", tap: [80, 560] },
   { name: "m2-ui-phone-firm.png", w: 390, h: 844, dpr: 3, q: "x=201&y=140", tap: [144, 272] },
   { name: "m2-ui-desktop-firm.png", w: 1280, h: 800, dpr: 1, q: "x=190&y=138", tap: [496, 336] },
+  // #178 chart style: profit crossing zero (April tip shown), a single point, a share price.
+  { name: "m2-chart-demo.png", w: 1024, h: 230, dpr: 1, url: "?chart=demo" },
 ];
 const stats = {};
 try {
@@ -28,7 +30,7 @@ try {
     const page = await browser.newPage();
     page.on("pageerror", (e) => console.error(s.name, e.message));
     await page.setViewport({ width: s.w, height: s.h, deviceScaleFactor: s.dpr });
-    await page.goto(`http://localhost:4173/?map=sample&${s.q}`); // fixed map, not a live game
+    await page.goto(`http://localhost:4173/${s.url ?? `?map=sample&${s.q}`}`); // fixed map, not a live game
     await page.waitForFunction(() => /ready|failed/.test(document.title), { timeout: 30000 });
     await new Promise((r) => setTimeout(r, 500));
     if (s.tap) {
