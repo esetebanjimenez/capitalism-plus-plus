@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { axisRange } from "../src/ui/chart";
 import { describe, expect, it } from "vitest";
 import { CLIMATE_NAMES, TownJson, growthPct, growthTick, growthSeries, pct, townCard, townIndicators } from "../src/ui/towncard";
 
@@ -49,6 +50,12 @@ describe("town card", () => {
     const ticks = [-0.025, 0, 0.025, 0.05];
     expect(ticks.map((t) => growthTick(t, ticks))).toEqual(["\u22120.025%", "0.000%", "+0.025%", "+0.050%"]);
     expect([-2, -1, 0, 1].map((t, _, a) => growthTick(t, a))).toEqual(["\u22122.0%", "\u22121.0%", "0.0%", "+1.0%"]);
+  });
+
+  it("steps growth axes by 1, 2 or 5 times a power of ten", () => {
+    const pop = TOWN.pop_growth_pct as number[];
+    const { ticks } = axisRange(pop);
+    expect(ticks.map((t) => growthTick(t, ticks))).toEqual(["\u22120.02%", "0.00%", "+0.02%", "+0.04%", "+0.06%"]);
   });
 
   it("labels growth months back from the last complete month and skips nulls", () => {

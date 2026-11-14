@@ -45,7 +45,8 @@ export const crossesZero = (min: number, max: number) => min < 0 && max > 0;
 /** Tip colour: green for 0 and up, red below 0. */
 export const tipColour = (v: number) => (v >= 0 ? PALETTE.GREEN : PALETTE.RED);
 
-/** Axis range with exactly `lines` evenly spaced round ticks (1, 2, 2.5 or 5 times a power of ten)
+/** Axis range with `lines` (or one more) evenly spaced round ticks (1, 2 or 5 times a power of
+ * ten, per the Artist on #352, so labels step evenly)
  * covering every value. A flat series is widened to include 0. */
 export function axisRange(values: number[], lines = style.grid.lines): { min: number; max: number; ticks: number[] } {
   let lo = values.length ? Math.min(...values) : 0;
@@ -58,14 +59,16 @@ export function axisRange(values: number[], lines = style.grid.lines): { min: nu
   const intervals = Math.max(1, lines - 1);
   const raw = (hi - lo) / intervals;
   const mag = 10 ** Math.floor(Math.log10(raw));
-  for (const m of [1, 2, 2.5, 5, 10, 20]) {
-    const step = m * mag;
-    const start = Math.floor(lo / step + 1e-9) * step;
-    if (start + intervals * step >= hi - 1e-9 * step) {
-      const ticks = Array.from({ length: intervals + 1 }, (_, k) => +(start + k * step).toPrecision(12));
-      return { min: ticks[0], max: ticks[intervals], ticks };
+  // Without 2.5 a range can just miss a step; one extra grid line then beats doubling the step.
+  for (const m of [1, 2, 5, 10, 20])
+    for (const n of [intervals, intervals + 1]) {
+      const step = m * mag;
+      const start = Math.floor(lo / step + 1e-9) * step;
+      if (start + n * step >= hi - 1e-9 * step) {
+        const ticks = Array.from({ length: n + 1 }, (_, k) => +(start + k * step).toPrecision(12));
+        return { min: ticks[0], max: ticks[n], ticks };
+      }
     }
-  }
   throw new Error("unreachable");
 }
 
