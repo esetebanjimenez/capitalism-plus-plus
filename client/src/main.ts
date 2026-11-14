@@ -12,6 +12,7 @@ import { FirmLayer } from "./firms";
 import { CHUNK_TILES, STANDARD_STEP, TILE_PX, View, clampView, makeView, sheetFor } from "./chunkmath";
 import { MapData, MapJson, MapObjectsJson, applyMapObjects, mapFromJson, parseMap } from "./mapdata";
 import { loadUiAtlas } from "./ui/atlas";
+import { showChartDemo } from "./ui/chartdemo";
 import { TileJson, firmCard, menuPanel, sampleTile, tileCard, townCard } from "./ui/cards";
 import { Pick, panToShow, pickAt, visibleMapRect } from "./ui/layout";
 import { LoadingOverlay, showSimError } from "./ui/overlay";
@@ -27,6 +28,11 @@ interface AtlasJson {
 
 async function boot() {
   const params = new URLSearchParams(location.search);
+  if (params.get("chart") === "demo") {
+    await showChartDemo(Math.max(1, Math.round(devicePixelRatio)));
+    document.title = "Capitalism++ chart ready";
+    return;
+  }
   const app = new Application();
   const resolution = Math.max(1, Math.round(devicePixelRatio));
   await app.init({
