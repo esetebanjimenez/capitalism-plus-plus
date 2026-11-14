@@ -471,10 +471,6 @@ def _strategy_dispatch(
     if not owned and not eco.world.towns:
         return
 
-    town = _pick_town(eco, corp)
-    if town is None:
-        return
-
     # 80% skill-based, 20% random product selection
     if rng.chance(0.8) and ceo is not None:
         firm_type = _skill_based_pick(eco, corp, ceo, ai)
@@ -490,6 +486,11 @@ def _strategy_dispatch(
 
     # Cooldown check
     if firm_type in ai.build_cooldowns:
+        return
+
+    # Town choice branches on firm type (R24, #300)
+    town = _pick_town(eco, corp, firm_type, ceo)
+    if town is None:
         return
 
     # Build
@@ -519,13 +520,96 @@ def _dormant_check(
         ai.mode_start_day = day_serial
 
 
-def _pick_town(eco: Economy, corp: Corporation) -> Town | None:
-    """Pick the best town for AI expansion."""
+def _pick_town(eco: Economy, corp: Corporation, firm_type: int, ceo: Person | None) -> Town | None:
+    """Town choice by firm type (R24, techspec "Town choice").
+
+    Dept stores score demand (FUN_0002e2d9), R&D and software score
+    education against labor cost (FUN_0002ee8d), factories take a uniform
+    random town (FUN_0002e7e8). The untapped-market search (FUN_0002d58f) is
+    the fallback when the branch finds nothing.
+
+    Extraction (5-7) is deposit-placed natively (#317) and farms' path is open
+    in #319; until those land, they and other types keep the old most-populous pick.
+    """
     towns = eco.world.towns
     if not towns:
         return None
-    # Prefer the town with highest population among those the corp doesn't dominate
-    return max(towns, key=lambda t: t.population)
+    rng = eco.rng
+    if firm_type == 1:
+        town = _demand_town(eco, corp, ceo)
+    elif firm_type in (3, 8, 9):
+        town = _education_labor_town(towns, rng)
+    elif firm_type == 2:
+        town = towns[rng.randint(0, len(towns) - 1)]
+    else:
+        town = max(towns, key=lambda t: t.population)
+    if town is None:
+        town = _untapped_market_town(eco, corp)
+    return town
+
+
+def _demand_threshold(ceo: Person | None) -> tuple[float, int]:
+    """(demand threshold, minimum qualifying products) for FUN_0002e2d9."""
+    ct = ceo.character_type if ceo else CHAR_CONSERVATIVE
+    span = _AR.town_char_type_span - ct
+    return span * _AR.town_demand_step + _AR.town_demand_base, span // _AR.town_min_qual_divisor
+
+
+def _product_qualifies(tm: object, threshold: float) -> bool:
+    """FUN_0006d986 demand gate.
+
+    Provisional: demand is compared as units per day, and "supply/demand
+    favourable" is read as today's supply below demand. The corp-eligibility
+    and cost-viability checks are not modelled yet.
+    """
+    return (
+        tm.product.state.available
+        and tm.demand_per_day >= threshold
+        and tm.supply_today < tm.demand_per_day
+    )
+
+
+def _demand_town(eco: Economy, corp: Corporation, ceo: Person | None) -> Town | None:
+    """Dept-store town: most qualifying products, first town wins ties (FUN_0002e2d9)."""
+    threshold, min_count = _demand_threshold(ceo)
+    counts: dict[int, int] = {}
+    for (town_id, _pid), tm in eco.market.towns.items():
+        if _product_qualifies(tm, threshold):
+            counts[town_id] = counts.get(town_id, 0) + 1
+    best: Town | None = None
+    best_n = -1
+    for town in eco.world.towns:
+        n = counts.get(town.id, 0)
+        if n >= min_count and n > best_n:
+            best, best_n = town, n
+    return best
+
+
+def _education_labor_town(towns: list[Town], rng: Rng) -> Town:
+    """R&D/software town: education * 2.0 - labor_cost, ties switch 1 in 3 (FUN_0002ee8d)."""
+    best = towns[0]
+    best_s = best.labor_quality * _AR.town_edu_weight - best.labor_cost
+    for town in towns[1:]:
+        s = town.labor_quality * _AR.town_edu_weight - town.labor_cost
+        if s > best_s:
+            best, best_s = town, s
+        elif s == best_s and rng.randint(0, _AR.town_tie_switch_odds - 1) == 0:
+            best = town
+    return best
+
+
+def _untapped_market_town(eco: Economy, corp: Corporation) -> Town | None:
+    """First town where a product with demand has no seller from this corp (FUN_0002d58f)."""
+    for p in eco.catalog.products:
+        if not p.is_consumer or not p.state.available:
+            continue
+        for town in eco.world.towns:
+            tm = eco.market.towns.get((town.id, p.id))
+            if tm is None or tm.demand_per_day <= 0:
+                continue
+            if not any(link.corp_id == corp.id for link in tm.links):
+                return town
+    return None
 
 
 def _skill_based_pick(eco: Economy, corp: Corporation, ceo: Person, ai: AIState) -> int | None:
@@ -559,7 +643,7 @@ def _random_firm_type(rng: Rng, ai: AIState) -> int | None:
 def _vertical_integration(eco: Economy, corp: Corporation, ai: AIState, day_serial: int) -> None:
     """Vertical integration: build retail for unsold products (gamelogic.md Vertical integration)."""
     rng = eco.rng
-    town = _pick_town(eco, corp)
+    town = _pick_town(eco, corp, 1, _find_ceo(eco, corp))
     if town is None:
         return
 
