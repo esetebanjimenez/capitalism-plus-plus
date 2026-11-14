@@ -236,8 +236,12 @@ async function boot() {
   const ptPerWorld = () => view.zoom / resolution;
   const showSelection = () => {
     const open = shell.current && selected && !shell.current.key.startsWith("menu");
-    selection.visible = Boolean(open);
-    plates.selected = open ? selected : null;
+    // With the town card open the town's plate is highlighted instead: no tile outline and no
+    // fade (Esteban, PR #336).
+    const town = open && shell.current!.key.startsWith("town:") ? Number(shell.current!.key.slice(5)) : null;
+    selection.visible = Boolean(open) && town === null;
+    plates.selected = open && town === null ? selected : null;
+    plates.highlight = town;
     if (open) selection.position.set(selected!.x * TILE_PX, selected!.y * TILE_PX);
   };
   shell.onLayout = (h) => {

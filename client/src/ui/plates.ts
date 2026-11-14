@@ -4,7 +4,8 @@
  * the map and below panels and toasts; a plate outside the part of the map a panel leaves
  * visible is hidden. Plates don't take taps (Esteban, PR #336): a tap goes to the tile
  * underneath, a long press or right click on a plate opens its town card (`townAt`), and a
- * plate goes see-through while the tile under it is selected.
+ * plate goes see-through while the tile under it is selected. While its town card is open the
+ * plate stays opaque and is drawn highlighted.
  */
 import { TILE_PX, View } from "../chunkmath";
 import { TownInfo } from "../mapdata";
@@ -54,6 +55,8 @@ export class TownPlates {
   private shown = new Map<number, Rect>();
   /** The selected tile; plates over it go see-through. */
   selected: { x: number; y: number } | null = null;
+  /** The town whose card is open; its plate is highlighted and never faded. */
+  highlight: number | null = null;
 
   constructor() {
     this.layer.className = "plates";
@@ -116,7 +119,9 @@ export class TownPlates {
       if (!show) continue;
       this.shown.set(t.id, r);
       p.el.style.transform = `translate(${r.x}px, ${r.y}px)`;
-      p.el.classList.toggle("dim", Boolean(sel && overlaps(sel, r)));
+      const hl = t.id === this.highlight;
+      p.el.classList.toggle("hl", hl);
+      p.el.classList.toggle("dim", !hl && Boolean(sel && overlaps(sel, r)));
     }
   }
 

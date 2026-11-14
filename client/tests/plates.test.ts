@@ -70,4 +70,21 @@ describe("town plates (#250, view brief section 2)", () => {
     plates.update(view, 1, area);
     expect(el.classList.contains("dim")).toBe(false);
   });
+
+  it("is highlighted, never faded, while its town card is open", () => {
+    const plates = new TownPlates();
+    plates.setTowns([town(1, 2), { ...town(2, 1), x: 30 }]);
+    const view = makeView(0, 0, 1280, 800, 1, 1);
+    const area = { x: 0, y: 0, w: 1280, h: 800 };
+    const [a, b] = Array.from(plates.layer.querySelectorAll<HTMLElement>(".plate"));
+    plates.selected = { x: 10, y: 20 };
+    plates.highlight = 1;
+    plates.update(view, 1, area);
+    expect(a.classList.contains("hl")).toBe(true);
+    expect(a.classList.contains("dim")).toBe(false);
+    expect(b.classList.contains("hl")).toBe(false);
+    plates.highlight = null;
+    plates.update(view, 1, area);
+    expect(a.classList.contains("hl")).toBe(false);
+  });
 });

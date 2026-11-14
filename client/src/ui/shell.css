@@ -93,6 +93,8 @@
 .plate[hidden] { display: none; }
 .plate { transition: opacity 0.12s ease; }
 .plate.dim { opacity: 0.4; }
+/* Town card open: the plate is highlighted in the selection orange (placeholder until the Artist's spec). */
+.plate.hl { box-shadow: 0 0 0 2px #e8742a; }
 .plate-name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left; }
 .plate-level { flex: none; height: 16px; box-sizing: border-box; display: grid; place-items: center; padding: 0 3px; color: #f6ecd4;
   font-size: 11px; }
