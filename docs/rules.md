@@ -171,6 +171,8 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `import_quality` | 50 **provisional** | quality | design.md slice 4 call 7 — Seaport (Moderate) |
 | `livestock_scalar` | 36500 | days | Livestock Raising — 36,500 |
 | `mfg_skill_max` | 100 **provisional** | quality | design.md slice 4 — manufacturing skill = min(this, product tech level) until R&D lands |
+| `offtown_education` | 0 | percent | FUN_00066a2f (decomp:70663-70687): DAT_000b1b28, BSS-zero |
+| `offtown_labor_factor` | 0 | percent | firm_labor_factor (decomp:70631-70655): DAT_000b1b26, BSS-zero |
 | `purchase_every_days` | 5 | days | Purchasing — 5-day cycle |
 | `purchase_order_mult` | 4 | multiplier | Purchasing — order size |
 | `quality_base` | 30 | quality | Livestock Raising — quality target (rating − 1) × 5 + 30 (crop/extraction reuse it: our call) |
@@ -179,6 +181,8 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `rating_min` | 1 | rating | Job daily cycle — rating 1..9 |
 | `sales_mult_other` | 4 | multiplier | Sales — multiplier |
 | `sales_mult_store` | 2 | multiplier | Sales — live-inventory multiplier |
+| `town_place_max` | 12300 | tile kind | firm_labor_factor (decomp:70631-70655): town tile range high end |
+| `town_place_min` | 12288 | tile kind | firm_labor_factor (decomp:70631-70655): town tile range low end |
 | `train_weekday` | 2 | weekday | Job daily cycle — train on weekday 2 |
 | `training_education_default` | 100 | town-default education (decomp:46330, 0x42c80000=100.0); non-town firms natively get 0 (DAT_000b1b28 BSS) | decomp:60780 — job_add_training scales by budget/100 × education/100 |
 | `training_expense_divisor` | 100 | USD divisor | decompiled training review (2026-11-06) |

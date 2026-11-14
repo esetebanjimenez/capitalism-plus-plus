@@ -132,6 +132,7 @@ class TestPlanApply:
 
         eco = sim.economy
         corp = eco.corps[0]
+        corp.ledger.cash += 2_000_000  # the chain now buys town land (#285)
         x, y = find_site(sim, town)
         firm = eco.build_firm(FACTORY, corp, x, y, town)
         flour = eco.catalog["Flour"]

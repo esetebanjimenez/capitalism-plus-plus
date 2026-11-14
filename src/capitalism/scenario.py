@@ -9,15 +9,35 @@ from .jobs import CAT_FREIGHT, CAT_OVERHEAD, CAT_SALARIES, CAT_TRAINING, Job
 from .links import Link
 from .sim import Sim
 from .town import Town
+from .world import TileCategory
 
 # Firm and job type ids (firm_types / job_types tables).
 DEPARTMENT_STORE, FACTORY, FARM, SEAPORT = 1, 2, 4, 14
 CROP, INVENTORY, MANUFACTURING, PURCHASING, SALES, IMPORT = 1, 5, 7, 10, 12, 16
 
 
-def find_site(sim: Sim, town: Town, min_dist: int | None = None) -> tuple[int, int]:
-    """First buildable tile outside the town footprint, scanning rings outward."""
+def find_site(
+    sim: Sim, town: Town, min_dist: int | None = None, *, in_town: bool = False
+) -> tuple[int, int]:
+    """First buildable tile outside the town footprint, scanning rings outward.
+
+    `in_town` instead takes the nearest urban or rural tile of `town`, where firms
+    pay the town's wages (off town tiles the native labor factor is 0, audit W2).
+    """
     world = sim.world
+    if in_town:
+        for d in range(1, max(world.width, world.height)):
+            for dy in range(-d, d + 1):
+                for dx in range(-d, d + 1):
+                    if max(abs(dx), abs(dy)) != d:
+                        continue
+                    x, y = town.x + dx, town.y + dy
+                    if not (0 <= x < world.width and 0 <= y < world.height):
+                        continue
+                    t = world.tile_at(x, y)
+                    if t.kind == TileCategory.TOWN and t.ref == town.id:
+                        return x, y
+        raise RuntimeError("no free town tile")
     start = town.level + 5 if min_dist is None else min_dist
     for d in range(start, max(world.width, world.height)):
         for dy in range(-d, d + 1):
@@ -59,8 +79,8 @@ def build_bread_chain(sim: Sim, town: Town) -> BreadChain:
         corp.technology[product.id] = product.state.tech_level
 
     def place(ftype: int, owner: object) -> Firm:
-        # Each firm takes the next actually free tile; seed 1 gives (204..207, 148).
-        x, y = find_site(sim, town)
+        # Each firm takes the next free town tile, so it pays the town's wages (W2).
+        x, y = find_site(sim, town, in_town=True)
         return eco.build_firm(ftype, owner, x, y, town)  # type: ignore[arg-type]
 
     port = place(SEAPORT, None)

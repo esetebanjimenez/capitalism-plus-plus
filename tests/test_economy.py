@@ -227,7 +227,7 @@ def test_wages_per_job_at_labor_100_thirty_days():
 def test_wages_training_and_overhead_post_to_their_categories():
     sim, town = bread_town(1)
     eco = sim.economy
-    x, y = find_site(sim, town)
+    x, y = find_site(sim, town, in_town=True)
     f = eco.build_firm(FACTORY, eco.add_corp("T"), x, y, town)
     f.add_job(1, MANUFACTURING, eco.catalog["Flour"])
     # January: first partial month of overhead posted at build, all 31 days.
@@ -293,12 +293,12 @@ def test_flour_factory_fed_by_seaport_30_days_seed_1():
     sim, town = bread_town(1)
     eco = sim.economy
     cat = eco.catalog
-    x, y = find_site(sim, town)
+    x, y = find_site(sim, town, in_town=True)
     eco.add_corp("Test Corp")  # fixture identity matches canonical chain: public port has id 0 only
     corp = eco.add_corp("Manufacturer")
     corp.technology[cat["Flour"].id] = cat["Flour"].state.tech_level
     imp = eco.build_firm(SEAPORT, None, x, y, town).add_job(0, IMPORT, cat["Wheat"])
-    x, y = find_site(sim, town)
+    x, y = find_site(sim, town, in_town=True)
     f = eco.build_firm(FACTORY, corp, x, y, town)
     buy = f.add_job(0, PURCHASING, cat["Wheat"])
     mfg = f.add_job(1, MANUFACTURING, cat["Flour"])
@@ -386,7 +386,7 @@ def test_fixed_and_work_mode_credit_ratios():
     engine = eco.catalog["Engine"]
     # capacity 50 × efficiency 100 × speed 200% / 10000 = nominal 100 units.
     engine.row = engine.row.model_copy(update={"base_capacity": 50.0})
-    f = eco.build_firm(FACTORY, eco.add_corp("F"), *find_site(sim, town), town)
+    f = eco.build_firm(FACTORY, eco.add_corp("F"), *find_site(sim, town, in_town=True), town)
     job = f.add_job(0, MANUFACTURING, engine)
     recipe = eco.catalog.recipe(job.product)
     assert recipe is not None and recipe.output_qty == 1 and job.efficiency == 100
@@ -413,7 +413,7 @@ def test_extraction_and_software_production_training_credit():
     sim, town = bread_town(1)
     eco = sim.economy
     corp = eco.add_corp("E")
-    f = eco.build_firm(FACTORY, corp, *find_site(sim, town), town)
+    f = eco.build_firm(FACTORY, corp, *find_site(sim, town, in_town=True), town)
     coal = eco.catalog["Coal"]
     ext = Extraction(f, 0, coal)
     ext.work(eco)
@@ -455,7 +455,7 @@ def test_low_stock_receipt_and_real_sale_credit_actual_units(monkeypatch):
     sim, town = bread_town(1)
     eco = sim.economy
     corp = eco.add_corp("T")
-    factory = eco.build_firm(FACTORY, corp, *find_site(sim, town), town)
+    factory = eco.build_firm(FACTORY, corp, *find_site(sim, town, in_town=True), town)
     buy = factory.add_job(0, PURCHASING, eco.catalog["Wheat"])
     # Rating-1 efficiency 100% makes order=4×capacity; room then caps receipt at 25% of order.
     # Local 25% efficiency makes order==capacity so a full receipt scores the reference 80.
@@ -470,7 +470,7 @@ def test_low_stock_receipt_and_real_sale_credit_actual_units(monkeypatch):
     assert buy.train_credits == pytest.approx(8.0)
     assert buy.stock == pytest.approx(buy.capacity)
 
-    store = eco.build_firm(DEPARTMENT_STORE, corp, *find_site(sim, town), town)
+    store = eco.build_firm(DEPARTMENT_STORE, corp, *find_site(sim, town, in_town=True), town)
     sale = store.add_job(0, SALES, eco.catalog["Bread"])
     assert isinstance(sale, Sales)
     cap = sale.daily_cap()
@@ -564,10 +564,10 @@ def _run_chain(seed: int = 1, days: int = 120):
     return sim, chain
 
 
-def test_bread_chain_end_to_end_seed_1():  # hash moved with N3/N7 formulas and #302 town spread
+def test_bread_chain_end_to_end_seed_1():  # hash moved with N3/N7, #302 spread, #285 in-town chain
     sim, chain = _run_chain()
     link = chain.store_link
-    assert sim.state_hash() == ("90e6c0b63a92dd36904363eebf81c9a56773aba48f13185b201af64380e15d15")
+    assert sim.state_hash() == ("df225b2885cf971b5fa70bad11b43722eb99f48bba585ff389c4b3f8b456488d")
     assert sum(link.money_month) == pytest.approx(5673.744543052876, abs=1e-3)
     assert chain.store_sales.unit_cost == pytest.approx(1.5, abs=1e-6)
     assert link.brand == pytest.approx(0.0, abs=1e-6)
@@ -600,13 +600,13 @@ def test_bread_chain_monthly_accounting():
     for job, qty, charge in zip(
         (chain.wheat_buy, chain.flour_buy, chain.bread_buy),
         (1251.0, 1260.0, 1409.15983039618),
-        (1.3135499999999998, 2.205, 5.284349363985675),
+        (1.3135499999999998, 2.205, 10.56869872797135),
         strict=True,
     ):
         assert job.received_month[3] == pytest.approx(qty)
         assert job.freight_month[3] == pytest.approx(charge)
-    assert r["freight"] == pytest.approx(8.802899363985675)
-    assert r["profit"] == pytest.approx(-482719.63462252467, abs=0.01)
+    assert r["freight"] == pytest.approx(14.08724872797135)
+    assert r["profit"] == pytest.approx(-482724.91897188866, abs=0.01)
     assert r["profit"] == pytest.approx(
         r["revenue"] - r["wages"] - r["training"] - r["overhead"] - r["freight"] - r["wheat"]
     )
@@ -616,3 +616,29 @@ def test_bread_chain_is_deterministic():
     a, _ = _run_chain(1, 60)
     b, _ = _run_chain(1, 60)
     assert a.state_hash() == b.state_hash()
+
+
+def test_offtown_firm_pays_no_wages_and_gets_no_training_credit():
+    """Audit W2 (#285): native labor and education factors are 0 off town tiles."""
+    from capitalism.jobs import CAT_SALARIES, CAT_TRAINING
+    from capitalism.tables import JOB_RULES
+
+    assert (JOB_RULES.town_place_min, JOB_RULES.town_place_max) == (0x3000, 0x300C)
+    assert JOB_RULES.offtown_labor_factor == 0 and JOB_RULES.offtown_education == 0
+    sim, town = bread_town(1)
+    eco = sim.economy
+    corp = eco.add_corp("W2")
+    corp.ledger.cash = 1e9
+    inside = eco.build_firm(FACTORY, corp, *find_site(sim, town, in_town=True), town)
+    outside = eco.build_firm(FACTORY, corp, *find_site(sim, town), town)
+    assert inside.on_town_tile and not outside.on_town_tile
+    assert inside.labor_factor == town.labor_cost and outside.labor_factor == 0
+    assert inside.education == JOB_RULES.training_education_default and outside.education == 0
+    jobs = [f.add_job(1, MANUFACTURING, eco.catalog["Flour"]) for f in (inside, outside)]
+    sim.advance_day()
+    assert inside.ledger.month[CAT_SALARIES] == job_wage_day(jobs[0].staff, town.labor_cost, 31)
+    assert inside.ledger.month[CAT_SALARIES] > 0
+    assert outside.ledger.month[CAT_SALARIES] == 0 and outside.ledger.month[CAT_TRAINING] == 0
+    jobs[0]._credit(1000.0)
+    jobs[1]._credit(1000.0)
+    assert jobs[0].train_credits > 0 and jobs[1].train_credits == 0

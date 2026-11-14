@@ -207,11 +207,11 @@ def _advertising_fixture():
     """Established prior-month books, explicitly distinct from a cold-start station."""
     sim, town = bread_town(1)
     eco = sim.economy
-    tv = eco.build_firm(11, None, *find_site(sim, town), town)
+    tv = eco.build_firm(11, None, *find_site(sim, town, in_town=True), town)
     tv.ledger.last_month[CAT_SALES] = 100_000  # sole ledger history: no daily fake-revenue posting
     corp = eco.add_corp("Ad buyer")
     product = eco.catalog["Desktop Computer"]
-    firm = eco.build_firm(DEPARTMENT_STORE, corp, *find_site(sim, town), town)
+    firm = eco.build_firm(DEPARTMENT_STORE, corp, *find_site(sim, town, in_town=True), town)
     ad = firm.add_job(0, 15, product)
     consumer = eco.link_consumer(firm.add_job(1, SALES, product), town)
     firm.ledger.last_month[CAT_SALES] = 1_000_000
@@ -629,7 +629,7 @@ def _purchasing_job(budget=None, training_factor=None):
     corp = eco.add_corp("T")
     if budget is not None:
         corp.training_budget = budget
-    factory = eco.build_firm(FACTORY, corp, *find_site(sim, town), town)
+    factory = eco.build_firm(FACTORY, corp, *find_site(sim, town, in_town=True), town)
     job = factory.add_job(0, PURCHASING, eco.catalog["Wheat"])
     if training_factor is not None:
         job.row = job.row.model_copy(update={"training_factor": training_factor})
@@ -676,15 +676,17 @@ def test_bread_chain_seed_1_layout_is_canonical_free_tiles():
     sim, town = bread_town(1)
     chain = build_bread_chain(sim, town)
     firms = (chain.seaport, chain.flour_factory, chain.bread_factory, chain.store)
-    assert [(f.x, f.y) for f in firms] == [(204, 148), (205, 148), (206, 148), (207, 148)]
+    # In-town tiles since #285 (firms off town tiles pay no wages, audit W2).
+    assert [(f.x, f.y) for f in firms] == [(211, 155), (212, 155), (213, 155), (211, 156)]
+    assert all(f.on_town_tile for f in firms)
 
 
 def test_bread_chain_skips_an_occupied_tile_instead_of_overwriting():
     sim, town = bread_town(1)
     eco = sim.economy
-    blocker = eco.build_firm(FACTORY, eco.add_corp("Blocker"), 205, 148, town)
+    blocker = eco.build_firm(FACTORY, None, 212, 155, town)
     chain = build_bread_chain(sim, town)
     firms = (chain.seaport, chain.flour_factory, chain.bread_factory, chain.store)
     spots = [(f.x, f.y) for f in firms]
-    assert len(set(spots)) == 4 and (205, 148) not in spots
-    assert sim.world.tile_at(205, 148).ref == blocker.id and eco.firms[blocker.id] is blocker
+    assert len(set(spots)) == 4 and (212, 155) not in spots
+    assert sim.world.tile_at(212, 155).ref == blocker.id and eco.firms[blocker.id] is blocker

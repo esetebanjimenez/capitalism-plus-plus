@@ -25,6 +25,7 @@ from .tables import (
     FIRM_JOB_ALLOWED,
     FIRM_RULES,
     FIRM_TYPES,
+    JOB_RULES,
     JOB_TYPES,
     FirmTypeRow,
 )
@@ -170,6 +171,23 @@ class Firm:
         # it while the firm has no workforce), and the town that owns that tile.
         self.place_kind = 0
         self.place_town = -1
+
+    @property
+    def on_town_tile(self) -> bool:
+        """Native test in firm_labor_factor: place kind in 0x3000..0x300c (audit W2)."""
+        return JOB_RULES.town_place_min <= self.place_kind <= JOB_RULES.town_place_max
+
+    @property
+    def labor_factor(self) -> float:
+        """Town labor cost on a town tile, else the off-town factor (0) (decomp:70631)."""
+        return self.town.labor_cost if self.on_town_tile else JOB_RULES.offtown_labor_factor
+
+    @property
+    def education(self) -> int:
+        """Town education on a town tile, else 0 (FUN_00066a2f, decomp:70663)."""
+        if self.on_town_tile:
+            return JOB_RULES.training_education_default
+        return JOB_RULES.offtown_education
 
     @property
     def workforce(self) -> int:
@@ -392,9 +410,7 @@ class MediaFirm(Firm):
         self.revenue_total = 0.0
 
     def on_daily(self, eco: Economy) -> None:
-        wage = job_wage_day(
-            FIRM_RULES.media_staff, self.town.labor_cost, eco.calendar.real_month_days
-        )
+        wage = job_wage_day(FIRM_RULES.media_staff, self.labor_factor, eco.calendar.real_month_days)
         self.post(CAT_SALARIES, wage)
 
     def initialize_audience(self, eco: Economy) -> None:
