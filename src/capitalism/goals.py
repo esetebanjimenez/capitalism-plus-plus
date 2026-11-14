@@ -32,6 +32,8 @@ class GameResult(IntEnum):
     VICTORY = 1
     DEFEAT_DEADLINE = 2
     DEFEAT_AI_WON = 3
+    # #287: the player declared bankruptcy after cash stayed negative at the monthly check.
+    DEFEAT_BANKRUPT = 4
 
 
 # ---------------------------------------------------------------------------
@@ -380,6 +382,7 @@ class GoalChecker:
     __slots__ = (
         "_goals_met",
         "goals",
+        "insolvent",
         "player_corp_id",
         "result",
         "warning_shown_year",
@@ -397,6 +400,25 @@ class GoalChecker:
         self._goals_met = False
         self.years_warning: int = 0
         self.warning_shown_year: int = 0
+        self.insolvent = False
+
+    def monthly(self, economy: Economy) -> bool:
+        """Bankruptcy check (gamelogic.md "Bankruptcy", #287): flag the player when cash is
+        still negative at the monthly check, so the client can offer the five choices. Runs in
+        games without goals too. Whether ignoring the prompt repeats it each month or forces a
+        choice is open research, so the flag is simply re-evaluated every month."""
+        if self.result != GameResult.IN_PROGRESS:
+            return False
+        corp = (
+            economy.corps[self.player_corp_id] if self.player_corp_id < len(economy.corps) else None
+        )
+        self.insolvent = corp is not None and corp.is_bankrupt
+        return self.insolvent
+
+    def declare_bankruptcy(self) -> GameResult:
+        self.result = GameResult.DEFEAT_BANKRUPT
+        self.insolvent = False
+        return self.result
 
     def daily(
         self,

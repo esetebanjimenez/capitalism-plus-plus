@@ -120,6 +120,7 @@ class Sim:
         month_rolled, year_rolled = self.calendar.advance()
         if month_rolled:
             self._month_pass()
+            self._bankruptcy_check()
         if year_rolled:
             self._year_pass()
 
@@ -218,6 +219,10 @@ class Sim:
         # 7. Firms, jobs and links monthly
         self._hook("month_firms_jobs_links")
         self.economy.monthly()
+
+    def _bankruptcy_check(self) -> None:
+        self._hook("month_bankruptcy")
+        self.goal_checker.monthly(self.economy)
 
     def _year_pass(self) -> None:
         self._hook("year_pass")

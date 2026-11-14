@@ -24,6 +24,10 @@ export interface TickInfo {
   unread_important: number;
   /** Bumps when firms or town tiles change; the map then asks `map_objects` (#248). */
   map_rev: number;
+  /** Cash was negative at the last monthly check and still is (#287). */
+  insolvent: boolean;
+  /** GameResult: 0 in progress, 1 victory, 2 deadline, 3 AI won, 4 bankrupt. */
+  result: number;
   results: CmdResult[];
 }
 

@@ -22,7 +22,10 @@ and any rule it turns out to need goes to its own sim PR.
   posts `{id, ok: true, result}` or `{id, ok: false, error}`, where
   `error` is a short player-facing reason (shown in the toast).
 - Each tick the worker posts `tick {day_serial, cash, speed,
-  unread_important, map_rev}`, which is all the status pill and menu badge read.
+  unread_important, map_rev, insolvent, result}`, which is all the status pill and menu badge read.
+  `insolvent` is true when cash was negative at the last monthly check and still is: the client
+  then shows the bankruptcy prompt (borrow, issue shares, sell shares, close firms, declare
+  bankruptcy). `result` is the `GameResult` (0 while the game runs; 4 is `DEFEAT_BANKRUPT`).
   `map_rev` is a counter that moves when a firm is built or removed or a town
   changes level (which is when `spread_town` repaints tiles); when it moves the
   map view calls `map_objects` with the `map_rev` it last drew.
@@ -76,6 +79,7 @@ and any rule it turns out to need goes to its own sim PR.
 | `set_dividend` | `ratio`, `auto` | none | **wrapper** (sets `dividend_ratio`, `dividend_auto`) |
 | `capture_plan` | `firm`, `description` | Plan index | `plans.capture`, then `PlanFolder.add` |
 | `apply_plan` | `firm`, `plan` (index) | none | `plans.apply_plan` |
+| `declare_bankruptcy` | none | none; refused unless `insolvent`. Deletes all the player's firms and ends the game as `DEFEAT_BANKRUPT` (#287), with or without goals | **wrapper** (`GoalChecker.declare_bankruptcy`) |
 | `set_speed` | `speed`: pause, 1, 2, 3 or max | none | Worker only, not the sim |
 
 All commands act as the player (corp 0). A command that fails a check the

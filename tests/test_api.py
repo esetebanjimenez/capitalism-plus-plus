@@ -73,6 +73,7 @@ def test_contract_names():
         "set_dividend",
         "capture_plan",
         "apply_plan",
+        "declare_bankruptcy",
     }
 
 
@@ -438,3 +439,49 @@ def test_goals_years_warning_and_cheated_score():
     sim.setup.cheated = True
     g = api.query("goals")
     assert g["cheated"] is True and g["score"] == 0
+
+
+def _insolvent_api():
+    from capitalism.scenario import build_bread_chain
+
+    sim, town = bread_town(1)
+    build_bread_chain(sim, town)
+    api = Api(sim)
+    sim.advance_days(5)
+    assert api.status()["insolvent"] is False
+    api.player.ledger.cash = -1_000_000.0
+    # Run to the next monthly check.
+    month = sim.calendar.month
+    while sim.calendar.month == month:
+        sim.advance_days(1)
+    return api
+
+
+def test_negative_cash_at_monthly_check_flags_insolvent():
+    api = _insolvent_api()
+    st = api.status()
+    assert st["insolvent"] is True and st["result"] == 0
+    # Back above zero clears the flag straight away; the next monthly check re-evaluates it.
+    api.player.ledger.cash = 10.0
+    assert api.status()["insolvent"] is False
+
+
+def test_declare_bankruptcy_deletes_firms_and_ends_game():
+    from capitalism.goals import GameResult
+
+    api = _insolvent_api()
+    assert any(f is not None and f.owner is api.player for f in api.eco.firms)
+    res = run(api, "declare_bankruptcy")
+    assert res["ok"], res
+    assert not any(f is not None and f.owner is api.player for f in api.eco.firms)
+    assert api.sim.goal_checker.result == GameResult.DEFEAT_BANKRUPT
+    g = api.query("goals")
+    assert g["result_name"] == "DEFEAT_BANKRUPT" and api.status()["result"] == 4
+    # Goals were never set in this game: bankruptcy still ends it.
+    assert not api.sim.goal_checker.goals.has_any_goal
+
+
+def test_declare_bankruptcy_needs_insolvency():
+    api = make_api()
+    res = run(api, "declare_bankruptcy")
+    assert not res["ok"] and "negative" in res["error"]

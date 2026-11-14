@@ -235,6 +235,9 @@ class Api:
             "cash": self.player.ledger.cash,
             "unread_important": unread,
             "map_rev": self.sync_map(),
+            # #287: cash was negative at the last monthly check and still is.
+            "insolvent": self.sim.goal_checker.insolvent and self.player.ledger.cash < 0,
+            "result": int(self.sim.goal_checker.result),
         }
 
     # --- queries -----------------------------------------------------------
@@ -854,6 +857,23 @@ class Api:
         f = self._own_firm(firm)
         self._drop_links(lambda x: x.seller.firm is f or (not x.consumer and x.buyer.firm is f))
         self.eco.demolish_firm(f)
+
+    def c_declare_bankruptcy(self) -> None:
+        """Choice 5 of the bankruptcy prompt (gamelogic.md "Bankruptcy", #287): dissolve the
+        player's corporation, delete all its firms and end the game as DEFEAT_BANKRUPT.
+
+        Only offered while insolvent. How the remaining cash is distributed is not in the
+        sim yet (the corp has no shareholders to pay out in M2); it is left on the ledger.
+        """
+        gc = self.sim.goal_checker
+        if not (gc.insolvent and self.player.ledger.cash < 0):
+            raise CommandError("You can only declare bankruptcy while your cash is negative.")
+        for f in [f for f in self.eco.firms if f is not None and f.owner is self.player]:
+            self._drop_links(
+                lambda x, f=f: x.seller.firm is f or (not x.consumer and x.buyer.firm is f)
+            )
+            self.eco.demolish_firm(f)
+        gc.declare_bankruptcy()
 
     def c_add_job(self, firm: int, slot: int, job_type: int, product: int | None = None) -> None:
         f = self._own_firm(firm)
