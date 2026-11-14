@@ -249,7 +249,6 @@ async function boot() {
     showSelection();
     apply();
   };
-  plates.onTap = (town) => select({ kind: "town", town });
   const select = (p: Pick) => {
     if (p.kind === "none") return shell.close();
     if (p.kind === "firm") {

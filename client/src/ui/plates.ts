@@ -2,7 +2,8 @@
  * Town-name plates (#250, view brief section 2, art/README "Town plate (#175)"): a DOM layer
  * over the canvas with one `card` plate per town showing its name and level. Plates sit above
  * the map and below panels and toasts; a plate outside the part of the map a panel leaves
- * visible is hidden. Tapping a plate opens the town card.
+ * visible is hidden. Plates don't take taps (Esteban, PR #336): a tap goes to the tile
+ * underneath, and tapping the town's own tile opens the town card.
  */
 import { TILE_PX, View } from "../chunkmath";
 import { TownInfo } from "../mapdata";
@@ -38,10 +39,9 @@ const inside = (r: Rect, area: Rect) =>
 
 export class TownPlates {
   readonly layer = document.createElement("div");
-  private plates = new Map<number, { el: HTMLButtonElement; name: HTMLSpanElement; badge: HTMLSpanElement }>();
+  private plates = new Map<number, { el: HTMLDivElement; name: HTMLSpanElement; badge: HTMLSpanElement }>();
   private levels = new Map<number, number>();
   private towns: TownInfo[] = [];
-  onTap: (t: TownInfo) => void = () => {};
 
   constructor() {
     this.layer.className = "plates";
@@ -56,18 +56,13 @@ export class TownPlates {
       seen.add(t.id);
       let p = this.plates.get(t.id);
       if (!p) {
-        const el = document.createElement("button");
+        const el = document.createElement("div");
         el.className = "plate ui-card";
         const name = document.createElement("span");
         name.className = "plate-name";
         const badge = document.createElement("span");
         badge.className = "plate-level ui-plate_level";
         el.append(name, badge);
-        el.addEventListener("pointerdown", (e) => e.stopPropagation());
-        el.addEventListener("click", () => {
-          const town = this.towns.find((x) => x.id === t.id);
-          if (town) this.onTap(town);
-        });
         this.layer.append(el);
         p = { el, name, badge };
         this.plates.set(t.id, p);
