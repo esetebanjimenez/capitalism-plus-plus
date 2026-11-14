@@ -52,6 +52,7 @@ class Town:
         "env_factors",
         "gnp_growth_pct",
         "gnp_level_ring",
+        "gnp_month_ring",
         "gnp_prev_year",
         "gnp_this_year",
         "id",
@@ -60,6 +61,7 @@ class Town:
         "last_month_gnp_growth",
         "last_month_population",
         "level",
+        "months_recorded",
         "name",
         "per_capita_gnp",
         "pop_ring",
@@ -116,6 +118,11 @@ class Town:
         self.pop_ring: list[float] = [0.0] * 12
         self.gnp_level_ring: list[float] = [per_capita_gnp] * 12
         self.ring_index = 0
+        # Bookkeeping for the town card charts (#255), not native state: how many months
+        # the rings hold (capped at 12), and per-capita GNP at each month end. The native
+        # gnp_level_ring is written only in detailed months, so it can hold stale slots.
+        self.months_recorded = 0
+        self.gnp_month_ring: list[float] = [0.0] * 12
         self.last_month_population = population
         self.last_month_gnp_growth = 0.0
         self.rolling_gnp_growth = 0.0
@@ -218,7 +225,7 @@ class Town:
         if not detailed:
             self.monthly_stats()
             self.pop_ring[self.ring_index] = self.population
-            self.ring_index = (self.ring_index + 1) % 12
+            self._advance_ring()
             self.last_month_population = prev_pop
             return levelled_up
 
@@ -280,9 +287,19 @@ class Town:
         self.env_factors = (new_env[0], new_env[1], new_env[2])
 
         self.pop_ring[self.ring_index] = self.population
-        self.ring_index = (self.ring_index + 1) % 12
+        self._advance_ring()
         self.last_month_population = prev_pop
         return levelled_up
+
+    def _advance_ring(self) -> None:
+        self.gnp_month_ring[self.ring_index] = self.per_capita_gnp
+        self.ring_index = (self.ring_index + 1) % 12
+        self.months_recorded = min(12, self.months_recorded + 1)
+
+    def history_slots(self) -> list[int]:
+        """Ring slots of the recorded months, oldest first (at most 12)."""
+        n = self.months_recorded
+        return [(self.ring_index - n + k) % 12 for k in range(n)]
 
     def update_climate(self, gnp_growth: float) -> None:
         """FUN_0004b68e (decomp:46590-46598): the first DAT_000adad0 threshold that is

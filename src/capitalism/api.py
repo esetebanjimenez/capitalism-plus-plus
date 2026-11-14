@@ -9,6 +9,7 @@ the player (corp 0). The facade adds no game rule: wrappers only set existing st
 
 from __future__ import annotations
 
+import itertools
 import math
 from collections.abc import Callable
 from typing import Any
@@ -369,6 +370,26 @@ class Api:
             "climate": int(t.climate),
             "pop_ring": list(t.pop_ring),
             "gnp_level_ring": list(t.gnp_level_ring),
+            **self._town_history(t),
+        }
+
+    @staticmethod
+    def _town_history(t: Town) -> Json:
+        """Month-ordered series for the town card charts (#255, #280): oldest to newest, only
+        recorded months, at most 12. The growth series are month-on-month percent changes,
+        one shorter (the first month has no previous one); null when the earlier value is 0."""
+        slots = t.history_slots()
+        pop = [t.pop_ring[i] for i in slots]
+        gnp = [t.gnp_month_ring[i] for i in slots]
+
+        def growth(xs: list[float]) -> list[float | None]:
+            return [(b / a - 1.0) * 100.0 if a else None for a, b in itertools.pairwise(xs)]
+
+        return {
+            "pop_history": pop,
+            "gnp_level_history": gnp,
+            "pop_growth_pct": growth(pop),
+            "gnp_level_growth_pct": growth(gnp),
         }
 
     def q_town_market(self, id: int) -> Json:
