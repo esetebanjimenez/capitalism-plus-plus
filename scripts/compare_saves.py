@@ -60,6 +60,8 @@ def load_town(pt: ParsedTown) -> Town:
     )
     town.pop_ring = list(pt.pop_ring)
     town.gnp_level_ring = list(pt.gnp_ring)
+    town.months_recorded = 12  # a save's rings are full
+    town.gnp_month_ring = list(pt.gnp_ring)
     return town
 
 

@@ -302,7 +302,11 @@ def _event_building_destroyed(
         NewsType.BUILDING_DESTROYED,
         day_serial,
         corp_id=corp_id,
-        details={"firm_id": getattr(firm, "id", firm_idx)},
+        details={
+            "firm_id": getattr(firm, "id", firm_idx),
+            # The firm is gone once the item is read, so keep its type for the headline.
+            "firm_type": getattr(getattr(firm, "row", None), "id", None),
+        },
     )
     news_log.post(item)
     return item

@@ -415,6 +415,15 @@ def render(con: sqlite3.Connection) -> str:
     )
     _table(
         lines,
+        "News headlines (one line per news type; placeholders filled from the item, #253)",
+        ["News type", "Name", "Template", "Reference"],
+        [
+            [str(r["news_type"]), r["name"], r["template"].replace("|", "\\|"), r["ref"]]
+            for r in con.execute("SELECT * FROM news_headlines ORDER BY news_type")
+        ],
+    )
+    _table(
+        lines,
         "Firm sectors (sector dominance goals; types not listed have no sector)",
         ["Firm type", "Name", "Sector", "Sector name", "Reference"],
         [

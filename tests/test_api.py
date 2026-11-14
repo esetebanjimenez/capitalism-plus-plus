@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from capitalism.api import COMMANDS, QUERIES, Api
+from capitalism.news import NewsItem, NewsType
 from capitalism.scenario import bread_town, find_site
 
 STORE, FACTORY = 1, 2
@@ -284,6 +287,71 @@ def test_new_game_setup_and_goals():
         raise AssertionError(bad)
 
 
+def _news(api: Api, item) -> dict:
+    api.eco.news_log.post(item)
+    return api.query("news", {})["news"][0]
+
+
+def test_news_headlines_name_the_corp_firm_and_product():
+    """ux-spec section 4: one item of each event type the sim emits today (#253)."""
+    api = make_api()
+    corp = api.player
+    town = api.sim.towns[0]
+    x, y = find_site(api.sim, town)
+    fid = run(api, "build_firm", firm_type=FACTORY, x=x, y=y)["result"]["firm"]
+    day = api.sim.calendar.day_serial
+    flour = api.eco.catalog["Flour"]
+
+    row = _news(
+        api, NewsItem(NewsType.LIVESTOCK_DISEASE, day, corp.id, {"divisor": 2, "farms_affected": 1})
+    )
+    assert corp.name in row["headline"] and row["corp_name"] == corp.name and row["corp"] == corp.id
+    row = _news(
+        api,
+        NewsItem(NewsType.BUILDING_DESTROYED, day, corp.id, {"firm_id": 999, "firm_type": FACTORY}),
+    )
+    assert (
+        row["headline"] == f"A Factory owned by {corp.name} was destroyed" and row["firm"] is None
+    )
+    row = _news(api, NewsItem(NewsType.BUILDING_DESTROYED, day, corp.id, {"firm_id": fid}))
+    assert "Factory" in row["headline"] and row["firm"] == fid
+    row = _news(api, NewsItem(NewsType.CROP_FAILURE, day, corp.id, {"farms_affected": 2}))
+    assert row["headline"] == f"Crops failed on {corp.name}'s farms"
+    row = _news(
+        api,
+        NewsItem(
+            NewsType.RND_BREAKTHROUGH, day, corp.id, {"progress_added": 5, "product": "Flour"}
+        ),
+    )
+    assert row["headline"] == f"{corp.name} made a research breakthrough on Flour"
+    assert row["product"] == flour.id
+    row = _news(api, NewsItem(NewsType.INVENTORY_LOSS, day, corp.id, {"total_loss": 12.0}))
+    assert corp.name in row["headline"] and "12" not in row["headline"]
+    row = _news(
+        api,
+        NewsItem(NewsType.ECONOMIC_DOWNTURN, day, -1, {"loss_fraction": 0.1, "total_loss": 5.0}),
+    )
+    assert row["headline"] == "An economic downturn cut corporate cash"
+    assert row["corp"] is None and row["corp_name"] is None
+    roundtrip(api.query("news", {}))
+
+
+@pytest.mark.parametrize("news_type", list(NewsType))
+def test_every_news_type_has_a_headline(news_type):
+    from capitalism.news_text import PLACEHOLDERS, fields
+    from capitalism.tables import NEWS_HEADLINES
+
+    row = NEWS_HEADLINES[int(news_type)]
+    assert row.name == news_type.name
+    assert fields(row.template) <= PLACEHOLDERS
+    api = make_api()
+    out = _news(api, NewsItem(news_type, api.sim.calendar.day_serial, api.player.id, {}))
+    text = out["headline"]
+    assert text and text[0].isupper() and "{" not in text and not any(ch.isdigit() for ch in text)
+    if "{corp}" in row.template:
+        assert api.player.name in text
+
+
 def test_build_options_leave_out_the_seaport():
     """ux-spec "Build menu": the 14 firm types minus Seaport (#251)."""
     api = make_api()
@@ -294,3 +362,35 @@ def test_build_options_leave_out_the_seaport():
     res = run(api, "build_firm", firm_type=14, x=x, y=y)
     assert res["ok"] is False and "Seaport" in res["error"]
     assert not any(f for f in api.eco.firms if f is not None and f.x == x and f.y == y)
+
+
+def _advance_months(api: Api, months: int) -> None:
+    town = api.sim.towns[0]
+    target = min(12, town.months_recorded + months)
+    for _ in range(40 * months):
+        if town.months_recorded >= target and (target < 12 or _ >= 31 * months):
+            return
+        api.tick()
+
+
+def test_town_history_in_month_order():
+    """View brief section 4: month-ordered series for the town card charts (#255)."""
+    api = make_api()
+    town = api.sim.towns[0]
+    assert api.query("town", {"id": town.id})["pop_history"] == []
+
+    _advance_months(api, 3)
+    t = roundtrip(api.query("town", {"id": town.id}))
+    assert len(t["pop_history"]) == len(t["gnp_level_history"]) == 3
+    assert t["pop_history"][-1] == town.population
+    assert t["gnp_level_history"][-1] == town.per_capita_gnp
+    assert len(t["pop_growth_pct"]) == len(t["gnp_level_growth_pct"]) == 2
+    a, b = t["pop_history"][-2:]
+    assert t["pop_growth_pct"][-1] == (b / a - 1.0) * 100.0
+
+    _advance_months(api, 14)
+    t = roundtrip(api.query("town", {"id": town.id}))
+    assert len(t["pop_history"]) == len(t["gnp_level_history"]) == 12
+    assert len(t["pop_growth_pct"]) == 11
+    assert t["pop_history"][-1] == town.population
+    assert 0.0 not in t["pop_history"] and 0.0 not in t["gnp_level_history"]
