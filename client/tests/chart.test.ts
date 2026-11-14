@@ -27,8 +27,9 @@ describe("axis", () => {
     expect(crossesZero(0, 2)).toBe(false);
     expect(crossesZero(1, 2)).toBe(false);
   });
-  it("picks four round ticks covering the values", () => {
-    expect(axisRange([-420e3, 1.2e6]).ticks).toEqual([-1e6, 0, 1e6, 2e6]);
+  it("picks four (or five) round 1-2-5 ticks covering the values", () => {
+    expect(axisRange([-420e3, 1.2e6]).ticks).toEqual([-5e5, 0, 5e5, 1e6, 1.5e6]);
+    expect(axisRange([-1e6, 1.9e6]).ticks).toEqual([-1e6, 0, 1e6, 2e6]);
     expect(axisRange([18.2, 20.3]).ticks).toEqual([18, 19, 20, 21]);
   });
   it("widens a single point to include zero, and an empty series to 0..1", () => {
