@@ -289,7 +289,9 @@ boot().catch((err) => {
 function startSim(shell: Shell): SimClient {
   const loading = new LoadingOverlay();
   const worker = new Worker(new URL("./sim/worker.ts", import.meta.url), { type: "module" });
-  const sim = new SimClient(worker as unknown as WorkerPort, m2TestSetup(randomSeed()), new URL("capitalism.zip", document.baseURI).href);
+  const sim = new SimClient(worker as unknown as WorkerPort, m2TestSetup(randomSeed()), new URL("capitalism.zip", document.baseURI).href,
+    new URL("pyodide/", document.baseURI).href,
+  );
   (window as unknown as { __sim: SimClient }).__sim = sim;
   let resumeTo: Speed = 1;
   const setSpeed = (s: Speed) => {
