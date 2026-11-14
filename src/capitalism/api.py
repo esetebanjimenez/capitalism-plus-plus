@@ -336,7 +336,7 @@ class Api:
         rows = []
         for tid in sorted(FIRM_CLASSES):
             row = FIRM_TYPES[tid]
-            if row.government:
+            if row.government or not row.player_buildable:
                 continue
             cost = row.setup_cost + land  # B1/B3: setup + land; short cash refuses the build
             rows.append(
@@ -743,6 +743,10 @@ class Api:
     def c_build_firm(self, firm_type: int, x: int, y: int) -> Json:
         if firm_type not in FIRM_CLASSES or FIRM_TYPES[firm_type].government:
             raise CommandError("You can't build that firm type.")
+        if not FIRM_TYPES[firm_type].player_buildable:
+            raise CommandError(
+                f"You can't build a {FIRM_TYPES[firm_type].name}; the world places them."
+            )
         if not self.sim.world.can_build(x, y):
             raise CommandError("You can't build on that tile.")
         f = self.eco.build_firm(firm_type, self.player, x, y, self.nearest_town(x, y))
