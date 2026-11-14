@@ -282,3 +282,15 @@ def test_new_game_setup_and_goals():
         except ValueError:
             continue
         raise AssertionError(bad)
+
+
+def test_build_options_leave_out_the_seaport():
+    """ux-spec "Build menu": the 14 firm types minus Seaport (#251)."""
+    api = make_api()
+    x, y = find_site(api.sim, api.sim.towns[0])
+    ids = {o["type_id"] for o in api.query("build_options", {"x": x, "y": y})["options"]}
+    assert 14 not in ids
+    assert ids == set(range(1, 14))
+    res = run(api, "build_firm", firm_type=14, x=x, y=y)
+    assert res["ok"] is False and "Seaport" in res["error"]
+    assert not any(f for f in api.eco.firms if f is not None and f.x == x and f.y == y)

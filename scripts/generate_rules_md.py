@@ -392,6 +392,7 @@ def render(con: sqlite3.Connection) -> str:
             "Max slots",
             "Live inventory",
             "Government",
+            "Player builds",
             "Units",
             "Reference",
         ],
@@ -405,6 +406,7 @@ def render(con: sqlite3.Connection) -> str:
                 "yes" if r["live_inventory"] else "no",
                 ("yes" if r["government"] else "no")
                 + (P_SHORT if "government" in _prov_set(r["provisional"]) else ""),
+                "yes" if r["player_buildable"] else "no",
                 r["units"],
                 r["ref"],
             ]
