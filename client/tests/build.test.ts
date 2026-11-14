@@ -29,7 +29,7 @@ const FIXTURE: BuildOptionsJson = {
 describe("build panel (#252, ux-spec Build menu)", () => {
   it("renders one row per option with sprite, cost and overhead", () => {
     const p = buildPanel(FIXTURE, CASH, () => {});
-    const rows = [...p.body.querySelectorAll<HTMLButtonElement>(".build-row")];
+    const rows = Array.from(p.body.querySelectorAll<HTMLButtonElement>(".build-row"));
     expect(p.key).toBe("build");
     expect(p.height).toBe("half");
     expect(rows.map((r) => r.querySelector(".build-name")!.textContent)).toEqual(["Department Store", "Mine", "Television Station"]);
@@ -41,7 +41,7 @@ describe("build panel (#252, ux-spec Build menu)", () => {
   it("disables unaffordable rows, greys their sprite and shows the shortfall in red", () => {
     const pick = vi.fn();
     const p = buildPanel(FIXTURE, CASH, pick);
-    const [store, mine, tv] = [...p.body.querySelectorAll<HTMLButtonElement>(".build-row")];
+    const [store, mine, tv] = Array.from(p.body.querySelectorAll<HTMLButtonElement>(".build-row"));
     expect([store.disabled, mine.disabled, tv.disabled]).toEqual([false, true, true]);
     expect(store.classList.contains("unaffordable")).toBe(false);
     expect(mine.classList.contains("unaffordable")).toBe(true);
@@ -56,7 +56,7 @@ describe("build panel (#252, ux-spec Build menu)", () => {
 
   it("disables every row on a tile you can't build on", () => {
     const p = buildPanel({ ...FIXTURE, can_build: false }, CASH, () => {});
-    expect([...p.body.querySelectorAll<HTMLButtonElement>(".build-row")].every((r) => r.disabled)).toBe(true);
+    expect(Array.from(p.body.querySelectorAll<HTMLButtonElement>(".build-row")).every((r) => r.disabled)).toBe(true);
     expect(p.body.querySelector(".build-note")).not.toBeNull();
   });
 
