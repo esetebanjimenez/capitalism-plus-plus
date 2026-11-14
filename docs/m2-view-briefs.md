@@ -132,7 +132,11 @@ Not tied to sim rules beyond what the charts show:
 - Company charts: revenue, operating profit, other profit, expenses and net
   worth, one series per chart, with a Past 12 months tab and a Past years tab.
 - Stock page: share price with Day, Month and Year tabs.
-- Town panel: the two 12-month rings (population and GNP level).
+- Town panel: two 12-month charts of month-on-month growth %, one for
+  population and one for GNP (per-capita GNP until #299 says otherwise),
+  decided on #280. The `town` query returns them in month order, only for
+  months that happened, with no point for the first month (#255). Growth
+  can be negative, so the zero line applies here too.
 
 What the style must handle: profit series can go below zero, so draw a zero
 line whenever the range crosses it. Money runs from a few thousand to
