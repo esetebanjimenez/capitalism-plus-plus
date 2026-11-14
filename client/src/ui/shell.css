@@ -85,6 +85,29 @@
   color: #3b6db3 !important; }
 .company .tabs .tab { flex: 1 1 auto; padding: 8px 2px; min-width: 0; }
 
+/* News feed (#254): filters as chips (phone) or three columns (desktop); bold important rows. */
+.news-filters { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
+.news-filter { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.news-filter-label { font-size: 12px; color: #6b6a64; }
+.chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.chip { flex: 0 0 auto; box-sizing: border-box; padding: 0 4px; height: 28px; font: inherit; font-size: 13px;
+  color: #22262e; background: transparent; white-space: nowrap; cursor: pointer; }
+.chip.on { color: #fff; font-weight: 700; }
+.shell.desktop .news-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.shell.desktop .news-filter .chips { flex-direction: column; overflow: visible; gap: 4px; }
+.shell.desktop .news-filter .chip { text-align: left; overflow: hidden; text-overflow: ellipsis; }
+.news-list { display: flex; flex-direction: column; }
+.news-row { display: flex; align-items: flex-start; gap: 8px; width: 100%; padding: 6px 2px; background: none; border: 0;
+  border-bottom: 1px solid #e8d6a0; font: inherit; font-weight: 500; color: inherit; text-align: left; cursor: pointer; }
+.news-row:last-child { border-bottom: 0; }
+.news-row:hover { background: rgba(0, 0, 0, 0.04); }
+.news-icon { flex: 0 0 16px; margin-top: 2px; image-rendering: pixelated; }
+.news-text { display: flex; flex-direction: column; min-width: 0; }
+.news-headline { font-size: 14px; }
+.news-row.important .news-headline { font-weight: 800; }
+.news-meta { font-size: 12px; color: #6b6a64; }
+.news-empty { padding: 12px 0; }
+.toast.tap { pointer-events: auto; cursor: pointer; }
 /* Build panel (#252): firm sprite in a 32 pt cell, cost right, unaffordable greyed. */
 .build-sub { display: block; margin-bottom: 4px; }
 .build-note { display: block; color: #c8402e; font-weight: 700; margin: 4px 0; }

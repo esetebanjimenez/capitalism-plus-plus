@@ -38,7 +38,34 @@ const shots = [
   { name: "m2-map-plates-town-phone.png", w: 390, h: 844, dpr: 3, q: "x=206&y=144", plate: "long" },
   // #178 chart style: profit crossing zero (April tip shown), a single point, a share price.
   { name: "m2-chart-demo.png", w: 1024, h: 230, dpr: 1, url: "?chart=demo" },
+  // #254 News feed: a live game run until it has news (toast shot when an important item lands),
+  // then Menu > News (phone) or N (desktop).
+  { name: "m2-news-phone.png", w: 390, h: 844, dpr: 3, url: "?events=3&seed=3", news: "menu", toast: "m2-news-toast-phone.png" },
+  { name: "m2-news-desktop.png", w: 1280, h: 800, dpr: 1, url: "?events=3&seed=3", news: "key" },
 ];
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+/** Builds a few firms in a live game with events on, steps it three years and shoots the toasts. */
+async function runForNews(page, s) {
+  await page.waitForFunction(() => !/Loading Python|Creating the world/.test(document.body.innerText), { timeout: 120000 });
+  await page.evaluate(() => {
+    const builds = [[4, 222, 150], [4, 226, 150], [3, 222, 166], [1, 205, 165]];
+    for (const [firm_type, x, y] of builds) window.__sim.command("build_firm", { firm_type, x, y });
+    window.__sim.step(1100);
+  });
+  await page.waitForSelector(".toast.tap", { timeout: 60000 });
+  await sleep(300);
+  if (s.toast) writeFileSync(new URL(s.toast, out), await page.screenshot());
+  await page.evaluate(() => window.__sim.setSpeed(0));
+  await sleep(600);
+  await page.evaluate(() => document.querySelectorAll(".toast").forEach((t) => t.remove()));
+  if (s.news === "key") await page.keyboard.press("n");
+  else {
+    await page.click(".menu-btn");
+    await sleep(300);
+    await page.evaluate(() => [...document.querySelectorAll(".panel button")].find((b) => /News/.test(b.textContent)).click());
+  }
+  await sleep(800);
+}
 const stats = {};
 try {
   for (const s of shots) {
@@ -53,6 +80,7 @@ try {
       .waitForFunction(() => !/Loading Python|Creating the world/.test(document.body.innerText), { timeout: 35000 })
       .catch(() => {});
     await new Promise((r) => setTimeout(r, 500));
+    if (s.news) await runForNews(page, s);
     if (s.plate) {
       // The middle of the plate nearest the screen centre.
       const at = await page.evaluate(() => {

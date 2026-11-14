@@ -20,12 +20,13 @@ import { CorpJson, ReportState, companyReport } from "./ui/company";
 import { showCompanyDemo } from "./ui/companydemo";
 import { Pick, isDesktop, panToShow, pickAt, visibleMapRect } from "./ui/layout";
 import { LoadingOverlay, showSimError } from "./ui/overlay";
+import { ALL_NEWS, NewsFilter, NewsItem, newsReport } from "./ui/news";
 import { TownPlates } from "./ui/plates";
 import { longPressAction } from "./ui/press";
 import { Shell } from "./ui/shell";
 import { SimClient, type WorkerPort } from "./sim/client";
-import type { Speed } from "./sim/protocol";
-import { m2TestSetup, randomSeed } from "./sim/setup";
+import type { Speed, TickInfo } from "./sim/protocol";
+import { devSetup } from "./sim/setup";
 
 /** Hold this long without moving to long-press (opens the build panel on empty land). */
 const LONG_PRESS_MS = 450;
@@ -240,14 +241,69 @@ async function boot() {
     if (month !== reportMonth && reportMonth >= 0 && shell.current?.key === "company") void showCompany();
     reportMonth = month;
   };
+  // News feed (#254): Menu > News or N on desktop. The read mark is kept in localStorage and
+  // passed to the sim, whose status counts unread important items for the menu badge; opening
+  // News marks everything up to today read. A new important item shows a tappable toast.
+  const NEWS_KEY = "cpp.news.readSince";
+  let newsRead = Number(localStorage.getItem(NEWS_KEY) ?? -1);
+  let newsFilter: NewsFilter = ALL_NEWS;
+  let lastTick: TickInfo | null = null;
+  let toastedTo = newsRead;
+  let unread = 0;
+  const markNewsRead = (serial: number) => {
+    newsRead = Math.max(newsRead, serial);
+    toastedTo = Math.max(toastedTo, newsRead);
+    localStorage.setItem(NEWS_KEY, String(newsRead));
+    sim.markNewsRead(newsRead);
+    shell.setBadge(0);
+  };
+  const openNewsItem = (n: NewsItem) => {
+    const f = n.firm === null ? undefined : firmById(n.firm);
+    if (f) select({ kind: "firm", firm: f });
+    else void showNews();
+  };
+  const showNews = async () => {
+    const { news } = await sim.query<{ news: NewsItem[] }>("news", {});
+    const today = lastTick ?? { year: 0, month: 0, day_serial: news[0]?.day_serial ?? -1 };
+    shell.open(newsReport(news, newsFilter, { today, onState: (f) => ((newsFilter = f), void showNews()), onItem: openNewsItem }));
+    markNewsRead(Math.max(today.day_serial, news[0]?.day_serial ?? -1));
+  };
+  const onTickNews = sim.onTick;
+  sim.onTick = (t) => {
+    onTickNews(t);
+    if (!lastTick) {
+      // A new world starts earlier than a mark left by an older game: start that game unread.
+      if (newsRead > t.day_serial) newsRead = toastedTo = -1;
+      sim.markNewsRead(newsRead);
+      toastedTo = Math.max(toastedTo, t.day_serial);
+    }
+    lastTick = t;
+    const rose = t.unread_important > unread;
+    unread = t.unread_important;
+    if (!rose) return;
+    if (shell.current?.key === "news") return void showNews();
+    const since = toastedTo;
+    const upTo = (toastedTo = t.day_serial);
+    // Queries are answered after a multi-day step finishes, so keep to this tick's days, and
+    // show at most three news toasts at once.
+    void sim.query<{ news: NewsItem[] }>("news", { since }).then(({ news }) => {
+      const room = 3 - document.querySelectorAll(".toast.tap").length;
+      const fresh = news.filter((n) => n.important && n.day_serial <= upTo).slice(0, Math.max(0, room));
+      for (const n of fresh) shell.toast(n.headline, "info", () => openNewsItem(n));
+    });
+  };
   window.addEventListener("keydown", (e) => {
     const t = e.target as HTMLElement | null;
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
-    if ((e.key === "c" || e.key === "C") && isDesktop(window.innerWidth) && !e.metaKey && !e.ctrlKey) void showCompany();
+    if (!isDesktop(window.innerWidth) || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === "c" || e.key === "C") void showCompany();
+    else if (e.key === "n" || e.key === "N") void showNews();
   });
   shell.onMenu = () =>
     shell.open(
-      menuPanel((name) => (name === "Company" ? void showCompany() : (shell.close(), shell.toast(`${name} comes in a later PR.`)))),
+      menuPanel((name) =>
+        name === "Company" ? void showCompany() : name === "News" ? void showNews() : (shell.close(), shell.toast(`${name} comes in a later PR.`)),
+      ),
     );
   let selected: { x: number; y: number } | null = null;
   const ptPerWorld = () => view.zoom / resolution;
@@ -449,7 +505,7 @@ boot().catch((err) => {
 function startSim(shell: Shell): SimClient {
   const loading = new LoadingOverlay();
   const worker = new Worker(new URL("./sim/worker.ts", import.meta.url), { type: "module" });
-  const sim = new SimClient(worker as unknown as WorkerPort, m2TestSetup(randomSeed()), new URL("capitalism.zip", document.baseURI).href,
+  const sim = new SimClient(worker as unknown as WorkerPort, devSetup(location.search), new URL("capitalism.zip", document.baseURI).href,
     new URL("pyodide/", document.baseURI).href,
   );
   (window as unknown as { __sim: SimClient }).__sim = sim;
