@@ -9,9 +9,11 @@ import marks64Url from "../../art/atlas/marks_atlas_64.png?url";
 import marks64Json from "../../art/atlas/marks_atlas_64.json";
 import { ChunkCache, TerrainOptions } from "./chunks";
 import { FIRM_NAMES, FirmLayer } from "./firms";
+import type { FirmInfo } from "./mapdata";
 import { CHUNK_TILES, STANDARD_STEP, TILE_PX, View, clampView, makeView, sheetFor } from "./chunkmath";
 import { MapData, MapJson, MapObjectsJson, applyMapObjects, mapFromJson, parseMap } from "./mapdata";
-import { loadUiAtlas } from "./ui/atlas";
+import { loadFirmIcons, loadUiAtlas } from "./ui/atlas";
+import { BuildOption, BuildOptionsJson, buildConfirm, buildPanel, needsConfirm } from "./ui/build";
 import { showChartDemo } from "./ui/chartdemo";
 import { TileJson, firmCard, menuPanel, sampleTile, tileCard, townCard } from "./ui/cards";
 import { CorpJson, ReportState, companyReport } from "./ui/company";
@@ -19,10 +21,15 @@ import { showCompanyDemo } from "./ui/companydemo";
 import { Pick, isDesktop, panToShow, pickAt, visibleMapRect } from "./ui/layout";
 import { LoadingOverlay, showSimError } from "./ui/overlay";
 import { ALL_NEWS, NewsFilter, NewsItem, newsReport } from "./ui/news";
+import { TownPlates } from "./ui/plates";
+import { longPressAction } from "./ui/press";
 import { Shell } from "./ui/shell";
 import { SimClient, type WorkerPort } from "./sim/client";
 import type { Speed, TickInfo } from "./sim/protocol";
 import { devSetup } from "./sim/setup";
+
+/** Hold this long without moving to long-press (opens the build panel on empty land). */
+const LONG_PRESS_MS = 450;
 
 interface AtlasJson {
   tile: number;
@@ -87,6 +94,7 @@ async function boot() {
 
   // Panels (docs/m2-ux-spec.md): status pill, menu button, one panel at a time.
   await loadUiAtlas(resolution);
+  await loadFirmIcons(resolution);
   const shell = new Shell(document.body);
   const sim = startSim(shell);
   // The live sim's map by default; ?map=sample draws the static sample map instead
@@ -102,8 +110,17 @@ async function boot() {
   // Selection outline (marks atlas `sel_tile`, art PR #70) on the chosen tile.
   const selection = new Sprite(frames32.sel_tile);
   selection.visible = false;
-  world.addChild(chunks.layer, firms.layer, selection);
+  // While the build panel is open the outline is `sel_build_ok` / `sel_build_no` (#252).
+  let selFrame: "sel_tile" | "sel_build_ok" | "sel_build_no" = "sel_tile";
+  // `pending` marks on tiles with a queued build_firm, by command id (ux-spec "Pending commands").
+  const pendingLayer = new Container();
+  const pendingBuilds = new Map<number, { x: number; y: number; type: number; sprite: Sprite }>();
+  world.addChild(chunks.layer, firms.layer, selection, pendingLayer);
   app.stage.addChild(world);
+  // Town-name plates (#250): DOM over the canvas, below the shell's panels and toasts.
+  const plates = new TownPlates();
+  document.getElementById("map")!.after(plates.layer);
+  plates.setTowns(map.towns);
 
   const screen = () => ({ w: app.screen.width * resolution, h: app.screen.height * resolution });
   let view: View = makeView(
@@ -146,11 +163,16 @@ async function boot() {
     firms.setFrames(sheets[art], texels);
     chunks.update(view);
     firms.update(view);
-    selection.texture = sheets[art].sel_tile;
+    selection.texture = sheets[art][selFrame];
     selection.scale.set(1 / texels(selection.texture));
+    for (const p of pendingBuilds.values()) {
+      p.sprite.texture = sheets[art].pending;
+      p.sprite.scale.set(1 / texels(p.sprite.texture));
+    }
     const s = view.zoom / resolution;
     world.scale.set(s);
     world.position.set(-view.x * s, -view.y * s);
+    plates.update(view, resolution, visibleMapRect(window.innerWidth, window.innerHeight, shell.openHeight));
     const stats = {
       zoom: view.step,
       pxPerArtPx: view.zoom,
@@ -181,7 +203,9 @@ async function boot() {
       const delta = applyMapObjects(map, o);
       chunks.invalidate(delta.tiles);
       if (delta.firms) firms.setFirms(map.firms);
+      plates.setTowns(map.towns);
       apply();
+      openBuiltFirm();
     } finally {
       fetching = false;
     }
@@ -284,8 +308,15 @@ async function boot() {
   let selected: { x: number; y: number } | null = null;
   const ptPerWorld = () => view.zoom / resolution;
   const showSelection = () => {
+    const key = shell.current?.key;
+    if (key !== "build" && key !== "build-confirm") selFrame = "sel_tile";
     const open = shell.current && selected && !shell.current.key.startsWith("menu");
-    selection.visible = Boolean(open);
+    // With the town card open the town's plate is highlighted instead: no tile outline and no
+    // fade (Esteban, PR #336).
+    const town = open && shell.current!.key.startsWith("town:") ? Number(shell.current!.key.slice(5)) : null;
+    selection.visible = Boolean(open) && town === null;
+    plates.selected = open && town === null ? selected : null;
+    plates.highlight = town;
     if (open) selection.position.set(selected!.x * TILE_PX, selected!.y * TILE_PX);
   };
   shell.onLayout = (h) => {
@@ -308,18 +339,106 @@ async function boot() {
       shell.open(townCard(p.town));
     } else {
       selected = { x: p.x, y: p.y };
-      const onBuild = () => shell.toast("The build menu comes in a later PR.");
+      const onBuild = () => void buildAt(p.x, p.y);
       const tile: Promise<TileJson> = sample ? Promise.resolve(sampleTile(map, p.x, p.y)) : sim.query<TileJson>("tile", { x: p.x, y: p.y });
       tile.then((t) => selected?.x === t.x && selected.y === t.y && shell.open(tileCard(t, onBuild)));
     }
   };
 
-  // Pan with one pointer or the mouse; a short press that barely moves is a tap.
-  let drag: { id: number; x: number; y: number; x0: number; y0: number; t0: number } | null = null;
+  // Build panel (#252): from the tile card's Build, a long press or a right click on empty
+  // land. While it is open a map tap moves the outline and refreshes the options.
+  let buildTile: { x: number; y: number } | null = null;
+  let builtFirm: { id: number; x: number; y: number; type: number } | null = null;
+  const building = () => shell.current?.key === "build";
+  const buildAt = async (x: number, y: number) => {
+    buildTile = { x, y };
+    const b = await sim.query<BuildOptionsJson>("build_options", { x, y });
+    if (buildTile?.x !== x || buildTile.y !== y) return; // a newer tap won
+    selected = { x, y };
+    selFrame = b.can_build ? "sel_build_ok" : "sel_build_no";
+    shell.open(buildPanel(b, sim.last?.cash ?? 0, (o) => chooseBuild(o, b)));
+    showSelection();
+    apply();
+  };
+  const chooseBuild = (o: BuildOption, b: BuildOptionsJson) => {
+    const cash = sim.last?.cash ?? 0;
+    if (!needsConfirm(o.build_cost, cash)) return queueBuild(o, b);
+    shell.open(buildConfirm(o, cash, () => queueBuild(o, b), () => void buildAt(b.x, b.y)));
+  };
+  const queueBuild = (o: BuildOption, b: BuildOptionsJson) => {
+    const id = sim.command("build_firm", { firm_type: o.type_id, x: b.x, y: b.y });
+    const sprite = new Sprite(sheets[art].pending);
+    sprite.position.set(b.x * TILE_PX, b.y * TILE_PX);
+    pendingLayer.addChild(sprite);
+    pendingBuilds.set(id, { x: b.x, y: b.y, type: o.type_id, sprite });
+    buildTile = null;
+    shell.close();
+    apply();
+  };
+  // On ok, firm detail opens on the new firm once the map has it; an error rolls the mark back
+  // (the toast with the sim's reason comes from startSim).
+  const onCmdBuild = sim.onCmdResult;
+  sim.onCmdResult = (r) => {
+    onCmdBuild(r);
+    const p = pendingBuilds.get(r.id);
+    if (!p) return;
+    p.sprite.destroy();
+    pendingBuilds.delete(r.id);
+    const firm = (r.result as { firm?: number } | undefined)?.firm;
+    if (r.ok && firm !== undefined) {
+      builtFirm = { id: firm, x: p.x, y: p.y, type: p.type };
+      if (sample) openBuiltFirm(true);
+      else void refreshMap();
+    }
+  };
+  function openBuiltFirm(force = false) {
+    if (!builtFirm) return;
+    const f: FirmInfo | undefined = firmById(builtFirm.id) ?? (force ? { ...builtFirm, owner: 0 } : undefined);
+    if (!f) return;
+    builtFirm = null;
+    select({ kind: "firm", firm: f });
+  }
+  const tapAt = (cx: number, cy: number, long = false) => {
+    const s = resolution / view.zoom;
+    const wx = view.x + cx * s;
+    const wy = view.y + cy * s;
+    if (building()) {
+      const tx = Math.floor(wx / TILE_PX);
+      const ty = Math.floor(wy / TILE_PX);
+      if (tx >= 0 && ty >= 0 && tx < map.width && ty < map.height) void buildAt(tx, ty);
+      return;
+    }
+    const pick = pickAt(map, wx, wy, ptPerWorld());
+    if (long) {
+      // Plate pixels win: the town card. Elsewhere on empty land: the build panel (#338).
+      const act = longPressAction(plates.townAt(cx, cy), pick);
+      if (act?.kind === "town") select({ kind: "town", town: act.town });
+      else if (act?.kind === "build") void buildAt(act.x, act.y);
+      return;
+    }
+    select(pick);
+  };
+  app.canvas.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    tapAt(e.clientX, e.clientY, true);
+  });
+
+  // Pan with one pointer or the mouse; a short press that barely moves is a tap. Holding still
+  // for LONG_PRESS_MS is a long press (fires while held); its release is not also a tap.
+  type Drag = { id: number; x: number; y: number; x0: number; y0: number; t0: number; button: number; long?: number; done?: boolean };
+  let drag = null as Drag | null;
   app.canvas.addEventListener("pointerdown", (e) => {
-    if (drag) return;
+    if (drag || e.button === 2) return; // right click opens the build panel (contextmenu)
     app.canvas.setPointerCapture(e.pointerId);
-    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, t0: performance.now() };
+    const d: Drag = { id: e.pointerId, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, t0: performance.now(), button: e.button };
+    if (e.button === 0)
+      d.long = window.setTimeout(() => {
+        if (drag?.id === d.id && Math.hypot(drag.x - d.x0, drag.y - d.y0) < 8) {
+          drag.done = true;
+          tapAt(d.x0, d.y0, true);
+        }
+      }, LONG_PRESS_MS);
+    drag = d;
   });
   app.canvas.addEventListener("pointermove", (e) => {
     if (!drag || drag.id !== e.pointerId) return;
@@ -329,19 +448,15 @@ async function boot() {
   });
   const up = (e: PointerEvent) => {
     if (drag?.id !== e.pointerId) return;
-    const tap = Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 8 && performance.now() - drag.t0 < 500;
+    const d = drag;
     drag = null;
-    if (tap && e.type === "pointerup") {
-      const s = resolution / view.zoom;
-      select(pickAt(map, view.x + e.clientX * s, view.y + e.clientY * s, ptPerWorld()));
-    }
+    clearTimeout(d.long);
+    const tap = Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 8 && d.button === 0 && !d.done;
+    if (tap && e.type === "pointerup") tapAt(e.clientX, e.clientY, performance.now() - d.t0 >= LONG_PRESS_MS);
   };
   app.canvas.addEventListener("pointerup", up);
   app.canvas.addEventListener("pointercancel", up);
-  (window as unknown as { __tap: (x: number, y: number) => void }).__tap = (x, y) => {
-    const s = resolution / view.zoom;
-    select(pickAt(map, view.x + x * s, view.y + y * s, ptPerWorld()));
-  };
+  (window as unknown as { __tap: (x: number, y: number, long?: boolean) => void }).__tap = (x, y, long) => tapAt(x, y, long);
   window.addEventListener("resize", apply);
   apply();
 

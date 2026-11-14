@@ -106,6 +106,10 @@ frames to `ui_atlas` (now 71 frames, earlier frames unchanged). Preview: `docs/a
 - **Town plate (#175):** the existing `card` nine-slice at 136×24 pt (12 characters at 12 pt bold), name and
   level as live text. The level sits in `plate_level`, an ink badge that stretches for any number. No owner
   colour. `plate_pulse` is an orange ring 3 pt outside the plate for the optional level-up pulse.
+  States (#336, view brief §2): while a plain tap selects the tile under the plate, the whole plate (badge
+  included) fades to 40% opacity over 120 ms. While the town card is open, the plate stays fully opaque and
+  `plate_pulse` is drawn steady at 100% with no scale animation as the highlight; it is dropped with no fade
+  when the card closes, and a level-up pulse still plays on top.
 - **News (#177):** `icon_nws_normal`, `icon_nws_financial`, `icon_nws_tech`, `icon_nws_special`, one per
   category. Important items stay a bold row, not an icon.
 - **Profit arrows (#177):** `icon_arr_up` (green) and `icon_arr_down` (red), beside the corporation's
