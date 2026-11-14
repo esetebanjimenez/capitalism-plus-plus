@@ -45,8 +45,9 @@ export const crossesZero = (min: number, max: number) => min < 0 && max > 0;
 /** Tip colour: green for 0 and up, red below 0. */
 export const tipColour = (v: number) => (v >= 0 ? PALETTE.GREEN : PALETTE.RED);
 
-/** Axis range with exactly `lines` evenly spaced round ticks (1, 2, 2.5 or 5 times a power of ten)
- * covering every value. A flat series is widened to include 0; an all-zero one runs 0 to 1k. */
+/** Axis range with `lines` (or one more) evenly spaced round ticks (1, 2 or 5 times a power of
+ * ten, per the Artist on #352, so labels step evenly)
+ * covering every value. A flat series is widened to include 0. */
 export function axisRange(values: number[], lines = style.grid.lines): { min: number; max: number; ticks: number[] } {
   let lo = values.length ? Math.min(...values) : 0;
   let hi = values.length ? Math.max(...values) : 1;
@@ -58,14 +59,16 @@ export function axisRange(values: number[], lines = style.grid.lines): { min: nu
   const intervals = Math.max(1, lines - 1);
   const raw = (hi - lo) / intervals;
   const mag = 10 ** Math.floor(Math.log10(raw));
-  for (const m of [1, 2, 2.5, 5, 10, 20]) {
-    const step = m * mag;
-    const start = Math.floor(lo / step + 1e-9) * step;
-    if (start + intervals * step >= hi - 1e-9 * step) {
-      const ticks = Array.from({ length: intervals + 1 }, (_, k) => +(start + k * step).toPrecision(12));
-      return { min: ticks[0], max: ticks[intervals], ticks };
+  // Without 2.5 a range can just miss a step; one extra grid line then beats doubling the step.
+  for (const m of [1, 2, 5, 10, 20])
+    for (const n of [intervals, intervals + 1]) {
+      const step = m * mag;
+      const start = Math.floor(lo / step + 1e-9) * step;
+      if (start + n * step >= hi - 1e-9 * step) {
+        const ticks = Array.from({ length: n + 1 }, (_, k) => +(start + k * step).toPrecision(12));
+        return { min: ticks[0], max: ticks[n], ticks };
+      }
     }
-  }
   throw new Error("unreachable");
 }
 
@@ -88,7 +91,13 @@ const DOT_R = 5;
 const PAD = { left: 40, right: CARD_BORDER + Math.max(LABEL_HALF, DOT_R) + 4, top: 30, bottom: 28 };
 
 /** Pure layout: where each tick, grid line and point goes in a w x h chart. */
-export function chartLayout(series: ChartPoint[], w: number, h: number): ChartLayout {
+export function chartLayout(
+  series: ChartPoint[],
+  w: number,
+  h: number,
+  format: (v: number) => string = shortMoney,
+  tickFormat?: (v: number, ticks: number[]) => string,
+): ChartLayout {
   const plot = { x: PAD.left, y: PAD.top, w: w - PAD.left - PAD.right, h: h - PAD.top - PAD.bottom };
   const { min, max, ticks } = axisRange(series.map((p) => p.value));
   const yOf = (v: number) => plot.y + plot.h - ((v - min) / (max - min)) * plot.h;
@@ -97,7 +106,7 @@ export function chartLayout(series: ChartPoint[], w: number, h: number): ChartLa
   const zero = crossesZero(min, max);
   return {
     plot,
-    ticks: ticks.map((v) => ({ value: v, y: yOf(v), label: shortMoney(v), zero: zero && v === 0 })),
+    ticks: ticks.map((v) => ({ value: v, y: yOf(v), label: tickFormat ? tickFormat(v, ticks) : format(v), zero: zero && v === 0 })),
     points: series.map((p, i) => ({ x: xOf(i), y: yOf(p.value), value: p.value, label: p.label })),
     zeroY: zero ? yOf(0) : null,
   };
@@ -125,9 +134,19 @@ function svgEl(tag: string, attrs: Record<string, string | number>): SVGElement 
 }
 
 /** A chart card: title, grid, optional zero line, orange line, last-point dot, tap or hover tip. */
-export function lineChart(series: ChartPoint[], opts: { title: string; width: number; height: number }): HTMLElement {
+export function lineChart(series: ChartPoint[], opts: {
+    title: string;
+    width: number;
+    height: number;
+    /** Tap tip (and axis, unless tickFormat) label. */
+    format?: (v: number) => string;
+    /** Axis label given all the ticks, so every tick can share one precision. */
+    tickFormat?: (v: number, ticks: number[]) => string;
+  },
+): HTMLElement {
   const { width: w, height: h } = opts;
-  const L = chartLayout(series, w, h);
+  const format = opts.format ?? shortMoney;
+  const L = chartLayout(series, w, h, format, opts.tickFormat);
   const card = document.createElement("div");
   card.className = "chart ui-card";
   card.style.width = `${w}px`;
@@ -191,7 +210,7 @@ export function lineChart(series: ChartPoint[], opts: { title: string; width: nu
     sel.style.top = `${p.y}px`;
     tip.style.top = `${p.y - style.tip.offset_above}px`;
     tip.style.color = tipColour(p.value);
-    tip.textContent = shortMoney(p.value);
+    tip.textContent = format(p.value);
   };
   const at = (e: PointerEvent) => select(nearestPoint(L, e.clientX - card.getBoundingClientRect().left));
   card.addEventListener("pointermove", at);
