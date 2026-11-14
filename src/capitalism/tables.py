@@ -346,7 +346,7 @@ class LinkRules(StaticModel):
     oversupply_div: float
     share_exponent: float
     ad_brand_per_100k: float
-    weight_nonfarm: float
+    weight_off_core: float
     weight_rate_mult: float
     weight_max: float
     brand_nudge: float

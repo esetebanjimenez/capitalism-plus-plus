@@ -202,7 +202,7 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `score_div` | 60 | divisor | Product links — score (/60) |
 | `share_exponent` | 2 **provisional** | exponent | design.md slice 5 call 5 |
 | `weight_max` | 100 | weight | Product links — weight clamp |
-| `weight_nonfarm` | 50 | weight | Product links — weight (+50, non-farm per design.md call 4) |
+| `weight_off_core` | 50 | weight | N7 techspec 'Weight' (lines 1307-1310): +50 unless place_kind in 0x3008..0x300c |
 | `weight_rate_mult` | 5 | weight / rate point | Product links — weight (× 5) |
 
 ## 4b — Research and projects

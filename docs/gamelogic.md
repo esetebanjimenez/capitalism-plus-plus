@@ -1231,7 +1231,8 @@ whose score worsens.
   and the link has positive quantity, removes `quantity / scalar`.
 
 - **2b. Compute weight (0..100):** the firm's weight short × 5, plus
-  50 for non-farmland tiles, clamped to 100.
+  50 unless the firm sits on a town-core place kind (0x3008..0x300c),
+  clamped to 100.
 
 - **2c. Reduce quantity:** compares this link's score, unit-price,
   score-in, and brand against the town-product **reference levels**.
@@ -1352,7 +1353,8 @@ factor where the link is better (or worse) adds to a gap:
 - brand: `brand_weight × difference / 30,000`
 
 The **link weight** w (0..100) is the firm's weight short × 5, plus 50
-for non-farmland tiles, clamped to 100. It is recomputed on every visit.
+unless the firm sits on a town-core place kind (0x3008..0x300c), clamped
+to 100. It is recomputed on every visit.
 A higher w moves less quantity. D is the town's demand figure and S its
 supply total (reading these two fields as demand and supply is inferred
 from how they are used).
@@ -1376,9 +1378,10 @@ from how they are used).
    w is the taker's weight, not the rival's.
 
 Moves 2 and 3 only run when the projected quantity-sum is below 2 ×
-the projected flow (see Link daily cycle, step 2d); flow projection
-gate is not yet implemented. Before any move, an oversupplied town
-(D < S) trims each link by `q / 50`.
+the projected flow (see Link daily cycle, step 2d); the sim applies this
+gate (`links.py`, consumer pass). Before any move, an oversupplied town
+(D < S) trims each link by `q / 50`. S is summed over the other links
+only, never the visiting link's own q (N10).
 
 The transfer amounts are **quadratic in the gap** and in the share term,
 so links that are far from the reference or a rival move much more

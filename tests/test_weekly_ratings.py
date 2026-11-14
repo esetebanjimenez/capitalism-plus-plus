@@ -108,16 +108,16 @@ def test_decay_importer_unique():
     assert link.awareness == pytest.approx(1.0 - 0.1)
 
 
-def test_demand_reduced_by_decay():
+def test_decay_leaves_consumer_demand():
+    """#351: native decays a ratings-row demand cell, not the consumer demand D."""
     sim, town = bread_town()
     corp = sim.economy.add_corp("P")
     _firm, _job, link = _consumer_link(sim, town, corp)
     link.awareness = 1.0
     tm = link.buyer
     demand_before = tm.demand_per_day
-    expected_decay = min(RATING_GATE, demand_before / DEMAND_DIVISOR)
     sim.economy.market.weekly_ratings()
-    assert tm.demand_per_day == pytest.approx(max(0.0, demand_before - expected_decay))
+    assert tm.demand_per_day == demand_before
 
 
 def test_supply_decays():
