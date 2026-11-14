@@ -51,6 +51,10 @@ const shots = [
   // the phone also drags the sheet up to half for the growth charts.
   { name: "m2-town-card-phone.png", w: 390, h: 844, dpr: 3, url: "?seed=3", town: true, half: "m2-town-card-half-phone.png" },
   { name: "m2-town-card-desktop.png", w: 1280, h: 800, dpr: 1, url: "?seed=3", town: true },
+  // #262 Goals: fixed demo rows (met, unmet, a sector and an industry goal, no year limit) on the
+  // phone; on desktop a live game run a year, then G.
+  { name: "m2-goals-phone.png", w: 390, h: 844, dpr: 3, url: "?goals=demo" },
+  { name: "m2-goals-desktop.png", w: 1280, h: 800, dpr: 1, url: "?seed=3", live: "goals" },
 ];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function runForCharts(page) {
@@ -190,6 +194,15 @@ try {
       }
     }
     if (s.live === "charts") await runForCharts(page);
+    if (s.live === "goals") {
+      await page.evaluate(() => window.__sim.step(365));
+      await page.waitForFunction(() => /1991/.test(document.body.innerText), { timeout: 120000 });
+      await page.evaluate(() => window.__sim.setSpeed(0));
+      await sleep(800);
+      await page.keyboard.press("g");
+      await page.waitForSelector(".goals", { timeout: 30000 });
+      await sleep(500);
+    }
     if (s.live) await page.evaluate(() => document.querySelectorAll(".toast").forEach((t) => t.remove()));
     if (s.chartTap) {
       // Tap chart number chartTap[0] at a fraction of its width, to show the value tip.

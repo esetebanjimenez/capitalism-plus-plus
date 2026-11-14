@@ -31,7 +31,7 @@ from .news import NewsCategory, NewsItem
 from .news_text import headline
 from .plans import PlanLibrary, apply_plan, capture
 from .sim import Sim
-from .tables import FIRM_TYPES, JOB_TYPES
+from .tables import FIRM_SECTORS, FIRM_TYPES, JOB_TYPES, PRODUCT_CLASSES
 from .town import Town
 from .world import TileCategory
 
@@ -776,7 +776,7 @@ class Api:
         cfg = sim.goal_checker.goals
         _, res = check_goals(cfg, self.eco, PLAYER)
         rows = [
-            {"name": k, "target": t, "current": c, "met": m}
+            {"name": k, "target": t, "current": c, "met": m, "label": _goal_label(k)}
             for k, (t, c, m) in res.items()
             if t > 0
         ]
@@ -995,3 +995,17 @@ QUERIES: dict[str, Callable[..., Json]] = {
 COMMANDS: dict[str, Callable[..., Any]] = {
     name[2:]: fn for name, fn in vars(Api).items() if name.startswith("c_")
 }
+
+
+def _goal_label(name: str) -> str | None:
+    """The sector or product class a dominance goal names (#262); None for the named goals."""
+    kind, _, idx = name.rpartition("_")
+    if not idx.isdigit():
+        return None
+    i = int(idx)
+    if kind == "sector":
+        return next((r.sector_name for r in FIRM_SECTORS.values() if r.sector == i), None)
+    if kind == "industry":
+        ids = sorted(PRODUCT_CLASSES)
+        return PRODUCT_CLASSES[ids[i]].name if i < len(ids) else None
+    return None

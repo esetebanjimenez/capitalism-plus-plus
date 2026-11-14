@@ -485,3 +485,18 @@ def test_declare_bankruptcy_needs_insolvency():
     api = make_api()
     res = run(api, "declare_bankruptcy")
     assert not res["ok"] and "negative" in res["error"]
+
+
+def test_goal_rows_label_dominance_goals():
+    """#262: sector and industry rows carry the sector or product class name; named goals don't."""
+    from capitalism.api import _goal_label
+    from capitalism.tables import FIRM_SECTORS, PRODUCT_CLASSES
+
+    assert _goal_label("sector_0") == next(
+        r.sector_name for r in FIRM_SECTORS.values() if r.sector == 0
+    )
+    assert _goal_label("industry_0") == PRODUCT_CLASSES[min(PRODUCT_CLASSES)].name
+    assert _goal_label("num_product_types") is None
+    assert _goal_label("industry_999") is None
+    api = Api.new_game(seed=7, goals={"corp_net_worth": 50})
+    assert [r["label"] for r in api.query("goals")["goals"]] == [None]
