@@ -21,6 +21,9 @@ const shots = [
   { name: "m2-ui-phone-tile.png", w: 390, h: 844, dpr: 3, q: "x=201&y=140", tap: [80, 560] },
   { name: "m2-ui-phone-firm.png", w: 390, h: 844, dpr: 3, q: "x=201&y=140", tap: [144, 272] },
   { name: "m2-ui-desktop-firm.png", w: 1280, h: 800, dpr: 1, q: "x=190&y=138", tap: [496, 336] },
+  // #250 town-name plates over the sample map (towns from the map's town table).
+  { name: "m2-map-plates-desktop.png", w: 1280, h: 800, dpr: 1, q: "x=203&y=146" },
+  { name: "m2-map-plates-phone.png", w: 390, h: 844, dpr: 3, q: "x=206&y=144" },
   // #178 chart style: profit crossing zero (April tip shown), a single point, a share price.
   { name: "m2-chart-demo.png", w: 1024, h: 230, dpr: 1, url: "?chart=demo" },
 ];
@@ -32,6 +35,11 @@ try {
     await page.setViewport({ width: s.w, height: s.h, deviceScaleFactor: s.dpr });
     await page.goto(`http://localhost:4173/${s.url ?? `?map=sample&${s.q}`}`); // fixed map, not a live game
     await page.waitForFunction(() => /ready|failed/.test(document.title), { timeout: 30000 });
+    // The sample map draws before the sim boots; wait for its loading overlay to clear.
+    await new Promise((r) => setTimeout(r, 3000));
+    await page
+      .waitForFunction(() => !/Loading Python|Creating the world/.test(document.body.innerText), { timeout: 35000 })
+      .catch(() => {});
     await new Promise((r) => setTimeout(r, 500));
     if (s.tap) {
       await page.evaluate(([x, y]) => window.__tap(x, y), s.tap);

@@ -18,6 +18,7 @@ import { CorpJson, ReportState, companyReport } from "./ui/company";
 import { showCompanyDemo } from "./ui/companydemo";
 import { Pick, isDesktop, panToShow, pickAt, visibleMapRect } from "./ui/layout";
 import { LoadingOverlay, showSimError } from "./ui/overlay";
+import { TownPlates } from "./ui/plates";
 import { Shell } from "./ui/shell";
 import { SimClient, type WorkerPort } from "./sim/client";
 import type { Speed } from "./sim/protocol";
@@ -103,6 +104,10 @@ async function boot() {
   selection.visible = false;
   world.addChild(chunks.layer, firms.layer, selection);
   app.stage.addChild(world);
+  // Town-name plates (#250): DOM over the canvas, below the shell's panels and toasts.
+  const plates = new TownPlates();
+  document.getElementById("map")!.after(plates.layer);
+  plates.setTowns(map.towns);
 
   const screen = () => ({ w: app.screen.width * resolution, h: app.screen.height * resolution });
   let view: View = makeView(
@@ -150,6 +155,7 @@ async function boot() {
     const s = view.zoom / resolution;
     world.scale.set(s);
     world.position.set(-view.x * s, -view.y * s);
+    plates.update(view, resolution, visibleMapRect(window.innerWidth, window.innerHeight, shell.openHeight));
     const stats = {
       zoom: view.step,
       pxPerArtPx: view.zoom,
@@ -180,6 +186,7 @@ async function boot() {
       const delta = applyMapObjects(map, o);
       chunks.invalidate(delta.tiles);
       if (delta.firms) firms.setFirms(map.firms);
+      plates.setTowns(map.towns);
       apply();
     } finally {
       fetching = false;
@@ -242,6 +249,7 @@ async function boot() {
     showSelection();
     apply();
   };
+  plates.onTap = (town) => select({ kind: "town", town });
   const select = (p: Pick) => {
     if (p.kind === "none") return shell.close();
     if (p.kind === "firm") {
