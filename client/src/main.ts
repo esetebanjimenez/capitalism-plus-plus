@@ -19,6 +19,8 @@ import { TileJson, firmCard, menuPanel, sampleTile, tileCard, townCard } from ".
 import { TownJson, townCard as liveTownCard } from "./ui/towncard";
 import { CorpJson, ReportState, companyReport } from "./ui/company";
 import { showCompanyDemo } from "./ui/companydemo";
+import { GoalsJson, goalsScreen, yearsWarning } from "./ui/goals";
+import { showGoalsDemo } from "./ui/goalsdemo";
 import { Pick, isDesktop, panToShow, pickAt, visibleMapRect } from "./ui/layout";
 import { LoadingOverlay, showSimError } from "./ui/overlay";
 import { ALL_NEWS, NewsFilter, NewsItem, newsReport } from "./ui/news";
@@ -47,6 +49,11 @@ async function boot() {
   if (params.get("company") === "demo") {
     await showCompanyDemo(Math.max(1, Math.round(devicePixelRatio)), params.get("firm") === "1", params);
     document.title = "Capitalism++ company ready";
+    return;
+  }
+  if (params.get("goals") === "demo") {
+    await showGoalsDemo(Math.max(1, Math.round(devicePixelRatio)));
+    document.title = "Capitalism++ goals ready";
     return;
   }
   const app = new Application();
@@ -297,17 +304,40 @@ async function boot() {
       for (const n of fresh) shell.toast(n.headline, "info", () => openNewsItem(n));
     });
   };
+  // Goals (#262): Menu > Goals or G on desktop; refreshes each month while open. Tapping a goal
+  // opens the screen that moves it. At year end a years_warning toast says how many years are left.
+  const later = (name: string) => (shell.close(), shell.toast(`${name} comes in a later PR.`));
+  const showGoals = async () => {
+    const g = await sim.query<GoalsJson>("goals", {});
+    shell.open(goalsScreen(g, (screen) => (screen === "stocks" ? later("Stocks") : void showCompany())));
+  };
+  let goalsYear = -1;
+  let goalsMonth = -1;
+  const onTickGoals = sim.onTick;
+  sim.onTick = (t) => {
+    onTickGoals(t);
+    const month = t.year * 12 + t.month;
+    if (month !== goalsMonth && goalsMonth >= 0 && shell.current?.key === "goals") void showGoals();
+    goalsMonth = month;
+    if (t.year !== goalsYear && goalsYear >= 0)
+      void sim.query<GoalsJson>("goals", {}).then((g) => {
+        const w = yearsWarning(g);
+        if (w) shell.toast(w, "info", () => void showGoals());
+      });
+    goalsYear = t.year;
+  };
   window.addEventListener("keydown", (e) => {
     const t = e.target as HTMLElement | null;
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
     if (!isDesktop(window.innerWidth) || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.key === "c" || e.key === "C") void showCompany();
     else if (e.key === "n" || e.key === "N") void showNews();
+    else if (e.key === "g" || e.key === "G") void showGoals();
   });
   shell.onMenu = () =>
     shell.open(
       menuPanel((name) =>
-        name === "Company" ? void showCompany() : name === "News" ? void showNews() : (shell.close(), shell.toast(`${name} comes in a later PR.`)),
+        name === "Company" ? void showCompany() : name === "News" ? void showNews() : name === "Goals" ? void showGoals() : later(name),
       ),
     );
   let selected: { x: number; y: number } | null = null;

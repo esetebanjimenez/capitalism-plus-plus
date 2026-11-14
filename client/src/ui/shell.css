@@ -155,3 +155,18 @@
 .title-badge { height: 20px; min-width: 20px; font-size: 13px; font-weight: 800; padding: 0 5px; }
 .title-badge[hidden] { display: none; }
 .town-charts { display: grid; gap: 12px; margin-top: 16px; justify-content: center; }
+
+/* Goals (#262): mark, label and value, then a 12 pt progress bar under the text. */
+.goals .goal-list { display: grid; gap: 6px; margin-bottom: 16px; }
+.goal-row { display: grid; grid-template-columns: 16px 1fr; grid-template-rows: auto 12px; gap: 4px 10px; align-items: center;
+  width: 100%; padding: 8px 4px; text-align: left; background: none; border: 0; font: inherit; color: inherit; }
+button.goal-row { cursor: pointer; min-height: 44px; }
+.goal-mark { grid-row: 1; }
+.goal-text { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; min-width: 0; }
+.goal-label { font-weight: 700; }
+.goal-value { color: #6b6a64; font-variant-numeric: tabular-nums; }
+.goal-bar { grid-column: 2; display: block; height: 12px; position: relative; }
+.goal-track { position: absolute; inset: 0; box-sizing: border-box; }
+.goal-fill { display: block; box-sizing: border-box; height: 12px; min-width: 8px; position: absolute; left: 0; top: 0; }
+.goal-fill[hidden] { display: none; }
+.goal-none { margin: 4px 0 16px; }
