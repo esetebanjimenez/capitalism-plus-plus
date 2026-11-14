@@ -16,7 +16,15 @@ from typing import Any
 
 from . import stock as stk
 from .firms import FIRM_CLASSES, Firm, MediaFirm, decode_links, edge_bit
-from .goals import GoalConfig, check_goals, compute_difficulty_rating, compute_final_score
+from .goals import (
+    GoalConfig,
+    check_goals,
+    compute_difficulty_rating,
+    compute_final_score,
+    leads,
+    product_shares,
+    sector_shares,
+)
 from .jobs import JOB_CLASSES, Job, Manufacturing, ProjectJob, Sales, product_freight_rate
 from .links import Link
 from .news import NewsCategory, NewsItem
@@ -771,12 +779,16 @@ class Api:
         ]
         years = sim.year - sim.start_year
         p = self.player
+        sectors = sum(leads(d, PLAYER) for d in sector_shares(self.eco).values())
+        products = sum(leads(d, PLAYER) for d in product_shares(self.eco).values())
         score = compute_final_score(
             sim.setup,
+            # Personal wealth stands in as corp cash until research question R2 says
+            # what the native score reads here (#261).
             p.ledger.cash,
             p.net_worth(self.eco.firms),
-            0,
-            0,
+            sectors,
+            products,
             max(1, years),
             sim.goal_checker.result.name == "VICTORY",
         )
@@ -789,6 +801,11 @@ class Api:
             "seed": sim.seed,
             "difficulty": compute_difficulty_rating(sim.setup),
             "score": score,
+            "sectors_dominated": sectors,
+            "products_dominated": products,
+            "years_warning": sim.goal_checker.years_warning,
+            "cheated": bool(sim.setup.cheated),
+            "has_goals": cfg.has_any_goal,
         }
 
     def q_plans(self, firm_type: int) -> Json:

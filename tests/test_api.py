@@ -394,3 +394,47 @@ def test_town_history_in_month_order():
     assert len(t["pop_growth_pct"]) == 11
     assert t["pop_history"][-1] == town.population
     assert 0.0 not in t["pop_history"] and 0.0 not in t["gnp_level_history"]
+
+
+def _goals_chain():
+    from capitalism.jobs import CAT_SALES
+    from capitalism.scenario import build_bread_chain
+
+    sim, town = bread_town(1)
+    build_bread_chain(sim, town)
+    sim.advance_days(70)
+    # The chain leads two sectors (stores, factories) and two products. Drop the
+    # store's sales so the player leads one sector and two products.
+    for f in sim.economy.firms:
+        if f is not None and f.type_id == STORE:
+            f.ledger.last_month[CAT_SALES] = 0.0
+    return sim
+
+
+def test_goals_score_counts_led_sectors_and_products():
+    from capitalism.goals import compute_final_score
+
+    sim = _goals_chain()
+    api = Api(sim)
+    g = api.query("goals")
+    assert (g["sectors_dominated"], g["products_dominated"]) == (1, 2)
+    p = sim.economy.corps[0]
+    years = sim.year - sim.start_year
+    expected = compute_final_score(
+        sim.setup, p.ledger.cash, p.net_worth(sim.economy.firms), 1, 2, max(1, years), False
+    )
+    assert g["score"] == expected > 0
+    assert g["cheated"] is False and g["years_warning"] == 0
+    assert g["has_goals"] == sim.goal_checker.goals.has_any_goal
+    assert roundtrip(g) == g
+
+
+def test_goals_years_warning_and_cheated_score():
+    sim = _goals_chain()
+    api = Api(sim)
+    sim.setup.year_limit = 5
+    sim.goal_checker.yearly(sim.start_year + 2, sim.start_year, 5)
+    assert api.query("goals")["years_warning"] == 3
+    sim.setup.cheated = True
+    g = api.query("goals")
+    assert g["cheated"] is True and g["score"] == 0
