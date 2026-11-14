@@ -69,7 +69,11 @@ click anywhere on the plate opens the Town panel, where population, GNP and
 the charts live. A plain tap or click goes through the plate to the tile
 underneath, so covered tiles keep their tile card and Build (Esteban, #336).
 While the tile under a plate is selected, draw the plate partly transparent
-so the selection shows through. The plate never shows
+so the selection shows through.
+While the town card is open, draw that town's plate highlighted and fully
+opaque (selection-colour treatment from the Artist), and don't select or
+outline the centre tile. The transparent plate is only for a plain tap that
+selects the tile underneath (Esteban, #336). The plate never shows
 those figures.
 
 ### How the rules work
