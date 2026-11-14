@@ -30,6 +30,8 @@ export class SimClient {
     private readonly port: WorkerPort,
     setup: Json,
     zipUrl: string,
+    /** Folder holding pyodide.mjs, the core files and the wheels (self-hosted, #247). */
+    pyodideUrl = "pyodide/",
   ) {
     let resolveReady!: (t: TickInfo) => void;
     let rejectReady!: (e: Error) => void;
@@ -59,7 +61,7 @@ export class SimClient {
           return this.onError(msg.message, msg.traceback);
       }
     };
-    this.send({ type: "init", setup, zipUrl });
+    this.send({ type: "init", setup, zipUrl, pyodideUrl });
   }
 
   private send(msg: UiMsg): void {

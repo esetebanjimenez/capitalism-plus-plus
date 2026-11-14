@@ -13,14 +13,17 @@
     "screenshot": "node scripts/screenshot.mjs",
     "bench": "node scripts/bench.mjs",
     "bundle": "python3 ../scripts/pyodide_bundle.py public/capitalism.zip",
-    "predev": "npm run bundle",
-    "prebuild": "npm run bundle"
+    "pyodide": "node scripts/fetch-pyodide.mjs",
+    "boot-check": "node scripts/boot-check.mjs",
+    "predev": "npm run bundle && npm run pyodide",
+    "prebuild": "npm run bundle && npm run pyodide"
   },
   "dependencies": {
     "pixi.js": "^8.6.6"
   },
   "devDependencies": {
     "puppeteer-core": "^23.10.0",
+    "pyodide": "314.0.7",
     "typescript": "^5.7.2",
     "vite": "^6.0.3",
     "vitest": "^2.1.8"

@@ -28,7 +28,7 @@ export interface TickInfo {
 }
 
 export type UiMsg =
-  | { type: "init"; setup: Json; zipUrl: string }
+  | { type: "init"; setup: Json; zipUrl: string; pyodideUrl: string }
   | { type: "speed"; speed: Speed }
   | { type: "step"; days: number }
   | { type: "read_news"; day_serial: number }

@@ -55,3 +55,7 @@ jobs:
         run: npm ci --prefix client
       - name: Typecheck, unit tests, build
         run: npm run --prefix client check
+      # The build self-hosts Pyodide and the sim (#247); this opens it in headless Chrome
+      # and fails unless the sim boots and 10 in-game days pass.
+      - name: Boot check
+        run: npm run --prefix client boot-check

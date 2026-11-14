@@ -26,6 +26,16 @@ npm run --prefix client screenshot   # after build: docs/art/m2-map-desktop.png,
   edges. Town tiles draw from the sim's native kind alone: `town_rural_N` for 0x3000-0x3007 and
   `town_urban_N` for 0x3008-0x300c (art/README.md). A firm tile draws the town tile (or grass)
   under its sprite.
+- **Sim and Pyodide (#247).** `npm run build` (and `dev`) first writes `public/capitalism.zip`
+  (`scripts/pyodide_bundle.py`) and `public/pyodide/` (`scripts/fetch-pyodide.mjs`: the core
+  files from the pinned `pyodide` npm package plus the pydantic wheels named in its lock file,
+  sha256-checked), so the site loads nothing from a CDN. `npm run boot-check` opens the built
+  site in headless Chrome and fails unless the sim boots and 10 in-game days pass; CI runs it in
+  the `client` job and before every Pages deploy.
+- **Download size** (live game, first visit, measured 2026-11-14): Pyodide 14.7 MB (7.9 MB
+  gzipped; the 9.6 MB `pyodide.asm.wasm` is most of it), sim bundle 0.14 MB, client code and art
+  0.8 MB (0.4 MB gzipped). About 15.7 MB raw, 8.4 MB over gzip. The sample map (0.6 MB) loads
+  only with `?map=sample`.
 - **Live map (#249).** By default the map is the running sim's (`map` query). When a tick's
   `map_rev` moves, the client asks `map_objects` with `since`, applies the changed tiles and firm
   list, and rebuilds only the chunks those tiles touch (`chunksForTiles`) and the firm sprites
@@ -54,7 +64,7 @@ render call's CPU time and the screen's pixel density.
 
 ## Sim in a Web Worker (#246)
 
-`src/sim/worker.ts` boots the pinned Pyodide (314.0.7, from the jsDelivr CDN), loads
+`src/sim/worker.ts` boots the pinned Pyodide (314.0.7, self-hosted under `pyodide/`), loads
 pydantic, unpacks `public/capitalism.zip` (written by `npm run bundle`, which `dev` and
 `build` run first) and creates `capitalism.api.Api.new_game(**DEFAULT_SETUP)`
 (`src/sim/setup.ts`). `src/sim/engine.ts` owns the clock and command queue, and
