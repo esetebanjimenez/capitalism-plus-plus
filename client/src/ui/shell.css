@@ -93,8 +93,9 @@
 .plate[hidden] { display: none; }
 .plate { transition: opacity 0.12s ease; }
 .plate.dim { opacity: 0.4; }
-/* Town card open: the plate is highlighted in the selection orange (placeholder until the Artist's spec). */
-.plate.hl { box-shadow: 0 0 0 2px #e8742a; }
+/* Town card open: the plate_pulse ring drawn steady, 3 pt outside the plate, no fade (Artist). */
+.plate-ring { position: absolute; inset: -3px; pointer-events: none; display: none; }
+.plate.hl .plate-ring { display: block; }
 .plate-name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left; }
 .plate-level { flex: none; height: 16px; box-sizing: border-box; display: grid; place-items: center; padding: 0 3px; color: #f6ecd4;
   font-size: 11px; }

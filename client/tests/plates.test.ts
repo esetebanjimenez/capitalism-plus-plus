@@ -81,6 +81,7 @@ describe("town plates (#250, view brief section 2)", () => {
     plates.highlight = 1;
     plates.update(view, 1, area);
     expect(a.classList.contains("hl")).toBe(true);
+    expect(a.querySelector(".plate-ring.ui-plate_pulse")).toBeTruthy();
     expect(a.classList.contains("dim")).toBe(false);
     expect(b.classList.contains("hl")).toBe(false);
     plates.highlight = null;

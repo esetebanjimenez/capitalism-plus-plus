@@ -77,7 +77,10 @@ export class TownPlates {
         name.className = "plate-name";
         const badge = document.createElement("span");
         badge.className = "plate-level ui-plate_level";
-        el.append(name, badge);
+        // Steady `plate_pulse` ring shown while the town card is open (Artist, PR #336).
+        const ring = document.createElement("span");
+        ring.className = "plate-ring ui-plate_pulse";
+        el.append(name, badge, ring);
         this.layer.append(el);
         p = { el, name, badge };
         this.plates.set(t.id, p);
