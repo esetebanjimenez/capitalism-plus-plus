@@ -824,6 +824,12 @@ class AIRules(StaticModel):
     site_ring_radius_extra: int
     site_radius_cap: int
     site_retries: int
+    town_char_type_span: int
+    town_demand_step: int
+    town_demand_base: int
+    town_min_qual_divisor: int
+    town_edu_weight: float
+    town_tie_switch_odds: int
 
 
 class NewsRules(StaticModel):

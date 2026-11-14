@@ -315,6 +315,12 @@ type factor are missing, so M1 preserves the normalized product×size×3-day cap
 | `spawn_first_day_gate` | 0.01 | probability | gamelogic.md NPC corporation spawning |
 | `strategy_interval` | 15 | days | gamelogic.md Decision schedule |
 | `survey_interval` | 30 | days | gamelogic.md Decision schedule |
+| `town_char_type_span` | 4 | count | FUN_0002e2d9 (techspec 'Demand scoring'): (4 - character_type) |
+| `town_demand_base` | 3 | demand | FUN_0002e2d9 (techspec 'Demand scoring'): (4 - ct) * 2 + 3 |
+| `town_demand_step` | 2 | per type | FUN_0002e2d9 (techspec 'Demand scoring'): (4 - ct) * 2 + 3 |
+| `town_edu_weight` | 2 | factor | FUN_0002ee8d (techspec 'Education-labor scoring'): education * 2.0 - labor_cost |
+| `town_min_qual_divisor` | 2 | count | FUN_0002e2d9 (techspec 'Demand scoring'): min qualifying (4 - ct) / 2 |
+| `town_tie_switch_odds` | 3 | 1 in n | FUN_0002ee8d (techspec 'Education-labor scoring'): tie switches on cfg_random(3) == 0 |
 | `vertical_interval` | 60 | days | gamelogic.md Decision schedule |
 
 ## 10 — Stock market
