@@ -48,7 +48,7 @@ and any rule it turns out to need goes to its own sim PR.
 | `stocks` | none | Per corporation: `corp`, `name`, `price`, `pe_ratio`, player's owned percent, value of the player's holding | Stock list |
 | `stock` | `corp` | `price`, `pe_ratio`, `daily_prices`, `monthly_prices`, `yearly_prices`, `total_shares`, `public_float`, `dividend_yield`, shareholders (`kind` corp or person, `id`, `name`, `shares`, percent, value); for the player's own corp, maximum issuable shares | Stock page |
 | `trade_quote` | `corp`, `side` (`buy`, `sell` or `issue`), `shares` | Estimated cost or receipt including `price_impact`, resulting ownership percent, and the allowed range of `shares` | Trade and Issue sliders |
-| `news` | `corp` (optional), `category` (optional), `since` (day serial, optional) | Newest first: `day_serial`, `category`, `corp_id`, `news_type`, `details`, `important`, and the headline text | News |
+| `news` | `corp` (optional), `category` (optional), `since` (day serial, optional) | Newest first: `day_serial`, `category`, `corp_id`, `corp_name`, `news_type`, `details`, `important`, `headline` (one line from the `news_headlines` table, naming the corp, firm type, town or product; no figures), and jump ids `corp`, `firm`, `product` (null when absent or gone) | News |
 | `goals` | none | `result` (`GameResult`), rows from `check_goals` (`name`, `target`, `current`, `met`, only targets above zero), years played, year limit, `difficulty` (`compute_difficulty_rating`), `score` (`compute_final_score`) | Goals, result card |
 | `plans` | `firm_type` | Plans in `PlanLibrary.folder_for(firm_type)`: index, `description`, slot preview (`job_type`, `product_id`), `connection_mask` | Plans browser |
 

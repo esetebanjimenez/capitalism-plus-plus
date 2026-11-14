@@ -18,7 +18,8 @@ from .firms import FIRM_CLASSES, Firm, MediaFirm, decode_links, edge_bit
 from .goals import GoalConfig, check_goals, compute_difficulty_rating, compute_final_score
 from .jobs import JOB_CLASSES, Job, Manufacturing, ProjectJob, Sales, product_freight_rate
 from .links import Link
-from .news import NewsCategory
+from .news import NewsCategory, NewsItem
+from .news_text import headline
 from .plans import PlanLibrary, apply_plan, capture
 from .sim import Sim
 from .tables import FIRM_TYPES, JOB_TYPES
@@ -673,12 +674,14 @@ class Api:
                 continue
             if since is not None and n.day_serial <= since:
                 continue
+            names, ids = self._news_refs(n)
             rows.append(
                 {
                     "day_serial": n.day_serial,
                     "category": int(n.category),
                     "category_name": NewsCategory(n.category).name.title(),
                     "corp_id": n.corp_id,
+                    "corp_name": names["corp"],
                     "news_type": int(n.news_type),
                     "details": {
                         k: v
@@ -686,10 +689,55 @@ class Api:
                         if isinstance(v, (int, float, str, bool)) or v is None
                     },
                     "important": n.important,
-                    "headline": n.news_type.name.replace("_", " ").capitalize(),
+                    "headline": headline(n.news_type, names),
+                    **ids,
                 }
             )
         return {"news": rows}
+
+    def _news_refs(self, n: NewsItem) -> tuple[dict[str, str | None], dict[str, int | None]]:
+        """Names for the headline placeholders, and the ids the client can jump to
+        (`corp`, `firm`, `product`; None when the item has none or it no longer exists)."""
+        d = n.details
+        corps = self.eco.corps
+
+        def corp(cid: object) -> Any:
+            return corps[cid] if isinstance(cid, int) and 0 <= cid < len(corps) else None
+
+        c, other = corp(n.corp_id), corp(d.get("other_corp"))
+        fid = d.get("firm_id", d.get("firm"))
+        firm = None
+        if isinstance(fid, int) and 0 <= fid < len(self.eco.firms):
+            firm = self.eco.firms[fid]
+        ftype = d.get("firm_type")
+        if ftype is None and firm is not None:
+            ftype = firm.row.id
+        town = None
+        tid = d.get("town")
+        if isinstance(tid, int) and 0 <= tid < len(self.sim.towns):
+            town = self.sim.towns[tid]
+        elif firm is not None:
+            town = getattr(firm, "town", None)
+        cat = self.eco.catalog
+        prod = d.get("product")
+        product = cat.by_name.get(prod) if isinstance(prod, str) else cat.by_id.get(prod)  # type: ignore[arg-type]
+        resource = d.get("resource")
+        names = {
+            "corp": c.name if c is not None else None,
+            "other_corp": other.name if other is not None else None,
+            "firm_type": FIRM_TYPES[ftype].name if ftype in FIRM_TYPES else None,
+            "town": town.name if town is not None else None,
+            "product": product.name
+            if product is not None
+            else (prod if isinstance(prod, str) else None),
+            "resource": resource if isinstance(resource, str) else None,
+        }
+        ids = {
+            "corp": c.id if c is not None else None,
+            "firm": firm.id if firm is not None else None,
+            "product": product.id if product is not None else None,
+        }
+        return names, ids
 
     def q_goals(self) -> Json:
         sim = self.sim

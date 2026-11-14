@@ -765,6 +765,39 @@ Reference: docs/recipes.md — 1STD.SET METHOD. Speed is a throughput multiplier
 | 13 | Newspaper Publisher | 10000000 | 200000 | 0 | no | no **p** | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
 | 14 | Seaport | 0 | 0 | 0 **p** | no | no | usd (setup); usd_per_month (overhead) | Firm types; Firm-to-job mapping (live inventory: Sales) |
 
+## News headlines (one line per news type; placeholders filled from the item, #253)
+
+| News type | Name | Template | Reference |
+|---|---|---|---|
+| 1 | FIRM_OPENED | {corp} opened a {firm_type} in {town} | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 2 | FIRM_CLOSED | {corp} closed a {firm_type} in {town} | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 3 | BANK_LOAN | {corp} took out a bank loan | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 4 | LOAN_REPAID | {corp} repaid a bank loan | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 5 | SHARES_ISSUED | {corp} issued new shares | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 6 | SHARE_TRADE | {corp} traded shares of {other_corp} | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 7 | ANNUAL_DIVIDEND | {corp} paid its annual dividend | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 8 | TENDER_OFFER | {corp} made a tender offer for {other_corp} | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 9 | NEW_COMPETITOR | {corp} entered the market | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 10 | BANKRUPTCY | {corp} went bankrupt | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 11 | CONTROL_CHANGE | {other_corp} took control of {corp} | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 12 | MERGER | {corp} merged with {other_corp} | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 13 | PRICE_WAR | {corp} started a price war on {product} | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 14 | INDUSTRY_DOMINANCE | {corp} now dominates its industry | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 15 | CEO_RETIREMENT | The CEO of {corp} retired | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 16 | CEO_SUCCESSION | {corp} named a new CEO | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 17 | RND_INVENTION | {corp} invented {product} | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 18 | PRODUCT_MADE_PUBLIC | The technology for {product} is now public | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 19 | RESOURCE_EXHAUSTED | A {resource} deposit near {town} ran out | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 20 | RESOURCE_DISCOVERED | A {resource} deposit was found near {town} | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 21 | RESOURCE_ON_SITE | {corp} found {resource} on its site | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 22 | CITY_FOUNDED | {town} was founded | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 23 | LIVESTOCK_DISEASE | Disease hit the livestock on {corp}'s farms | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 24 | BUILDING_DESTROYED | A {firm_type} owned by {corp} was destroyed | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 25 | CROP_FAILURE | Crops failed on {corp}'s farms | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 26 | RND_BREAKTHROUGH | {corp} made a research breakthrough on {product} | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 27 | INVENTORY_LOSS | A blackout spoiled stock at {corp}'s department stores | docs/m2-ux-spec.md section 4 (our wording, #253) |
+| 28 | ECONOMIC_DOWNTURN | An economic downturn cut corporate cash | docs/m2-ux-spec.md section 4 (our wording, #253) |
+
 ## Firm sectors (sector dominance goals; types not listed have no sector)
 
 | Firm type | Name | Sector | Sector name | Reference |

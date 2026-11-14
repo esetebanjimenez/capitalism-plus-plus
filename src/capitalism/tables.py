@@ -227,6 +227,16 @@ class FirmTypeRow(StaticModel):
     provisional: frozenset[str] = frozenset()
 
 
+class NewsHeadlineRow(StaticModel):
+    """One-line headline template per NewsType (#253); filled by news_text.headline."""
+
+    news_type: int = Field(ge=1)
+    name: str
+    template: str
+    ref: str
+    provisional: frozenset[str] = frozenset()
+
+
 class CompetitorCapitalRow(StaticModel):
     """AI starting-capital factor v per Competitor Capital setting (FUN_0007916c)."""
 
@@ -951,6 +961,17 @@ def load_raw_resource_types() -> dict[int, RawResourceRow]:
     return {int(r["product_id"]): RawResourceRow(**dict(r)) for r in rows}
 
 
+@lru_cache(maxsize=1)
+def load_news_headlines() -> dict[int, NewsHeadlineRow]:
+    out: dict[int, NewsHeadlineRow] = {}
+    for r in _rows("SELECT * FROM news_headlines ORDER BY news_type"):
+        d = dict(r)
+        d["provisional"] = _prov_cols(d["provisional"])
+        out[d["news_type"]] = NewsHeadlineRow(**d)
+    return out
+
+
+NEWS_HEADLINES = load_news_headlines()
 LIVESTOCK_YIELDS = load_livestock_yields()
 LIVESTOCK_HERD_RATES = load_livestock_herd_rates()
 RAW_RESOURCE_TYPES = load_raw_resource_types()
