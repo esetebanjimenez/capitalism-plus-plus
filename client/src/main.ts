@@ -21,6 +21,8 @@ import { CorpJson, ReportState, companyReport } from "./ui/company";
 import { showCompanyDemo } from "./ui/companydemo";
 import { GoalsJson, goalsScreen, yearsWarning } from "./ui/goals";
 import { showGoalsDemo } from "./ui/goalsdemo";
+import { endCard, EndKind, endWatcher, newGameUrl } from "./ui/endcard";
+import { showEndDemo } from "./ui/enddemo";
 import { Pick, isDesktop, panToShow, pickAt, visibleMapRect } from "./ui/layout";
 import { LoadingOverlay, showSimError } from "./ui/overlay";
 import { ALL_NEWS, NewsFilter, NewsItem, newsReport } from "./ui/news";
@@ -54,6 +56,12 @@ async function boot() {
   if (params.get("goals") === "demo") {
     await showGoalsDemo(Math.max(1, Math.round(devicePixelRatio)));
     document.title = "Capitalism++ goals ready";
+    return;
+  }
+  const end = params.get("end");
+  if (end === "win" || end === "time" || end === "rival" || end === "bankrupt") {
+    await showEndDemo(Math.max(1, Math.round(devicePixelRatio)), end as EndKind);
+    document.title = "Capitalism++ end ready";
     return;
   }
   const app = new Application();
@@ -325,6 +333,18 @@ async function boot() {
         if (w) shell.toast(w, "info", () => void showGoals());
       });
     goalsYear = t.year;
+  };
+  // Win/loss card (#263): the first tick with a result pauses the sim and shows the card.
+  // New game reloads with the same options and a new seed (devSetup picks one without ?seed).
+  const watchEnd = endWatcher(
+    () => (sim.setSpeed(0), shell.setSpeed(0), shell.close()),
+    () => sim.query<GoalsJson>("goals", {}),
+    (g) => document.body.append(endCard(g, () => location.replace(newGameUrl(location.href)))),
+  );
+  const onTickEnd = sim.onTick;
+  sim.onTick = (t) => {
+    onTickEnd(t);
+    watchEnd(t);
   };
   window.addEventListener("keydown", (e) => {
     const t = e.target as HTMLElement | null;

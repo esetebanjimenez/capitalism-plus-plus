@@ -55,6 +55,9 @@ const shots = [
   // phone; on desktop a live game run a year, then G.
   { name: "m2-goals-phone.png", w: 390, h: 844, dpr: 3, url: "?goals=demo" },
   { name: "m2-goals-desktop.png", w: 1280, h: 800, dpr: 1, url: "?seed=3", live: "goals" },
+  // #263 Win/loss card: each outcome on phone from ?end=, and one on desktop.
+  ...["win", "time", "rival", "bankrupt"].map((k) => ({ name: `m2-end-${k}-phone.png`, w: 390, h: 844, dpr: 3, url: `?end=${k}` })),
+  { name: "m2-end-rival-desktop.png", w: 1280, h: 800, dpr: 1, url: "?end=rival" },
 ];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function runForCharts(page) {
