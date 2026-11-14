@@ -64,8 +64,12 @@ anything starved or backed up?
 ### What it shows
 
 One plate per town on the map: the town's name and its level. Both come from
-the `map` query (`towns[].name`, `towns[].level`). Tapping the plate opens the
-Town panel, where population, GNP and the charts live. The plate never shows
+the `map` query (`towns[].name`, `towns[].level`). A long press or right
+click anywhere on the plate opens the Town panel, where population, GNP and
+the charts live. A plain tap or click goes through the plate to the tile
+underneath, so covered tiles keep their tile card and Build (Esteban, #336).
+While the tile under a plate is selected, draw the plate partly transparent
+so the selection shows through. The plate never shows
 those figures.
 
 ### How the rules work
