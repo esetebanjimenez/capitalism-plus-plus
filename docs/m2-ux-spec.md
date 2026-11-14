@@ -192,7 +192,8 @@ indicators": population, GNP, per capita GNP, unemployment, labor cost,
 labor quality, consumer spending and economic climate (`Town.population`,
 `Town.gnp`, `per_capita_gnp`, `unemployment`, `labor_cost`, `labor_quality`,
 `consumer_spending`, `climate`), plus the two 12-month charts for
-population growth and GNP growth (`Town.pop_ring`, `Town.gnp_level_ring`).
+population growth and GNP growth, each a month-on-month growth % in
+month order from the `town` query (#280, #255; per-capita GNP until #299).
 A Market tab lists products sold in the town with each consumer link's
 price, quality, brand and share, from the town market's live links.
 
