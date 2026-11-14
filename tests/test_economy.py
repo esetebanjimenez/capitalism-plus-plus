@@ -549,12 +549,46 @@ def test_oversupply_trim_two_percent():
     eco = sim.economy
     tm = eco.town_market(town, "Bread")
     for lk in links:
-        lk.quantity = tm.demand_per_day  # supply = 2 × demand
+        lk.quantity = tm.demand_per_day * 1.5  # each link sees S = 1.5 × D from the other
     before = [lk.quantity for lk in links]
     eco.market.consumer_pass(tm, 0, 1)
     for b, lk in zip(before, links, strict=True):
         assert lk.quantity < b
         assert lk.quantity == pytest.approx(b * 0.98, abs=b * 0.05)
+
+
+def test_town_sum_excludes_visiting_link():
+    """N10: S walks the other links only, so two links at q = D each are not trimmed."""
+    sim, town, links = _two_stores(50, 50)
+    eco = sim.economy
+    tm = eco.town_market(town, "Bread")
+    for lk in links:
+        lk.quantity = tm.demand_per_day
+    eco.market.consumer_pass(tm, 0, 1)
+    for lk in links:
+        assert lk.quantity > tm.demand_per_day * 0.99  # no q/50 trim
+
+
+def test_link_weight_by_place_kind():
+    """N7: +50 weight unless the firm sits on a town-core place kind (0x3008..0x300c)."""
+    from capitalism.tables import LINK_RULES, TOWN_SPREAD
+
+    _sim, _town, links = _two_stores(50, 50)
+    lk = links[0]
+    firm = lk.seller.firm
+    firm.weight_rate = 0
+    firm.place_kind = TOWN_SPREAD.urban_kind_base
+    lk.update_weight()
+    assert lk.weight == 0
+    firm.place_kind = TOWN_SPREAD.urban_kind_base + TOWN_SPREAD.urban_variants - 1
+    lk.update_weight()
+    assert lk.weight == 0
+    firm.place_kind = TOWN_SPREAD.rural_kind_base
+    lk.update_weight()
+    assert lk.weight == LINK_RULES.weight_off_core == 50
+    firm.weight_rate = 20
+    lk.update_weight()
+    assert lk.weight == LINK_RULES.weight_max
 
 
 def _run_chain(seed: int = 1, days: int = 120):
@@ -564,14 +598,14 @@ def _run_chain(seed: int = 1, days: int = 120):
     return sim, chain
 
 
-def test_bread_chain_end_to_end_seed_1():  # hash moved with N3/N7, #302 spread, #285 in-town chain
+def test_bread_chain_end_to_end_seed_1():  # hash moved with N3/N7, #302, #285, #351 N10
     sim, chain = _run_chain()
     link = chain.store_link
-    assert sim.state_hash() == ("df225b2885cf971b5fa70bad11b43722eb99f48bba585ff389c4b3f8b456488d")
-    assert sum(link.money_month) == pytest.approx(5673.744543052876, abs=1e-3)
+    assert sim.state_hash() == ("b0ab5e252e1310338e6bf80f41a6e5aa4c1329ba9b7bbafbfc76acac5a9c4630")
+    assert sum(link.money_month) == pytest.approx(11461.035905222763, abs=1e-3)
     assert chain.store_sales.unit_cost == pytest.approx(1.5, abs=1e-6)
     assert link.brand == pytest.approx(0.0, abs=1e-6)
-    assert chain.store_sales.quality == pytest.approx(13.722423470266442, abs=1e-5)
+    assert chain.store_sales.quality == pytest.approx(13.723558563894743, abs=1e-5)
     assert all(link.units_month[m] > 0 for m in (1, 2, 3))
 
 
@@ -593,20 +627,20 @@ def test_bread_chain_monthly_accounting():
     r = results[4]  # month after April closes; ledger index remains zero-based April = 3
     assert r["overhead"] == pytest.approx(300000.0)  # 2 factories + dept store, $100k/mo each
     assert r["revenue"] == pytest.approx(
-        2115.2682768393247, abs=0.01
-    )  # moved with #302 (founding spread shifts RNG)
+        4279.969179505154, abs=0.01
+    )  # moved with #302 (founding spread) and #351 (N10 town sum)
     assert (r["wages"], r["overhead"]) == (167_910, 300_000)
     assert r["training"] == pytest.approx(16_791, abs=1e-6)
     for job, qty, charge in zip(
         (chain.wheat_buy, chain.flour_buy, chain.bread_buy),
-        (1251.0, 1260.0, 1409.15983039618),
-        (1.3135499999999998, 2.205, 10.56869872797135),
+        (2529.0, 2547.0, 2851.212222215603),
+        (2.6554499999999996, 4.457249999999999, 21.38409166661702),
         strict=True,
     ):
         assert job.received_month[3] == pytest.approx(qty)
         assert job.freight_month[3] == pytest.approx(charge)
-    assert r["freight"] == pytest.approx(14.08724872797135)
-    assert r["profit"] == pytest.approx(-482724.91897188866, abs=0.01)
+    assert r["freight"] == pytest.approx(28.49679166661702)
+    assert r["profit"] == pytest.approx(-480702.4276121615, abs=0.01)
     assert r["profit"] == pytest.approx(
         r["revenue"] - r["wages"] - r["training"] - r["overhead"] - r["freight"] - r["wheat"]
     )

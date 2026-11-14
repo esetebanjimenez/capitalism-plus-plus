@@ -164,8 +164,8 @@ class TestConsumerPass:
         assert good.quantity > 0
         assert bad.quantity < 100.0
 
-    def test_oversupply_trim(self):
-        """Each link loses q/50 only when supply exceeds demand."""
+    def test_lone_link_not_trimmed(self):
+        """N10: S leaves out the visiting link, so a lone link never sees oversupply."""
         sim, town = bread_town()
         corp = sim.economy.add_corp("T")
         link = _link_in_town(sim, town, corp, quality=50)
@@ -173,7 +173,7 @@ class TestConsumerPass:
         link.quantity = tm.demand_per_day * 10
         before = link.quantity
         sim.economy.market.consumer_pass(tm, 0, 1)
-        assert link.quantity < before
+        assert link.quantity >= before
 
     def test_unmet_demand_accumulated(self):
         """K2: unmet demand accumulates when supply < demand."""

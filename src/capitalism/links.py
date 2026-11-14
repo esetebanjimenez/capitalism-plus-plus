@@ -11,7 +11,12 @@ from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from .catalog import Product, TownMarket
-from .tables import LINK_RULES
+from .tables import LINK_RULES, TOWN_SPREAD
+
+# Town-core place kinds (native urban 0x3008..0x300c), where N7 adds no weight bonus.
+_CORE_PLACES = range(
+    TOWN_SPREAD.urban_kind_base, TOWN_SPREAD.urban_kind_base + TOWN_SPREAD.urban_variants
+)
 
 BRAND_CORPORATE = 0
 BRAND_RANGE = 1
@@ -161,8 +166,11 @@ class Link:
 
     def update_weight(self) -> None:
         r = LINK_RULES
-        bonus = 0.0 if self.seller.firm.is_farm else r.weight_nonfarm
-        self.weight = min(r.weight_max, self.seller.firm.weight_rate * r.weight_rate_mult + bonus)
+        # N7 (techspec 'Weight', lines 1307-1310): firm short +0x56 x 5, plus 50 unless the
+        # firm sits on a town-core place kind (0x3008..0x300c). +0x56 stays 0 until #348.
+        firm = self.seller.firm
+        bonus = 0.0 if firm.place_kind in _CORE_PLACES else r.weight_off_core
+        self.weight = min(r.weight_max, firm.weight_rate * r.weight_rate_mult + bonus)
 
     def record_sale(self, qty: float) -> None:
         """Item-sell accounting on the link's monthly series."""
@@ -276,11 +284,14 @@ class Market:
         demand = tm.demand_per_day
         if demand <= 0:
             return
-        supply = sum(x.quantity for x in live)
-        if supply > demand:
-            for x in live:
-                if x.quantity > 0:
-                    x.quantity -= x.quantity / 50.0
+        # N10: the town sum S walks the other links only (techspec lines 1363-1368), so each
+        # visiting link compares demand with the rest of the town's supply.
+        total = sum(x.quantity for x in live)
+        for x in live:
+            if x.quantity > 0 and total - x.quantity > demand:
+                cut = x.quantity / 50.0
+                x.quantity -= cut
+                total -= cut
         for x in live:
             x.update_weight()
             gap = _reduce_gap(x, tm)
@@ -298,8 +309,8 @@ class Market:
             proj_flow = x.flow_prev * (30 - proj_day) / 30.0 + flow_this
             if proj_flow > 0.0 and proj_qty >= 2.0 * proj_flow:
                 continue
-            supply = sum(lk.quantity for lk in live)
-            free = max(0.0, demand - supply)
+            others = sum(lk.quantity for lk in live if lk is not x)  # N10
+            free = max(0.0, demand - others)
             if free > 0:
                 gap = _increase_gap(x, tm)
                 if gap > 0:
@@ -433,7 +444,9 @@ class Market:
         Each consumer link with awareness >= RATING_GATE is decayed.
         Importers (seller town != buyer town) lose a fixed amount by brand
         strategy; local producers lose min(RATING_GATE, demand / 20).
-        Demand and supply cells also decay.
+        The supply cell also decays. Native also decrements a ratings-row demand cell
+        (techspec lines 164-176), not the consumer demand D, so `demand_per_day` is left alone
+        (#351); this sim has no separate ratings-row demand cell yet.
         """
         for tm in self.towns.values():
             for link in tm.links:
@@ -446,7 +459,6 @@ class Market:
                 else:
                     decay = min(RATING_GATE, tm.demand_per_day / DEMAND_DIVISOR)
                 link.awareness -= decay
-                tm.demand_per_day = max(0.0, tm.demand_per_day - decay)
             if tm.supply_today > 0:
                 s_decay = min(tm.supply_today / 200.0, SUPPLY_DECAY_CAP)
                 tm.supply_today -= s_decay

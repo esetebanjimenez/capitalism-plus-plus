@@ -638,6 +638,9 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
    `weight = min(100, adjust_rate × 5 + (0 if seller is a Farm else 50))`.
    Keep it only as that explicit pending-research interpretation, not a
    resolved native mapping. Growth is proportional to `(100 − weight)`.
+   **Superseded (#351):** N7 (techspec lines 1307-1310) gives the rule as
+   `+50` unless the firm's place kind is town-core (0x3008..0x300c); the
+   key is now `weight_off_core`.
 5. **Consumer demand moves only on live-inventory links** (department
    store, restaurant). Each day the town's `demand` is split across those
    links by `score²` share (provisional; squaring makes the best store
@@ -656,7 +659,8 @@ Recipes are reference data (see `docs/recipes.md`), not provisional.
 
 Provisional scalars for slice 5 go in `rules` under system `links`:
 `price_base=100`, `price_slope=50`, `oversupply_div=20`,
-`share_exponent=2`, `ad_brand_per_100k=1`, `weight_nonfarm=50`.
+`share_exponent=2`, `ad_brand_per_100k=1`, `weight_nonfarm=50` (now
+`weight_off_core`, #351).
 
 ### Golden tests
 
