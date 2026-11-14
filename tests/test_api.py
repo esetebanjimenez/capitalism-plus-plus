@@ -362,3 +362,35 @@ def test_build_options_leave_out_the_seaport():
     res = run(api, "build_firm", firm_type=14, x=x, y=y)
     assert res["ok"] is False and "Seaport" in res["error"]
     assert not any(f for f in api.eco.firms if f is not None and f.x == x and f.y == y)
+
+
+def _advance_months(api: Api, months: int) -> None:
+    town = api.sim.towns[0]
+    target = min(12, town.months_recorded + months)
+    for _ in range(40 * months):
+        if town.months_recorded >= target and (target < 12 or _ >= 31 * months):
+            return
+        api.tick()
+
+
+def test_town_history_in_month_order():
+    """View brief section 4: month-ordered series for the town card charts (#255)."""
+    api = make_api()
+    town = api.sim.towns[0]
+    assert api.query("town", {"id": town.id})["pop_history"] == []
+
+    _advance_months(api, 3)
+    t = roundtrip(api.query("town", {"id": town.id}))
+    assert len(t["pop_history"]) == len(t["gnp_level_history"]) == 3
+    assert t["pop_history"][-1] == town.population
+    assert t["gnp_level_history"][-1] == town.per_capita_gnp
+    assert len(t["pop_growth_pct"]) == len(t["gnp_level_growth_pct"]) == 2
+    a, b = t["pop_history"][-2:]
+    assert t["pop_growth_pct"][-1] == (b / a - 1.0) * 100.0
+
+    _advance_months(api, 14)
+    t = roundtrip(api.query("town", {"id": town.id}))
+    assert len(t["pop_history"]) == len(t["gnp_level_history"]) == 12
+    assert len(t["pop_growth_pct"]) == 11
+    assert t["pop_history"][-1] == town.population
+    assert 0.0 not in t["pop_history"] and 0.0 not in t["gnp_level_history"]
