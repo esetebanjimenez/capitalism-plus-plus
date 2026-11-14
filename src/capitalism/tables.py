@@ -836,6 +836,13 @@ class AIRules(StaticModel):
     random_build_chance: float
     bankruptcy_age_threshold: float
     bankruptcy_value_threshold: float
+    site_core_kind_min: int
+    site_core_kind_max: int
+    site_ring_kind_min: int
+    site_ring_kind_max: int
+    site_ring_radius_extra: int
+    site_radius_cap: int
+    site_retries: int
 
 
 class NewsRules(StaticModel):

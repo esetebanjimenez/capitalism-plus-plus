@@ -135,41 +135,68 @@ def passes_profitability_gate(
 
 
 def find_ai_site(
-    eco: Economy, town: Town, rng: Rng, *, rural: bool = False, max_retries: int = 20
+    eco: Economy, town: Town, rng: Rng, *, core: bool = False, deposit: bool = False
 ) -> tuple[int, int] | None:
-    """AI location selection (gamelogic.md Location selection)."""
+    """AI location finder FUN_0002dc7c (gamelogic.md Location selection, #315).
+
+    The `core` branch uses the town's base radius and needs a core town tile
+    (0x3008..0x300c); the other uses base + 4 and needs an outer-ring tile
+    (0x3000..0x3007). Radius is capped, then grows by 1 on each failed try.
+    A town tile never holds a firm (a built tile becomes FIRM), so the kind
+    check also covers the native availability test.
+    """
     from .world import TileCategory
 
-    cx, cy = town.x, town.y
-    base_radius = town.level + (0 if rural else 4)
-    radius = min(base_radius, 4)
-
-    for attempt in range(max_retries):
+    if deposit:
+        return _find_offtown_site(eco, town, rng)
+    if core:
+        lo, hi, base = _AR.site_core_kind_min, _AR.site_core_kind_max, town.level
+    else:
+        lo, hi = _AR.site_ring_kind_min, _AR.site_ring_kind_max
+        base = town.level + _AR.site_ring_radius_extra
+    radius = min(base, _AR.site_radius_cap)
+    for attempt in range(_AR.site_retries):
         r = radius + attempt
         dx = rng.randint(-r, r)
         dy = rng.randint(-r, r)
-        x = max(0, min(eco.world.width - 1, cx + dx))
-        y = max(0, min(eco.world.height - 1, cy + dy))
+        x = max(0, min(eco.world.width - 1, town.x + dx))
+        y = max(0, min(eco.world.height - 1, town.y + dy))
         tile = eco.world.tile_at(x, y)
-        if rural:
-            if tile.kind in (TileCategory.GRASSLAND, TileCategory.FOREST_HILL):
-                return x, y
-        else:
-            if tile.kind not in (
-                TileCategory.TOWN,
-                TileCategory.FIRM,
-                TileCategory.WATER,
-                TileCategory.DEEP_OCEAN,
-            ):
-                return x, y
+        if tile.kind == TileCategory.TOWN and lo <= tile.town_kind <= hi:
+            return x, y
+    return None
+
+
+def _find_offtown_site(eco: Economy, town: Town, rng: Rng) -> tuple[int, int] | None:
+    """Pre-#315 grassland/forest search kept for deposit firms (types 5-7).
+
+    Natively they are placed by deposits (FUN_0002e3e0, #297); that is #317.
+    Until then they stay off town tiles, so they pay no wages (W2).
+    """
+    from .world import TileCategory
+
+    radius = min(town.level, _AR.site_radius_cap)
+    for attempt in range(_AR.site_retries):
+        r = radius + attempt
+        x = max(0, min(eco.world.width - 1, town.x + rng.randint(-r, r)))
+        y = max(0, min(eco.world.height - 1, town.y + rng.randint(-r, r)))
+        if eco.world.tile_at(x, y).kind in (TileCategory.GRASSLAND, TileCategory.FOREST_HILL):
+            return x, y
     return None
 
 
 def ai_build_firm(
-    eco: Economy, corp: Corporation, firm_type: int, town: Town, rng: Rng, *, rural: bool = False
+    eco: Economy,
+    corp: Corporation,
+    firm_type: int,
+    town: Town,
+    rng: Rng,
+    *,
+    core: bool = False,
+    deposit: bool = False,
 ) -> object | None:
     """Shared AI build path (gamelogic.md Firm creation)."""
-    site = find_ai_site(eco, town, rng, rural=rural)
+    site = find_ai_site(eco, town, rng, core=core, deposit=deposit)
     if site is None:
         return None
     x, y = site
@@ -466,7 +493,12 @@ def _strategy_dispatch(
         return
 
     # Build
-    firm = ai_build_firm(eco, corp, firm_type, town, rng, rural=firm_type in (4, 5, 6, 7))
+    # Type 4 (farm) takes the base-radius core branch until #314 item 6 answers.
+    # Types 5-7 (logging camp, mine, oil well) are deposit-placed natively (#297,
+    # #317) and keep the off-town search for now.
+    firm = ai_build_firm(
+        eco, corp, firm_type, town, rng, core=firm_type == 4, deposit=firm_type in (5, 6, 7)
+    )
     if firm is not None:
         ai.build_cooldowns[firm_type] = day_serial + int(_AR.build_cooldown)
         _configure_new_firm(eco, corp, firm, rng)
