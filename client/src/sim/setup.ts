@@ -29,5 +29,18 @@ export function randomSeed(): number {
   return a[0] & 0x7fffffff;
 }
 
+/**
+ * The M2 test setup with a random seed. Dev-only URL options for tests and screenshots:
+ * `seed=N` fixes the seed, `events=0..3` sets the random event frequency (off by default).
+ */
+export function devSetup(search: string): GameSetup {
+  const q = new URLSearchParams(search);
+  const seed = Number(q.get("seed"));
+  const setup = m2TestSetup(q.has("seed") && Number.isInteger(seed) && seed >= 0 ? seed : randomSeed());
+  const events = Number(q.get("events"));
+  if (q.has("events") && [0, 1, 2, 3].includes(events)) setup.setup = { ...setup.setup, event_frequency: events };
+  return setup;
+}
+
 /** Setup with the fixed test seed, for tests and the CI boot. */
 export const DEFAULT_SETUP: GameSetup = m2TestSetup();

@@ -132,8 +132,14 @@ export class Shell {
     this.badge.hidden = n === 0;
   }
 
-  toast(text: string, kind: "info" | "error" = "info"): void {
+  /** A 4 s toast; with `onTap` it can be tapped (an important news item opens it). */
+  toast(text: string, kind: "info" | "error" = "info", onTap?: () => void): void {
     const t = el("div", `toast ${kind === "error" ? "toast-error ui-toast_error" : "ui-card_float"}`, text);
+    if (onTap) {
+      t.classList.add("tap");
+      t.setAttribute("role", "button");
+      t.onclick = () => (t.remove(), onTap());
+    }
     this.toasts.append(t);
     setTimeout(() => t.remove(), 4000);
   }
