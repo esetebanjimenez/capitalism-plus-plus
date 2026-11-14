@@ -237,6 +237,7 @@ async function boot() {
   const showSelection = () => {
     const open = shell.current && selected && !shell.current.key.startsWith("menu");
     selection.visible = Boolean(open);
+    plates.selected = open ? selected : null;
     if (open) selection.position.set(selected!.x * TILE_PX, selected!.y * TILE_PX);
   };
   shell.onLayout = (h) => {
@@ -265,12 +266,29 @@ async function boot() {
     }
   };
 
-  // Pan with one pointer or the mouse; a short press that barely moves is a tap.
-  let drag: { id: number; x: number; y: number; x0: number; y0: number; t0: number } | null = null;
+  // Pan with one pointer or the mouse; a short press that barely moves is a tap. A long press
+  // or right click on a town plate opens its town card (#250 review); other taps go through.
+  const LONG_PRESS_MS = 450;
+  const pickScreen = (x: number, y: number) => {
+    const s = resolution / view.zoom;
+    return pickAt(map, view.x + x * s, view.y + y * s, ptPerWorld());
+  };
+  const longPressAt = (x: number, y: number) => {
+    const town = plates.townAt(x, y);
+    if (town) select({ kind: "town", town });
+    return Boolean(town);
+  };
+  type Drag = { id: number; x: number; y: number; x0: number; y0: number; t0: number; button: number; long?: number; done?: boolean };
+  let drag = null as Drag | null;
   app.canvas.addEventListener("pointerdown", (e) => {
     if (drag) return;
     app.canvas.setPointerCapture(e.pointerId);
-    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, t0: performance.now() };
+    const d: Drag = { id: e.pointerId, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, t0: performance.now(), button: e.button };
+    if (e.button === 0)
+      d.long = window.setTimeout(() => {
+        if (drag?.id === d.id && Math.hypot(drag.x - d.x0, drag.y - d.y0) < 8) drag.done = longPressAt(d.x0, d.y0);
+      }, LONG_PRESS_MS);
+    drag = d;
   });
   app.canvas.addEventListener("pointermove", (e) => {
     if (!drag || drag.id !== e.pointerId) return;
@@ -280,18 +298,21 @@ async function boot() {
   });
   const up = (e: PointerEvent) => {
     if (drag?.id !== e.pointerId) return;
-    const tap = Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 8 && performance.now() - drag.t0 < 500;
+    const d = drag;
     drag = null;
-    if (tap && e.type === "pointerup") {
-      const s = resolution / view.zoom;
-      select(pickAt(map, view.x + e.clientX * s, view.y + e.clientY * s, ptPerWorld()));
-    }
+    clearTimeout(d.long);
+    const tap = Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 8 && performance.now() - d.t0 < 500;
+    if (tap && !d.done && d.button === 0 && e.type === "pointerup") select(pickScreen(e.clientX, e.clientY));
   };
   app.canvas.addEventListener("pointerup", up);
   app.canvas.addEventListener("pointercancel", up);
-  (window as unknown as { __tap: (x: number, y: number) => void }).__tap = (x, y) => {
-    const s = resolution / view.zoom;
-    select(pickAt(map, view.x + x * s, view.y + y * s, ptPerWorld()));
+  app.canvas.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    longPressAt(e.clientX, e.clientY);
+  });
+  (window as unknown as { __tap: (x: number, y: number, long?: boolean) => void }).__tap = (x, y, long = false) => {
+    if (!long) select(pickScreen(x, y));
+    else longPressAt(x, y);
   };
   window.addEventListener("resize", apply);
   apply();

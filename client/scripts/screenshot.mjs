@@ -24,6 +24,10 @@ const shots = [
   // #250 town-name plates over the sample map (towns from the map's town table).
   { name: "m2-map-plates-desktop.png", w: 1280, h: 800, dpr: 1, q: "x=203&y=146" },
   { name: "m2-map-plates-phone.png", w: 390, h: 844, dpr: 3, q: "x=206&y=144" },
+  // #336 review: a tap on a plate selects the tile under it (plate goes see-through); a long
+  // press on the plate opens the town card.
+  { name: "m2-map-plates-tile-phone.png", w: 390, h: 844, dpr: 3, q: "x=206&y=144", plate: "tap" },
+  { name: "m2-map-plates-town-phone.png", w: 390, h: 844, dpr: 3, q: "x=206&y=144", plate: "long" },
   // #178 chart style: profit crossing zero (April tip shown), a single point, a share price.
   { name: "m2-chart-demo.png", w: 1024, h: 230, dpr: 1, url: "?chart=demo" },
 ];
@@ -41,6 +45,17 @@ try {
       .waitForFunction(() => !/Loading Python|Creating the world/.test(document.body.innerText), { timeout: 35000 })
       .catch(() => {});
     await new Promise((r) => setTimeout(r, 500));
+    if (s.plate) {
+      // The middle of the plate nearest the screen centre.
+      const at = await page.evaluate(() => {
+        const rs = [...document.querySelectorAll(".plate:not([hidden])")].map((p) => p.getBoundingClientRect());
+        const d = (r) => Math.hypot(r.x + r.width / 2 - innerWidth / 2, r.y + r.height / 2 - innerHeight / 2);
+        const r = rs.sort((a, b) => d(a) - d(b))[0];
+        return [r.x + r.width / 2, r.y + r.height / 2];
+      });
+      await page.evaluate(([x, y, long]) => window.__tap(x, y, long), [...at, s.plate === "long"]);
+      await new Promise((r) => setTimeout(r, 800));
+    }
     if (s.tap) {
       await page.evaluate(([x, y]) => window.__tap(x, y), s.tap);
       await new Promise((r) => setTimeout(r, 600));

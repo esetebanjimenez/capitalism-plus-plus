@@ -3,7 +3,8 @@
  * over the canvas with one `card` plate per town showing its name and level. Plates sit above
  * the map and below panels and toasts; a plate outside the part of the map a panel leaves
  * visible is hidden. Plates don't take taps (Esteban, PR #336): a tap goes to the tile
- * underneath, and tapping the town's own tile opens the town card.
+ * underneath, a long press or right click on a plate opens its town card (`townAt`), and a
+ * plate goes see-through while the tile under it is selected.
  */
 import { TILE_PX, View } from "../chunkmath";
 import { TownInfo } from "../mapdata";
@@ -36,12 +37,23 @@ export function plateRect(t: TownInfo, view: View, resolution: number) {
 type Rect = { x: number; y: number; w: number; h: number };
 const inside = (r: Rect, area: Rect) =>
   r.x >= area.x && r.y >= area.y && r.x + r.w <= area.x + area.w && r.y + r.h <= area.y + area.h;
+const overlaps = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+/** A tile's square on screen, in CSS px. */
+export function tileRect(x: number, y: number, view: View, resolution: number): Rect {
+  const s = view.zoom / resolution;
+  return { x: (x * TILE_PX - view.x) * s, y: (y * TILE_PX - view.y) * s, w: TILE_PX * s, h: TILE_PX * s };
+}
 
 export class TownPlates {
   readonly layer = document.createElement("div");
   private plates = new Map<number, { el: HTMLDivElement; name: HTMLSpanElement; badge: HTMLSpanElement }>();
   private levels = new Map<number, number>();
   private towns: TownInfo[] = [];
+  /** Where each shown plate is on screen, for `townAt`. */
+  private shown = new Map<number, Rect>();
+  /** The selected tile; plates over it go see-through. */
+  selected: { x: number; y: number } | null = null;
 
   constructor() {
     this.layer.className = "plates";
@@ -93,13 +105,27 @@ export class TownPlates {
 
   /** Position plates for the view; hide those outside `area` (the map a panel leaves). */
   update(view: View, resolution: number, area: Rect): void {
+    this.shown.clear();
+    const sel = this.selected && tileRect(this.selected.x, this.selected.y, view, resolution);
     for (const t of this.towns) {
       const p = this.plates.get(t.id);
       if (!p) continue;
       const r = plateRect(t, view, resolution);
       const show = inside(r, area);
       p.el.hidden = !show;
-      if (show) p.el.style.transform = `translate(${r.x}px, ${r.y}px)`;
+      if (!show) continue;
+      this.shown.set(t.id, r);
+      p.el.style.transform = `translate(${r.x}px, ${r.y}px)`;
+      p.el.classList.toggle("dim", Boolean(sel && overlaps(sel, r)));
     }
+  }
+
+  /** The town whose shown plate is under a screen point (the top one if plates overlap). */
+  townAt(cx: number, cy: number): TownInfo | null {
+    for (let i = this.towns.length - 1; i >= 0; i--) {
+      const r = this.shown.get(this.towns[i].id);
+      if (r && cx >= r.x && cx < r.x + r.w && cy >= r.y && cy < r.y + r.h) return this.towns[i];
+    }
+    return null;
   }
 }
