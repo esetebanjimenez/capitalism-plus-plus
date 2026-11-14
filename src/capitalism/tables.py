@@ -80,10 +80,10 @@ class LandValueRules(StaticModel):
 class TownSpread(StaticModel):
     spread_fringe: int
     spread_overlap_odds: int
-    rural_kind_base: int
-    rural_variants: int
     urban_kind_base: int
     urban_variants: int
+    rural_kind_base: int
+    rural_variants: int
 
 
 class LevelRules(StaticModel):

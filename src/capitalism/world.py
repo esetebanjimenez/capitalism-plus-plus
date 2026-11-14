@@ -18,11 +18,11 @@ CITY_MIN_DIST = MAP_RULES.city_min_dist
 MAX_CITIES = MAP_RULES.max_cities
 LAND_VALUE_FLOOR = LAND_VALUE.floor
 
-# Native town tile kinds (techspec "Town spread"): urban 0x3000-0x3007, rural 0x3008-0x300c.
-URBAN_BASE = TOWN_SPREAD.urban_kind_base
+# Native town tile kinds (techspec "Town spread"): rural 0x3000-0x3007, urban 0x3008-0x300c.
 RURAL_BASE = TOWN_SPREAD.rural_kind_base
-URBAN_KINDS = range(URBAN_BASE, URBAN_BASE + TOWN_SPREAD.urban_variants)
+URBAN_BASE = TOWN_SPREAD.urban_kind_base
 RURAL_KINDS = range(RURAL_BASE, RURAL_BASE + TOWN_SPREAD.rural_variants)
+URBAN_KINDS = range(URBAN_BASE, URBAN_BASE + TOWN_SPREAD.urban_variants)
 # What a firm stands on when it is not a town tile (native grassland / forest-hill ranges).
 GRASS_PLACE = 0x2000
 FOREST_PLACE = 0x2013
@@ -45,7 +45,7 @@ class TileCategory(IntEnum):
 
 
 class Tile:
-    """`town_kind` is the native town tile kind (urban or rural range) for TOWN tiles, else 0."""
+    """`town_kind` is the native town tile kind (rural or urban range) for TOWN tiles, else 0."""
 
     __slots__ = (
         "climate",
@@ -170,19 +170,19 @@ class World:
         return self.tile_at(x, y).kind in (
             TileCategory.GRASSLAND,
             TileCategory.FOREST_HILL,
-            TileCategory.TOWN,  # urban and rural town tiles (Esteban, #305)
+            TileCategory.TOWN,  # rural and urban town tiles (Esteban, #305)
         )
 
     def spread_town(self, town: Town, rng: Rng, firms: list | None = None) -> None:
         """Paint town tiles on level-up (native FUN_0004c334, decomp:47149-47292).
 
         Scans a square of side 2 x (level + 4) + 1 in row order:
-        - core (rounded Euclidean distance < level): grassland and urban tiles
-          become rural (random(5) + 0x3008);
+        - core (rounded Euclidean distance < level): grassland and rural tiles
+          become urban (random(5) + 0x3008);
         - Chebyshev overlap (Euclidean >= level, Chebyshev <= level): 1 in 10
           takes the core path;
-        - outer fringe (Chebyshev level+1 .. level+4): grassland becomes urban
-          (random(8) + 0x3000); urban tiles are left alone.
+        - outer fringe (Chebyshev level+1 .. level+4): grassland becomes rural
+          (random(8) + 0x3000); rural tiles are left alone.
         Forest/hill and ocean are never converted. Meeting another town's tile
         sets the abort flag, which stops this scan and every later spread.
         A firm with no workforce on a converted tile takes the new kind as its
@@ -211,7 +211,7 @@ class World:
                     place, owner_town = GRASS_PLACE, -1
                 else:
                     continue  # forest/hill, water, ocean: never converted
-                is_town = place in URBAN_KINDS or place in RURAL_KINDS
+                is_town = place in RURAL_KINDS or place in URBAN_KINDS
                 if is_town and owner_town != town.id:
                     town.spread_blocked = True  # native abort flag town+0x1d
                     return
@@ -219,15 +219,15 @@ class World:
                 if max(dx, dy) > lv:
                     if place != GRASS_PLACE:
                         continue
-                    new = URBAN_BASE + rng.randint(0, TOWN_SPREAD.urban_variants - 1)
+                    new = RURAL_BASE + rng.randint(0, TOWN_SPREAD.rural_variants - 1)
                 else:
                     if round_dist(dx, dy) >= lv and rng.randint(
                         0, TOWN_SPREAD.spread_overlap_odds - 1
                     ):
                         continue
-                    if place != GRASS_PLACE and place not in URBAN_KINDS:
+                    if place != GRASS_PLACE and place not in RURAL_KINDS:
                         continue
-                    new = RURAL_BASE + rng.randint(0, TOWN_SPREAD.rural_variants - 1)
+                    new = URBAN_BASE + rng.randint(0, TOWN_SPREAD.urban_variants - 1)
                 if firm is not None:
                     if firm.workforce == 0:
                         firm.place_kind, firm.place_town = new, town.id
@@ -446,7 +446,7 @@ class World:
         town's starting level (decomp:46371-46378)."""
         tile = self.tile_at(town.x, town.y)
         tile.kind = TileCategory.TOWN
-        tile.town_kind = RURAL_BASE  # centre tile kind at founding: not traced (provisional)
+        tile.town_kind = URBAN_BASE  # centre tile kind at founding: not traced (provisional)
         tile.ref = town.id
         target = town.level
         for lv in range(2, target + 1):
