@@ -42,12 +42,42 @@ const shots = [
   // then Menu > News (phone) or N (desktop).
   { name: "m2-news-phone.png", w: 390, h: 844, dpr: 3, url: "?events=3&seed=3", news: "menu", toast: "m2-news-toast-phone.png" },
   { name: "m2-news-desktop.png", w: 1280, h: 800, dpr: 1, url: "?events=3&seed=3", news: "key" },
+  // #258 Company Charts tab with fixed demo data (operating profit crosses zero; a tapped point).
+  { name: "m2-company-charts-phone.png", w: 390, h: 844, dpr: 3, url: "?company=demo&tab=Charts", chartTap: [1, 0.55] },
+  { name: "m2-company-charts-years-phone.png", w: 390, h: 844, dpr: 3, url: "?company=demo&tab=Charts&range=years" },
+  // Desktop over a live game: four firms, 13 months run, then C and the Charts tab.
+  { name: "m2-company-charts-desktop.png", w: 1280, h: 800, dpr: 1, url: "", live: "charts" },
   // #259 town card over a live game run 13 months, from a long press on the nearest plate;
   // the phone also drags the sheet up to half for the growth charts.
   { name: "m2-town-card-phone.png", w: 390, h: 844, dpr: 3, url: "?seed=3", town: true, half: "m2-town-card-half-phone.png" },
   { name: "m2-town-card-desktop.png", w: 1280, h: 800, dpr: 1, url: "?seed=3", town: true },
 ];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function runForCharts(page) {
+  await page.waitForFunction(() => !/Loading Python|Creating the world/.test(document.body.innerText), { timeout: 120000 });
+  // The live world is random, so look up buildable tiles around the first town.
+  await page.evaluate(async () => {
+    const sim = window.__sim;
+    const { towns } = await sim.query("map", {});
+    const t = towns[0];
+    const spots = [];
+    for (let r = 6; r < 30 && spots.length < 4; r += 2)
+      for (const [dx, dy] of [[r, 0], [-r, 0], [0, r], [0, -r], [r, r], [-r, -r]]) {
+        if (spots.length >= 4) break;
+        const tile = await sim.query("tile", { x: t.x + dx, y: t.y + dy });
+        if (tile.can_build && !spots.some(([x, y]) => Math.abs(x - tile.x) < 4 && Math.abs(y - tile.y) < 4)) spots.push([tile.x, tile.y]);
+      }
+    [4, 4, 3, 1].forEach((firm_type, i) => spots[i] && sim.command("build_firm", { firm_type, x: spots[i][0], y: spots[i][1] }));
+    sim.step(400);
+  });
+  await page.waitForFunction(() => /1991/.test(document.body.innerText), { timeout: 120000 });
+  await page.evaluate(() => window.__sim.setSpeed(0));
+  await sleep(800);
+  await page.keyboard.press("c");
+  await page.waitForSelector(".company .tab", { timeout: 30000 });
+  await page.evaluate(() => Array.from(document.querySelectorAll(".company .tab")).find((b) => b.textContent === "Charts").click());
+  await sleep(800);
+}
 /** Builds a few firms in a live game with events on, steps it three years and shoots the toasts. */
 async function runForNews(page, s) {
   await page.waitForFunction(() => !/Loading Python|Creating the world/.test(document.body.innerText), { timeout: 120000 });
@@ -158,6 +188,15 @@ try {
         await page.evaluate(([x, y]) => window.__tap(x, y), [x, y]);
         await new Promise((r) => setTimeout(r, 700));
       }
+    }
+    if (s.live === "charts") await runForCharts(page);
+    if (s.live) await page.evaluate(() => document.querySelectorAll(".toast").forEach((t) => t.remove()));
+    if (s.chartTap) {
+      // Tap chart number chartTap[0] at a fraction of its width, to show the value tip.
+      const [i, fx] = s.chartTap;
+      const box = await (await page.$$(".chart"))[i].boundingBox();
+      await page.mouse.click(box.x + box.width * fx, box.y + box.height / 2);
+      await new Promise((r) => setTimeout(r, 200));
     }
     stats[s.name] = await page.evaluate(() => window.__cppStats);
     writeFileSync(new URL(s.name, out), await page.screenshot());

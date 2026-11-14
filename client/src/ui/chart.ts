@@ -54,7 +54,7 @@ export function axisRange(values: number[], lines = style.grid.lines): { min: nu
   if (lo === hi) {
     lo = Math.min(0, lo);
     hi = Math.max(0, hi);
-    if (lo === hi) hi = 1;
+    if (lo === hi) hi = 1000; // all zero: a money axis of 0 to 1k, not 0.5 steps
   }
   const intervals = Math.max(1, lines - 1);
   const raw = (hi - lo) / intervals;
@@ -80,7 +80,15 @@ export interface ChartLayout {
   zeroY: number | null;
 }
 
-const PAD = { left: 40, right: 14, top: 30, bottom: 28 };
+/** The card frame's border (ui_atlas card slice 6 + 6): the SVG sits inside it, so the card's
+ * inner right edge is at x = w - CARD_BORDER. */
+const CARD_BORDER = 12;
+/** Half the widest x label ("1990" at 10 pt, about 22 pt wide) and the tapped dot's radius. */
+const LABEL_HALF = 11;
+const DOT_R = 5;
+/** Right padding keeps the last dot and its x label inside the border, plus 4 pt (Artist, #341).
+ * The same for every chart so the cards line up. */
+const PAD = { left: 40, right: CARD_BORDER + Math.max(LABEL_HALF, DOT_R) + 4, top: 30, bottom: 28 };
 
 /** Pure layout: where each tick, grid line and point goes in a w x h chart. */
 export function chartLayout(
