@@ -8,13 +8,15 @@ import marksJson from "../../art/atlas/marks_atlas.json";
 import marks64Url from "../../art/atlas/marks_atlas_64.png?url";
 import marks64Json from "../../art/atlas/marks_atlas_64.json";
 import { ChunkCache, TerrainOptions } from "./chunks";
-import { FirmLayer } from "./firms";
+import { FIRM_NAMES, FirmLayer } from "./firms";
 import { CHUNK_TILES, STANDARD_STEP, TILE_PX, View, clampView, makeView, sheetFor } from "./chunkmath";
 import { MapData, MapJson, MapObjectsJson, applyMapObjects, mapFromJson, parseMap } from "./mapdata";
 import { loadUiAtlas } from "./ui/atlas";
 import { showChartDemo } from "./ui/chartdemo";
 import { TileJson, firmCard, menuPanel, sampleTile, tileCard, townCard } from "./ui/cards";
-import { Pick, panToShow, pickAt, visibleMapRect } from "./ui/layout";
+import { CorpJson, ReportState, companyReport } from "./ui/company";
+import { showCompanyDemo } from "./ui/companydemo";
+import { Pick, isDesktop, panToShow, pickAt, visibleMapRect } from "./ui/layout";
 import { LoadingOverlay, showSimError } from "./ui/overlay";
 import { Shell } from "./ui/shell";
 import { SimClient, type WorkerPort } from "./sim/client";
@@ -31,6 +33,11 @@ async function boot() {
   if (params.get("chart") === "demo") {
     await showChartDemo(Math.max(1, Math.round(devicePixelRatio)));
     document.title = "Capitalism++ chart ready";
+    return;
+  }
+  if (params.get("company") === "demo") {
+    await showCompanyDemo(Math.max(1, Math.round(devicePixelRatio)), params.get("firm") === "1");
+    document.title = "Capitalism++ company ready";
     return;
   }
   const app = new Application();
@@ -185,7 +192,39 @@ async function boot() {
       if (t.map_rev !== map.rev) void refreshMap();
     };
   }
-  shell.onMenu = () => shell.open(menuPanel((name) => (shell.close(), shell.toast(`${name} comes in a later PR.`))));
+  // Company report (#257): Menu > Company or C on desktop; refreshes each month while open.
+  let report: ReportState = { tab: "Income", byFirm: false };
+  const firmById = (id: number) => map.firms.find((f) => f.id === id);
+  const showCompany = async () => {
+    const corp = await sim.query<CorpJson>("corp", { id: 0 });
+    shell.open(
+      companyReport(corp, report, {
+        firmLabel: (id) => `${FIRM_NAMES[firmById(id)?.type ?? -1] ?? "Firm"} #${id}`,
+        onFirm: (id) => {
+          const f = firmById(id);
+          if (f) select({ kind: "firm", firm: f });
+        },
+        onState: (s) => ((report = s), void showCompany()),
+      }),
+    );
+  };
+  let reportMonth = -1;
+  const onTickReport = sim.onTick;
+  sim.onTick = (t) => {
+    onTickReport(t);
+    const month = t.year * 12 + t.month;
+    if (month !== reportMonth && reportMonth >= 0 && shell.current?.key === "company") void showCompany();
+    reportMonth = month;
+  };
+  window.addEventListener("keydown", (e) => {
+    const t = e.target as HTMLElement | null;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+    if ((e.key === "c" || e.key === "C") && isDesktop(window.innerWidth) && !e.metaKey && !e.ctrlKey) void showCompany();
+  });
+  shell.onMenu = () =>
+    shell.open(
+      menuPanel((name) => (name === "Company" ? void showCompany() : (shell.close(), shell.toast(`${name} comes in a later PR.`)))),
+    );
   let selected: { x: number; y: number } | null = null;
   const ptPerWorld = () => view.zoom / resolution;
   const showSelection = () => {
